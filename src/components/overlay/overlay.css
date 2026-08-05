@@ -1,0 +1,327 @@
+/*
+ * 서랍 · 모달 — 원본 style.css 의 .drawer-overlay / .bid-drawer / .settings-modal 블록.
+ * z-index 는 tokens.css 가 갖는다(원본은 규칙마다 숫자를 박아 두어 서로 비교가 안 됐다).
+ */
+
+.overlay-scrim {
+  position: fixed;
+  inset: 0;
+  background: var(--drawer-scrim);
+  z-index: var(--z-drawer-overlay);
+  cursor: pointer;
+  border: none;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+}
+.overlay-scrim.modal-level {
+  z-index: var(--z-modal-overlay);
+}
+
+.drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: var(--drawer-width);
+  height: 100vh;
+  background: var(--surface);
+  z-index: var(--z-drawer);
+  display: flex;
+  flex-direction: column;
+  box-shadow: -4px 0 32px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+}
+
+.drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.drawer-badge {
+  font-size: var(--fs-badge);
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 10px;
+}
+.drawer-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: var(--muted);
+  line-height: 1;
+  padding: 0 4px;
+}
+.drawer-close:hover {
+  color: var(--text);
+}
+.drawer-title {
+  font-size: var(--fs-base);
+  font-weight: 700;
+  line-height: 1.5;
+  padding: 12px 20px 8px;
+  color: var(--text);
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+}
+.drawer-meta {
+  padding: 12px 20px;
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  gap: 6px 10px;
+  flex-shrink: 0;
+  overflow-y: auto;
+  max-height: 36vh;
+  border-bottom: 1px solid var(--border);
+}
+.meta-key {
+  color: var(--muted);
+  font-size: var(--fs-badge);
+  font-weight: 600;
+  white-space: nowrap;
+  padding-top: 1px;
+}
+.meta-val {
+  font-size: var(--fs-table);
+  word-break: break-word;
+}
+.meta-val a {
+  color: var(--primary);
+}
+/* 접이식 블록은 두 칸을 다 쓴다 — 라벨/값 격자 밖으로 나가야 폭이 산다. */
+.drawer-meta > .collapsible {
+  grid-column: 1 / -1;
+}
+.drawer-section {
+  padding: 14px 20px;
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.drawer-section.tight {
+  flex: 0 0 auto;
+  overflow: visible;
+  border-top: 1px solid var(--border);
+}
+.drawer-section-label {
+  font-size: var(--fs-meta);
+  font-weight: 700;
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.drawer-summary {
+  font-size: var(--fs-table);
+  line-height: 1.8;
+}
+.summary-text strong {
+  color: var(--primary);
+}
+.summary-error {
+  color: var(--danger);
+  font-size: var(--fs-meta);
+  margin-bottom: 8px;
+}
+.source-label {
+  font-size: var(--fs-badge);
+  color: var(--muted);
+  margin-bottom: 8px;
+  padding: 3px 8px;
+  background: var(--table-head-bg);
+  border-radius: 4px;
+  display: inline-block;
+}
+.drawer-footer {
+  padding: 12px 20px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.btn-g2b-link {
+  display: inline-block;
+  padding: 8px 18px;
+  background: var(--table-head-bg);
+  color: var(--primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: var(--fs-table);
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.15s;
+}
+.btn-g2b-link:hover {
+  background: var(--blue-soft);
+  text-decoration: none;
+}
+.btn-ai {
+  padding: 8px 20px;
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  font-size: var(--fs-table);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-ai:hover:not(:disabled) {
+  background: var(--primary-dark);
+}
+.btn-ai:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.btn-opening-fetch {
+  font-size: var(--fs-badge);
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  cursor: pointer;
+}
+
+/* 개찰 결과 표 — 원본 fetchOpeningResults 가 인라인 스타일로 그리던 것 */
+.opening-table-wrap {
+  overflow-x: auto;
+}
+.opening-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-meta);
+}
+.opening-table thead tr {
+  background: var(--surface-2);
+  font-size: var(--fs-badge);
+  color: var(--muted);
+}
+.opening-table th,
+.opening-table td {
+  padding: 4px 8px;
+}
+.opening-table .num {
+  text-align: right;
+}
+.opening-table .mid {
+  text-align: center;
+}
+.opening-table tr.win {
+  font-weight: 600;
+  background: var(--accent-light);
+}
+.opening-note {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: var(--fs-badge);
+}
+
+/* ── 모달 ──────────────────────────────────────────────────────────────── */
+.modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(480px, 92vw);
+  background: var(--surface);
+  border-radius: var(--radius);
+  z-index: var(--z-modal);
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  max-height: 85vh;
+}
+.modal-wide {
+  width: min(900px, 95vw);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.modal-header h3 {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}
+.modal-body {
+  padding: 16px 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+.modal-footer {
+  padding: 12px 20px;
+  border-top: 1px solid var(--border);
+  text-align: right;
+}
+
+/* ── 접이식 블록 — 원본 .raw-details ───────────────────────────────────── */
+.collapsible {
+  margin-top: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--drawer-raw-bg);
+  padding: 10px 12px;
+}
+.collapsible > summary {
+  cursor: pointer;
+  font-weight: 700;
+  color: var(--primary);
+  font-size: var(--fs-meta);
+}
+.collapsible.quiet > summary {
+  color: var(--muted);
+  font-weight: 400;
+}
+.raw-grid {
+  display: grid;
+  grid-template-columns: 124px 1fr;
+  gap: 6px 10px;
+  margin-top: 10px;
+}
+.raw-key {
+  color: var(--muted);
+  font-size: var(--fs-badge);
+  font-weight: 700;
+  word-break: break-all;
+}
+.raw-val {
+  font-size: var(--fs-meta);
+  word-break: break-all;
+}
+.spec-row {
+  margin-top: 8px;
+}
+.spec-row span {
+  color: var(--text);
+  white-space: pre-wrap;
+}
+
+/* 물품 상세 칩 — 원본 .product-detail-list */
+.product-detail-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 0;
+}
+.product-detail-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  background: var(--blue-soft);
+  color: var(--primary);
+  font-size: var(--fs-meta);
+  line-height: 1.3;
+}
+.product-detail-chip strong {
+  font-variant-numeric: tabular-nums;
+}

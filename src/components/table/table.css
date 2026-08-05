@@ -1,0 +1,357 @@
+/*
+ * 결과 표 — 원본 style.css 의 #table-wrap / #result-table 블록.
+ * id 선택자를 클래스로 바꾼 것 말고는 규칙이 같다(표가 화면에 하나뿐이라는 전제가
+ * 라우터 도입으로 깨졌다 — 서랍 안에도 표가 생긴다).
+ */
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+.data-table {
+  width: 100%;
+  /* 컬럼이 17개까지 늘어나므로 좁히면 글자가 세로로 접힌다 — 원본과 같은 하한. */
+  min-width: var(--table-min-width);
+  border-collapse: collapse;
+  font-size: var(--fs-table);
+}
+
+.data-table th {
+  background: var(--table-head-bg);
+  padding: 10px 12px;
+  text-align: left;
+  font-weight: 600;
+  color: var(--primary);
+  border-bottom: 2px solid var(--border);
+  white-space: nowrap;
+}
+
+.th-sortable {
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+  background: none;
+  border: none;
+  font: inherit;
+  color: inherit;
+  padding: 0;
+  text-align: left;
+  white-space: nowrap;
+}
+.data-table th:has(.th-sortable):hover {
+  background: var(--table-head-hover);
+}
+.sort-icon {
+  margin-left: 4px;
+  font-size: var(--fs-badge);
+  color: #b0b8cc;
+}
+.sort-icon.active {
+  color: var(--primary);
+  font-size: var(--fs-badge-sm);
+}
+
+.data-table td {
+  padding: 10px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+  line-height: 1.5;
+}
+.data-table tbody tr:last-child td {
+  border-bottom: none;
+}
+.data-table tbody tr:hover {
+  background: var(--table-row-hover);
+}
+.data-table a {
+  color: var(--primary);
+  text-decoration: none;
+}
+.data-table a:hover {
+  text-decoration: underline;
+}
+
+/* 컬럼 폭 — 원본 #result-table .col-* 그대로. 키 이름이 곧 클래스다. */
+.col-bidNtceNm {
+  min-width: 480px;
+  width: 38%;
+}
+.col-_requirementSummary,
+.col-_contractSummary {
+  min-width: 110px;
+  width: 9%;
+}
+.col-bidNtceNo {
+  min-width: 108px;
+  width: 8%;
+}
+.col-_opportunitySummary {
+  min-width: 112px;
+  width: 8%;
+}
+.col-_sourceLabel,
+.col-_noticeStatus {
+  min-width: 78px;
+  width: 5%;
+}
+.col-ntceInsttNm,
+.col-dminsttNm {
+  min-width: 108px;
+  width: 8%;
+}
+.col-presmptPrce,
+.col-bidNtceDt,
+.col-bidClseDt {
+  min-width: 88px;
+}
+.col-prdctClsfcNo {
+  min-width: 96px;
+  white-space: nowrap;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.col-bidNtceNm .bid-link {
+  display: inline;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+  line-height: 1.55;
+}
+
+/* 공고명 클릭 링크 — 원본 .bid-link */
+.bid-link {
+  color: var(--primary);
+  cursor: pointer;
+  text-decoration: none;
+  border-bottom: 1px dashed var(--primary);
+  background: none;
+  border-left: none;
+  border-right: none;
+  border-top: none;
+  padding: 0;
+  font: inherit;
+  text-align: left;
+}
+.bid-link:hover {
+  border-bottom-style: solid;
+}
+
+/* 다른 탭으로 질의를 넘기는 버튼 — 원본 .cross-tab-btn 의 인라인 스타일 */
+.cross-tab-btn {
+  font-size: var(--fs-badge);
+  padding: 2px 7px;
+  cursor: pointer;
+  background: var(--blue-soft);
+  border: 1px solid var(--blue-line);
+  border-radius: 4px;
+  white-space: nowrap;
+  color: var(--primary);
+}
+.cross-tab-btn.plain {
+  background: var(--opp-bg);
+  border-color: var(--status-completed-border);
+  color: inherit;
+}
+
+/* ── 첨부 전수조사 결과 하위 행 ────────────────────────────────────────── */
+tr.file-match-row td {
+  border-left: 3px solid var(--file-match-rail);
+}
+.file-excerpt-row td {
+  background: var(--file-excerpt-bg);
+  border-top: none;
+  border-left: 3px solid var(--file-match-rail);
+  padding: 4px 12px 8px 28px;
+  font-size: var(--fs-meta);
+  color: var(--file-excerpt-fg);
+  line-height: 1.6;
+  white-space: normal;
+}
+mark.file-kw-mark {
+  background: var(--file-mark-bg);
+  color: var(--file-mark-fg);
+  border-radius: 3px;
+  padding: 0 3px;
+  font-weight: 700;
+}
+
+/* ── 입찰 불가 조항 '?' 표식 ───────────────────────────────────────────── */
+tr.blocking-row > td {
+  background: var(--blocking-row-bg);
+}
+details.blocking-info {
+  display: inline-block;
+  position: relative;
+  vertical-align: middle;
+  margin-right: 4px;
+}
+details.blocking-info > summary {
+  list-style: none;
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--blocking-dot-bg);
+  color: #fff;
+  font-size: var(--fs-badge);
+  font-weight: 700;
+  line-height: 1;
+}
+details.blocking-info > summary::-webkit-details-marker {
+  display: none;
+}
+details.blocking-info[open] > summary {
+  background: var(--blocking-dot-open);
+}
+.blocking-pop {
+  position: absolute;
+  z-index: 40;
+  top: 20px;
+  left: 0;
+  width: 320px;
+  max-width: 80vw;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--blocking-pop-border);
+  border-radius: var(--radius);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+  font-size: var(--fs-meta);
+  color: var(--blocking-pop-fg);
+  text-align: left;
+  white-space: normal;
+  font-weight: 400;
+}
+.blocking-pop strong {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--blocking-dot-bg);
+}
+.blocking-pop ul {
+  margin: 0 0 6px;
+  padding-left: 16px;
+}
+.blocking-excerpt {
+  margin: 6px 0;
+  padding: 6px 8px;
+  background: var(--blocking-excerpt-bg);
+  border-left: 3px solid var(--blocking-pop-border);
+  color: var(--blocking-excerpt-fg);
+}
+.blocking-note {
+  display: block;
+  margin-top: 4px;
+  color: var(--blocking-note-fg);
+  font-size: var(--fs-badge);
+}
+
+/* ── 로딩 스켈레톤 ─────────────────────────────────────────────────────── */
+.loading-row td {
+  background: linear-gradient(
+    90deg,
+    var(--skeleton-a) 25%,
+    var(--skeleton-b) 50%,
+    var(--skeleton-a) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.2s infinite;
+  color: transparent;
+  border-radius: 4px;
+  height: 36px;
+}
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .loading-row td {
+    animation: none;
+  }
+}
+
+/* ── 페이지네이션 ──────────────────────────────────────────────────────── */
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+.pagination button {
+  min-width: 36px;
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  cursor: pointer;
+  font-size: var(--fs-table);
+  color: var(--text);
+  transition: all 0.15s;
+}
+.pagination button:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+.pagination button.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+  font-weight: 700;
+}
+.pagination button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.per-page-select {
+  margin-left: 12px;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: var(--fs-table);
+  cursor: pointer;
+}
+
+/* ── 상태 줄 부가 ──────────────────────────────────────────────────────── */
+.coverage-note {
+  color: var(--coverage-note-fg);
+  font-size: var(--fs-badge);
+}
+.status-sep {
+  padding: 0 6px;
+}
+
+@media (max-width: 760px) {
+  .data-table {
+    min-width: 720px;
+    font-size: var(--fs-meta);
+  }
+  .data-table th,
+  .data-table td {
+    padding: 8px 7px;
+  }
+  .col-bidNtceNm,
+  .col-bizNm {
+    min-width: 280px;
+    width: 38%;
+  }
+  .col-orderInsttNm,
+  .col-ntceInsttNm,
+  .col-dminsttNm {
+    min-width: 160px;
+  }
+  .col-prdctClsfcNoNm {
+    min-width: 96px;
+  }
+  .col-prdctClsfcNo {
+    min-width: 92px;
+  }
+}
