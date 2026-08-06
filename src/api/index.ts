@@ -1,6 +1,7 @@
 /** API 계층 단일 진입점 — 화면은 여기서만 가져다 쓴다. */
 export * from './types';
 export * from './notices';
+export * from './searchNotices';
 export * from './trends';
 export * from './analysis';
 export * from './saved';

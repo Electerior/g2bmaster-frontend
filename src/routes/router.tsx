@@ -10,6 +10,7 @@ import { AnalysisLabScreen } from './AnalysisLabScreen';
 import { CompanyProfileScreen } from './CompanyProfileScreen';
 import { DealRadarScreen } from './DealRadarScreen';
 import { NotFoundScreen } from './NotFoundScreen';
+import { NoticeSearchScreen } from './NoticeSearchScreen';
 import { NoticeTableScreen } from './NoticeTableScreen';
 import { OfficerDirectoryScreen } from './OfficerDirectoryScreen';
 import { SavedNoticesScreen } from './SavedNoticesScreen';
@@ -24,6 +25,9 @@ export function AppRouter() {
       <Route element={<App />}>
         {/* 기본 경로 — 히스토리에 '/' 를 남기지 않도록 replace 로 동작하는 Navigate 를 쓴다. */}
         <Route path="/" element={<Navigate to={DEFAULT_ROUTE} replace />} />
+
+        {/* 공고 통합 검색 — 로컬 색인만 조회한다(나라장터 호출 없음) */}
+        <Route path={ROUTES.unifiedSearch} element={<NoticeSearchScreen />} />
 
         {/* 공고 표 4종 — 원본 탭 bid-plan / pre-spec / bid-announce / bid-result */}
         <Route path={ROUTES.bidPlan} element={<NoticeTableScreen kind="bid-plan" />} />
