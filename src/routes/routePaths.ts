@@ -21,6 +21,11 @@ export const ROUTES = {
   officers: '/officers',
   analysisLab: '/analysis-lab',
   system: '/system',
+  /**
+   * 베타 모집 랜딩. 탭도 검색도 없는 독립 페이지라 TAB_ITEMS 에 넣지 않는다.
+   * 앱 셸 밖에서 렌더링된다 — router.tsx 참고.
+   */
+  beta: '/beta',
 } as const;
 
 export type RoutePath = (typeof ROUTES)[keyof typeof ROUTES];

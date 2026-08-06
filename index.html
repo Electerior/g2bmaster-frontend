@@ -6,6 +6,17 @@
     <link rel="icon" type="image/svg+xml" href="/electerior-logo.svg" />
 
     <!--
+      본문 폰트. 랜딩(/beta)과 앱 화면이 모두 이것을 쓴다 — tokens.css 의 --font-sans 도
+      Pretendard 를 가리킨다. dynamic-subset 이라 화면에 실제로 쓰인 글자 범위만 내려받으므로
+      한글 웹폰트치고 전송량이 작다.
+    -->
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
+    />
+
+    <!--
       원본 public/index.html 6~67행의 SEO 블록을 그대로 옮긴 것이다.
 
       이 앱은 검색 유입을 실제로 신경 쓴다(robots·naverbot·canonical·hreflang·

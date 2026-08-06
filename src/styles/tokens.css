@@ -72,7 +72,14 @@
   --pill-outline-hover: #aeb8c9;
 
   /* ── 타이포 스케일 (spec §3) ─────────────────────────────────────────────── */
-  --font-sans: 'Segoe UI', 'Apple SD Gothic Neo', sans-serif;
+  /*
+   * Pretendard 로 통일한다. 원본은 'Segoe UI' 였는데 그건 윈도우 기본 서체라 한글이
+   * 맑은 고딕으로 떨어지고, macOS·안드로이드에서는 아예 다른 글꼴이 잡혀 화면이 기기마다
+   * 달라졌다. 웹폰트를 쓰면 어디서든 같은 글자가 나오고, /beta 랜딩과도 서체가 맞는다.
+   * 로드는 index.html 의 link 하나(dynamic-subset)로 끝난다.
+   */
+  --font-sans: 'Pretendard Variable', Pretendard, -apple-system, 'Apple SD Gothic Neo',
+    'Segoe UI', 'Noto Sans KR', sans-serif;
   --fs-base: 14px;
   --fs-base-sm: 13px; /* ≤760px */
   --fs-h1: 20px;

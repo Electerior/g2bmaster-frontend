@@ -10,3 +10,4 @@ export * from './legal';
 export * from './specs';
 export * from './system';
 export * from './config';
+export * from './beta';

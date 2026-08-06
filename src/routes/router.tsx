@@ -7,6 +7,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { App } from '@/App';
 import { AnalysisLabScreen } from './AnalysisLabScreen';
+import { BetaLandingScreen } from './BetaLandingScreen';
 import { CompanyProfileScreen } from './CompanyProfileScreen';
 import { DealRadarScreen } from './DealRadarScreen';
 import { NotFoundScreen } from './NotFoundScreen';
@@ -21,6 +22,12 @@ import { DEFAULT_ROUTE, ROUTES } from './routePaths';
 export function AppRouter() {
   return (
     <Routes>
+      {/*
+        베타 모집 랜딩만 셸 밖이다. 로그인 전 방문자용 페이지라 활동 바·파트너 배너·
+        헤더·검색창·탭이 위에 얹히면 안 된다. 셸 안에 넣으면 랜딩이 아니라 앱의 한 탭이 된다.
+      */}
+      <Route path={ROUTES.beta} element={<BetaLandingScreen />} />
+
       <Route element={<App />}>
         {/* 기본 경로 — 히스토리에 '/' 를 남기지 않도록 replace 로 동작하는 Navigate 를 쓴다. */}
         <Route path="/" element={<Navigate to={DEFAULT_ROUTE} replace />} />
