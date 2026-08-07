@@ -9,10 +9,12 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
+import { useNotReady } from '@/components/feedback/notReadyContext';
 import { fmtInputDate } from '@/domain/format';
 import { searchModeLayout } from '@/domain/searchModes';
 import type { SearchMode } from '@/domain/searchModes';
 import type { SearchPreset } from '@/domain/storage';
+import { isTransitRoute } from '@/routes/routePaths';
 import { useSearchCriteria, type SearchCriteria } from './useSearchCriteria';
 import { PresetBar } from './PresetBar';
 import { SearchModeTabs } from './SearchModeTabs';
@@ -110,6 +112,17 @@ export function SearchHeader() {
   const { criteria, setCriteria } = useSearchCriteria();
   const mode = activeSearchMode(location.pathname, criteria.mode);
   const layout = searchModeLayout(mode);
+  const { notify } = useNotReady();
+
+  /*
+   * 첨부 전수조사(파일 내 검색 · 입찰 불가 조항)와 유사도 확장은 백엔드에서 작업 중이다.
+   * 로컬 색인에는 첨부 본문도 임베딩도 아직 없다.
+   *
+   * 조작부는 **지우지 않고 남긴다.** 지우면 다음 웨이브에서 되살릴 자리를 잃고, 사용자도
+   * 그런 기능이 있었다는 사실을 모르게 된다. 대신 손대면 준비 중임을 알린다.
+   */
+  const fileScanPending = { label: '첨부문서 전수조사', notify };
+  const similarityPending = { label: '유사도 확장', notify };
 
   // 한 줄 입력은 확정 전까지 URL 에 올리지 않는다 — 글자마다 히스토리가 쌓이면 뒤로 가기가
   // 못 쓰게 된다. 확정(Enter · 검색 · 지우기)될 때만 URL 로 올라간다.
@@ -139,9 +152,11 @@ export function SearchHeader() {
   // replace 로 넣어 히스토리에 빈 URL 을 남기지 않는다.
   const seededRef = useRef(false);
   useEffect(() => {
-    // '/' 는 기본 화면으로 넘기는 중간 경유지다. 여기서 파라미터를 심으면 곧이어 일어나는
-    // 리다이렉트가 그것을 지운다 — 목적지에 도착한 뒤에 심는다.
-    if (location.pathname === '/' || seededRef.current) return;
+    // '/' 와 옛 공고 표 주소는 다른 화면으로 넘기는 중간 경유지다. 여기서 파라미터를 심으면
+    // 곧이어 일어나는 리다이렉트가 그것을 지우는데, '심었다'는 표시는 남아 목적지에서 다시
+    // 심지 않는다 — 그러면 기본 조회 기간 없이 색인 전체를 훑는 질의가 나간다.
+    // 목적지에 도착한 뒤에 심는다.
+    if (isTransitRoute(location.pathname) || seededRef.current) return;
     seededRef.current = true;
     if (!criteria.fromDate && !criteria.toDate) {
       setCriteria(quickRange(DEFAULT_RANGE_DAYS), { replace: true });
@@ -207,6 +222,7 @@ export function SearchHeader() {
                   checked: criteria.simOr,
                   onChange: (simOr) => setCriteria({ simOr }),
                   title: '공고 제목을 대상으로 의미가 비슷한 말까지 찾습니다',
+                  notReady: similarityPending,
                 }}
               />
               <TagInput
@@ -220,7 +236,7 @@ export function SearchHeader() {
               <TagInput
                 kind="file"
                 badgeLabel="파일 내"
-                placeholder="키워드 입력 후 Enter — 첨부 PDF·HWPX 본문에서 검색"
+                placeholder="첨부 PDF·HWPX 본문 검색 — 백엔드 작업 중"
                 values={criteria.fileKeywords}
                 onChange={(fileKeywords) => setCriteria({ fileKeywords })}
                 onSubmit={(fileKeywords) => commitDrafts(fileKeywords ? { fileKeywords } : {})}
@@ -228,7 +244,9 @@ export function SearchHeader() {
                   checked: criteria.simFile,
                   onChange: (simFile) => setCriteria({ simFile }),
                   title: '규격서 본문을 대상으로 의미가 비슷한 말까지 찾습니다',
+                  notReady: similarityPending,
                 }}
+                notReady={fileScanPending}
               />
             </>
           ) : null}
@@ -288,14 +306,19 @@ export function SearchHeader() {
         </div>
 
         {layout.blockingCheck ? (
+          /*
+           * 첨부문서 전수조사에 얹혀 있던 기능이라 함께 대기 중이다. 체크 상태는 조건에
+           * 반영되지 않으므로 켜 둔 것처럼 보이면 안 된다 — 언제나 꺼진 채로 그린다.
+           */
           <label
-            className="filter-check search-blocking-check"
-            title="제조사·총판 확약서와 타 업체 참여 금지 등 경쟁 제한 조항이 있는 공고를 첨부문서 전수조사 후 제외합니다. 해제하면 제외하지 않고 '?'로 사유를 표시합니다."
+            className="filter-check search-blocking-check not-ready-control"
+            title="경쟁 제한 조항 자동 제외: 백엔드에서 작업 중입니다"
           >
             <input
               type="checkbox"
-              checked={criteria.excludeBlockingClauses}
-              onChange={(e) => setCriteria({ excludeBlockingClauses: e.target.checked })}
+              checked={false}
+              readOnly
+              onChange={() => notify('입찰 불가 조항 자동 제외')}
             />{' '}
             입찰 불가 조항 자동 제외
           </label>

@@ -13,13 +13,28 @@
 import { useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type { NoticeSearchQuery } from '@/api/notices';
+import {
+  BUSINESS_DIVISIONS,
+  NOTICE_CATEGORIES,
+  NOTICE_MAX_PER_PAGE,
+  NOTICE_STATES,
+  isNoticeSortKey,
+  type BusinessDivision,
+  type NoticeCategory,
+  type NoticeIndexQuery,
+  type NoticeState,
+} from '@/api/search';
 import type { ScreenKind } from '@/domain/columns';
 import { localDateString, toG2bDate } from '@/domain/format';
 import { searchModeLayout, type SearchMode } from '@/domain/searchModes';
 
 /* ─── 조건 ────────────────────────────────────────────────────────────────── */
 
-export type BidType = '' | '물품' | '용역' | '공사';
+/**
+ * 구분 필터. `외자` 는 색인 검색에만 있는 값이다 — 기존 4종 API 에는 그 오퍼레이션이
+ * 팬아웃 대상으로 들어 있지 않다. 그래서 값 집합은 넓히되 버튼을 그릴지는 화면이 정한다.
+ */
+export type BidType = '' | BusinessDivision;
 export type SortDir = 'asc' | 'desc';
 
 export interface SearchCriteria {
@@ -47,6 +62,25 @@ export interface SearchCriteria {
   sortKey: string;
   sortDir: SortDir;
   mode: SearchMode;
+
+  /* ── 아래는 공고 통합 검색(로컬 색인) 전용 ─────────────────────────────── */
+
+  /** 조달 생애주기 단계. 탭이 아니라 필터다 — 넷은 같은 건의 단계이지 다른 종류가 아니다. */
+  category: NoticeCategory | '';
+  /** 공고 상태. 넷 모두 예외 상태이고 정상 공고는 값이 없다. */
+  noticeState: NoticeState | '';
+  /** 지역. 빈 값이면 필터 없음. 지역을 지정해도 전국 공고는 함께 온다(계약 §4.3). */
+  region: string;
+  /** 마감일 구간(`YYYY-MM-DD`). 공고일 구간(fromDate/toDate)과 다른 축이다. */
+  closeFrom: string;
+  closeTo: string;
+  /** 추정가격 구간(원). 빈 문자열이면 필터 없음 — 0 과 '미지정'을 구분해야 한다. */
+  minAmount: string;
+  maxAmount: string;
+  /** 세부품명번호 접두 일치. 표에서 품목번호를 눌러 좁힐 때 쓴다. */
+  detailProductCode: string;
+  /** 사전규격등록번호. 사전규격 → 그 규격에서 나온 입찰공고로 넘어갈 때 쓴다. */
+  beforeSpecRgstNo: string;
 }
 
 /** URL 파라미터 이름. 원본 state 필드명보다 짧게 — 주소창에 그대로 노출되는 값이다. */
@@ -72,6 +106,15 @@ const PARAM = {
   sortKey: 'sort',
   sortDir: 'dir',
   mode: 'mode',
+  category: 'cat',
+  noticeState: 'state',
+  region: 'region',
+  closeFrom: 'closeFrom',
+  closeTo: 'closeTo',
+  minAmount: 'min',
+  maxAmount: 'max',
+  detailProductCode: 'prdct',
+  beforeSpecRgstNo: 'spec',
 } as const;
 
 export const DEFAULT_CRITERIA: SearchCriteria = {
@@ -85,7 +128,13 @@ export const DEFAULT_CRITERIA: SearchCriteria = {
   toDate: '',
   pageNo: 1,
   perPage: 20,
-  activeOnly: true,
+  /*
+   * 기본값이 꺼짐이다 — 예전 입찰 공고 탭에서는 켜짐이었다.
+   * 통합 검색은 계획 → 사전규격 → 입찰 → 마감을 한 목록으로 훑는 화면이고, '마감 전만'을
+   * 기본으로 걸면 마감 패싯이 언제나 0건이 되어 단계 필터가 고장 난 것처럼 보인다.
+   * (패싯은 목록과 반드시 같은 조건으로 세야 하므로 여기만 예외를 둘 수는 없다.)
+   */
+  activeOnly: false,
   excludeBlockingClauses: true,
   bidType: '',
   crossBidNtceNo: '',
@@ -96,9 +145,30 @@ export const DEFAULT_CRITERIA: SearchCriteria = {
   sortKey: '',
   sortDir: 'asc',
   mode: 'keyword',
+  category: '',
+  noticeState: '',
+  region: '',
+  closeFrom: '',
+  closeTo: '',
+  minAmount: '',
+  maxAmount: '',
+  detailProductCode: '',
+  beforeSpecRgstNo: '',
 };
 
-const BID_TYPES: readonly BidType[] = ['', '물품', '용역', '공사'];
+const BID_TYPES: readonly BidType[] = ['', ...BUSINESS_DIVISIONS];
+
+/** 모르는 값은 빈 문자열(= 필터 없음)로 떨어뜨린다 — 백엔드의 `NoticeCategory.of` 와 같은 규약. */
+function parseEnum<T extends string>(raw: string | null, allowed: readonly T[]): T | '' {
+  return raw && (allowed as readonly string[]).includes(raw) ? (raw as T) : '';
+}
+
+/** 숫자만 남긴다. 못 읽으면 빈 문자열 — 0 과 '미지정'을 구분해야 한다. */
+function parseAmount(raw: string | null): string {
+  if (!raw) return '';
+  const digits = raw.replace(/[^0-9]/g, '');
+  return digits;
+}
 
 function parseTerms(raw: string | null): string[] {
   if (!raw) return [];
@@ -138,7 +208,9 @@ export function criteriaFromParams(params: URLSearchParams): SearchCriteria {
     toDate: params.get(PARAM.to) ?? '',
     pageNo: parsePositiveInt(params.get(PARAM.page), DEFAULT_CRITERIA.pageNo),
     perPage: parsePositiveInt(params.get(PARAM.perPage), DEFAULT_CRITERIA.perPage),
-    activeOnly: parseBoolDefaultTrue(params.get(PARAM.activeOnly)),
+    // 기본값이 꺼짐으로 바뀌었으므로 'true' 일 때만 켠다. 예전 주소의 `active=false` 도
+    // 그대로 '꺼짐'으로 읽히므로 공유된 링크가 깨지지 않는다.
+    activeOnly: parseBoolDefaultFalse(params.get(PARAM.activeOnly)),
     excludeBlockingClauses: parseBoolDefaultTrue(params.get(PARAM.blocking)),
     bidType,
     crossBidNtceNo: params.get(PARAM.crossNo) ?? '',
@@ -149,6 +221,15 @@ export function criteriaFromParams(params: URLSearchParams): SearchCriteria {
     sortKey: params.get(PARAM.sortKey) ?? '',
     sortDir: params.get(PARAM.sortDir) === 'desc' ? 'desc' : 'asc',
     mode: searchModeLayout(params.get(PARAM.mode) ?? '').mode,
+    category: parseEnum(params.get(PARAM.category), NOTICE_CATEGORIES),
+    noticeState: parseEnum(params.get(PARAM.noticeState), NOTICE_STATES),
+    region: params.get(PARAM.region) ?? '',
+    closeFrom: params.get(PARAM.closeFrom) ?? '',
+    closeTo: params.get(PARAM.closeTo) ?? '',
+    minAmount: parseAmount(params.get(PARAM.minAmount)),
+    maxAmount: parseAmount(params.get(PARAM.maxAmount)),
+    detailProductCode: params.get(PARAM.detailProductCode) ?? '',
+    beforeSpecRgstNo: params.get(PARAM.beforeSpecRgstNo) ?? '',
   };
 }
 
@@ -171,7 +252,7 @@ export function criteriaToParams(criteria: SearchCriteria): URLSearchParams {
   if (criteria.perPage !== DEFAULT_CRITERIA.perPage) {
     params.set(PARAM.perPage, String(criteria.perPage));
   }
-  if (!criteria.activeOnly) params.set(PARAM.activeOnly, 'false');
+  if (criteria.activeOnly) params.set(PARAM.activeOnly, 'true');
   if (!criteria.excludeBlockingClauses) params.set(PARAM.blocking, 'false');
   setIf(PARAM.bidType, criteria.bidType, !criteria.bidType);
   setIf(PARAM.crossNo, criteria.crossBidNtceNo, !criteria.crossBidNtceNo);
@@ -184,6 +265,15 @@ export function criteriaToParams(criteria: SearchCriteria): URLSearchParams {
     params.set(PARAM.sortDir, criteria.sortDir);
   }
   if (criteria.mode !== DEFAULT_CRITERIA.mode) params.set(PARAM.mode, criteria.mode);
+  setIf(PARAM.category, criteria.category, !criteria.category);
+  setIf(PARAM.noticeState, criteria.noticeState, !criteria.noticeState);
+  setIf(PARAM.region, criteria.region, !criteria.region);
+  setIf(PARAM.closeFrom, criteria.closeFrom, !criteria.closeFrom);
+  setIf(PARAM.closeTo, criteria.closeTo, !criteria.closeTo);
+  setIf(PARAM.minAmount, criteria.minAmount, !criteria.minAmount);
+  setIf(PARAM.maxAmount, criteria.maxAmount, !criteria.maxAmount);
+  setIf(PARAM.detailProductCode, criteria.detailProductCode, !criteria.detailProductCode);
+  setIf(PARAM.beforeSpecRgstNo, criteria.beforeSpecRgstNo, !criteria.beforeSpecRgstNo);
   return params;
 }
 
@@ -290,6 +380,123 @@ export function buildQuery(
   if (criteria.simOr && criteria.orTerms.length) query.simOr = 'true';
   if (criteria.simFile && criteria.fileKeywords.length) query.simFile = 'true';
 
+  return query;
+}
+
+/* ─── buildNoticeIndexQuery — 공고 통합 검색(로컬 색인) ────────────────────── */
+
+/**
+ * 지금 모드에서 키워드 조건이 실제로 걸리는가.
+ *
+ * 발주기관·낙찰자·담당자 모드에서는 키워드 입력줄이 화면에서 사라진다. 그때 URL 에 남아 있던
+ * 낱말을 그대로 질의에 실으면 **보이지 않는 조건**이 결과를 깎는다 — 사용자는 왜 0건인지
+ * 알 방법이 없다. 기존 buildQuery 의 `keywordMode` 판정과 같은 취지이고, 판정 근거를
+ * 모드 목록이 아니라 "그 줄이 보이는가"(searchModeLayout)로 둔 것만 다르다.
+ */
+function keywordsApply(criteria: SearchCriteria): boolean {
+  return searchModeLayout(criteria.mode).keywordRows;
+}
+
+/** 검색어가 하나라도 있는가. 정렬 기본값이 여기에 달려 있다(있으면 관련도, 없으면 최신). */
+export function hasKeywords(criteria: SearchCriteria): boolean {
+  if (!keywordsApply(criteria)) return false;
+  return (
+    criteria.andTerms.length > 0 || criteria.orTerms.length > 0 || criteria.notTerms.length > 0
+  );
+}
+
+/**
+ * 사용자가 정렬을 고르지 않았을 때 서버가 실제로 쓰는 정렬. 표 머리의 화살표를 그리는 데만
+ * 쓴다 — 이 값을 질의에 실어 보내면 안 된다. 보내는 순간 "검색어가 생기면 관련도로 바뀐다"는
+ * 서버의 규칙이 화면 쪽 고정값에 덮인다.
+ */
+export function effectiveIndexSort(criteria: SearchCriteria): { key: string; dir: SortDir } {
+  if (criteria.sortKey && isNoticeSortKey(criteria.sortKey)) {
+    return { key: criteria.sortKey, dir: criteria.sortDir };
+  }
+  return { key: hasKeywords(criteria) ? 'relevance' : 'created', dir: 'desc' };
+}
+
+/**
+ * 조건 → `/api/search/notices` 질의.
+ *
+ * 기존 `buildQuery` 와 갈라 둔 이유는 이름만 다른 게 아니라 **의미가 다르기** 때문이다.
+ *  - 날짜가 `YYYY-MM-DD` 다(기존은 `YYYYMMDD`). 여기서 `toG2bDate` 를 부르면 서버가
+ *    조용히 파싱에 실패하고 **필터 없음**으로 넘어간다 — 400 이 아니라서 눈치채기 어렵다.
+ *  - `perPage` 는 숫자만 받는다. 기존의 `'all'` 문자열은 없고 상한이 500 이다.
+ *  - `bidType` → `division`, `sortKey/sortDir` → `sort/dir` 로 이름이 다르다.
+ *
+ * @param overrides `page` 는 첫 페이지 고정 같은 호출부 사정을 위한 것이다.
+ */
+export function buildNoticeIndexQuery(
+  criteria: SearchCriteria,
+  overrides: { page?: number; perPage?: number } = {},
+): NoticeIndexQuery {
+  const query: NoticeIndexQuery = {
+    page: overrides.page ?? criteria.pageNo,
+    perPage: Math.min(overrides.perPage ?? criteria.perPage, NOTICE_MAX_PER_PAGE),
+  };
+
+  // 아래는 전부 "값이 있을 때만". 빈 값을 붙이면 서버가 그것도 필터로 받아들인다.
+  // 키워드는 그 입력줄이 화면에 있을 때만 — 위 keywordsApply 주석 참고.
+  if (keywordsApply(criteria)) {
+    if (criteria.andTerms.length) query.andTerms = criteria.andTerms.join(',');
+    if (criteria.orTerms.length) query.orTerms = criteria.orTerms.join(',');
+    if (criteria.notTerms.length) query.notTerms = criteria.notTerms.join(',');
+  }
+
+  if (criteria.category) query.category = criteria.category;
+  if (criteria.noticeState) query.state = criteria.noticeState;
+  if (criteria.bidType) query.division = criteria.bidType;
+  if (criteria.region) query.region = criteria.region;
+  if (criteria.insttNm) query.insttNm = criteria.insttNm;
+  if (criteria.detailProductCode) query.detailProductCode = criteria.detailProductCode;
+  if (criteria.beforeSpecRgstNo) query.beforeSpecRgstNo = criteria.beforeSpecRgstNo;
+
+  if (criteria.fromDate) query.fromDate = criteria.fromDate;
+  if (criteria.toDate) query.toDate = criteria.toDate;
+  if (criteria.closeFrom) query.closeFrom = criteria.closeFrom;
+  if (criteria.closeTo) query.closeTo = criteria.closeTo;
+  if (criteria.activeOnly) query.activeOnly = 'true';
+
+  if (criteria.minAmount) query.minAmount = Number(criteria.minAmount);
+  if (criteria.maxAmount) query.maxAmount = Number(criteria.maxAmount);
+
+  // 고르지 않았으면 아예 보내지 않는다 — 위 effectiveIndexSort 주석 참고.
+  if (criteria.sortKey && isNoticeSortKey(criteria.sortKey)) {
+    query.sort = criteria.sortKey;
+    query.dir = criteria.sortDir;
+  }
+
+  return query;
+}
+
+/** 패싯 축 — 화면의 칩 줄(또는 지역 드롭다운) 하나에 대응한다. */
+export type FacetAxis = 'category' | 'division' | 'state' | 'region';
+
+/**
+ * 패싯용 질의 — 목록과 같은 조건에서 페이지·정렬을 뺀 것.
+ *
+ * 페이지·정렬을 빼는 이유는 조건이 달라서가 아니라 캐시 때문이다. 페이지를 넘길 때마다
+ * 패싯을 다시 부르면 같은 건수를 열 번 세게 된다(패싯은 조건이 같으면 결과도 같다).
+ *
+ * `omit` 은 **그 축 자신의 필터만** 뺀다. 서버의 패싯은 목록과 한 WHERE 를 쓰도록 설계돼
+ * 있어서(BidNoticeSearchService.buildBuilder), 단계를 '입찰'로 좁힌 채 그대로 물으면
+ * `GROUP BY category` 가 '입찰' 한 줄만 돌려준다 — 나머지 단계 칩이 전부 0건으로 그려진다.
+ * 칩에 건수를 붙인 목적이 "누르기 전에 안다"인데 정확히 그 반대가 된다. 그래서 축마다
+ * 자기 필터를 뺀 질의를 따로 보낸다. 다른 축의 조건은 그대로 남는다 — '물품'을 고른
+ * 상태에서 보고 싶은 단계별 건수는 '물품 안에서의' 건수이지 색인 전체가 아니다.
+ */
+export function buildNoticeFacetQuery(
+  criteria: SearchCriteria,
+  omit?: FacetAxis,
+): NoticeIndexQuery {
+  const query = buildNoticeIndexQuery(criteria);
+  delete query.page;
+  delete query.perPage;
+  delete query.sort;
+  delete query.dir;
+  if (omit) delete query[omit];
   return query;
 }
 

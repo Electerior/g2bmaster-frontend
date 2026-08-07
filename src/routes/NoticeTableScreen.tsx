@@ -11,7 +11,8 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import type { BidAnnounceItem, BidPlanItem, NoticeSearchQuery, PreSpecItem } from '@/api';
 import { Cell, type CellActions } from '@/components/table/Cell';
 import { DataTable } from '@/components/table/DataTable';
-import { Pagination, PER_PAGE_ALL } from '@/components/table/Pagination';
+import { Pagination } from '@/components/table/Pagination';
+import { PER_PAGE_ALL } from '@/components/table/perPage';
 import { StatusBar } from '@/components/table/StatusBar';
 import { EmptyState, PendingState } from '@/components/feedback/EmptyState';
 import {

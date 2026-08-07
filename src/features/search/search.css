@@ -490,6 +490,76 @@
   color: var(--primary);
 }
 
+/* ── 공고 통합 검색 필터 줄 ────────────────────────────────────────────── */
+.notice-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+/* 패싯 건수. 0건도 지우지 않고 흐리게 남긴다 — 사라지면 '그 필터가 원래 없다'로 읽힌다. */
+.chip-count {
+  margin-left: 5px;
+  font-style: normal;
+  font-weight: 600;
+  font-size: var(--fs-badge-sm);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.type-filter-btn.active .chip-count {
+  color: var(--primary);
+}
+.type-filter-btn.empty {
+  opacity: 0.5;
+}
+
+.filter-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  padding-top: 2px;
+}
+.filter-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--fs-meta);
+  color: var(--muted);
+}
+.filter-field > span:first-child {
+  font-weight: 700;
+}
+.filter-field select,
+.filter-field input {
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: var(--fs-meta);
+  color: var(--text);
+  background: var(--surface);
+  font-family: inherit;
+}
+.filter-field .amount-input {
+  width: 96px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.filter-tilde,
+.filter-unit {
+  color: var(--muted);
+}
+
+/* 준비 중인 태그 입력의 자리 표시 — 실제 입력과 높이를 맞춰 줄이 흔들리지 않게 한다. */
+.tag-text-disabled {
+  color: var(--muted);
+  font-size: var(--fs-table);
+}
+button.tag-wrap {
+  text-align: left;
+  font-family: inherit;
+  background: var(--surface);
+}
+
 @media (max-width: 760px) {
   .search-box {
     padding: 12px 10px;

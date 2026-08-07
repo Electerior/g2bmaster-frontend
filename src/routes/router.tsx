@@ -10,14 +10,16 @@ import { AnalysisLabScreen } from './AnalysisLabScreen';
 import { BetaLandingScreen } from './BetaLandingScreen';
 import { CompanyProfileScreen } from './CompanyProfileScreen';
 import { DealRadarScreen } from './DealRadarScreen';
+import { LegacyNoticeRedirect } from './LegacyNoticeRedirect';
 import { NotFoundScreen } from './NotFoundScreen';
+import { NoticeSearchScreen } from './NoticeSearchScreen';
 import { NoticeTableScreen } from './NoticeTableScreen';
 import { OfficerDirectoryScreen } from './OfficerDirectoryScreen';
 import { SavedNoticesScreen } from './SavedNoticesScreen';
 import { SpecSearchScreen } from './SpecSearchScreen';
 import { SystemDashboardScreen } from './SystemDashboardScreen';
 import { TrendScreen } from './TrendScreen';
-import { DEFAULT_ROUTE, ROUTES } from './routePaths';
+import { DEFAULT_ROUTE, LEGACY_NOTICE_ROUTES, ROUTES } from './routePaths';
 
 export function AppRouter() {
   return (
@@ -32,10 +34,22 @@ export function AppRouter() {
         {/* 기본 경로 — 히스토리에 '/' 를 남기지 않도록 replace 로 동작하는 Navigate 를 쓴다. */}
         <Route path="/" element={<Navigate to={DEFAULT_ROUTE} replace />} />
 
-        {/* 공고 표 4종 — 원본 탭 bid-plan / pre-spec / bid-announce / bid-result */}
-        <Route path={ROUTES.bidPlan} element={<NoticeTableScreen kind="bid-plan" />} />
-        <Route path={ROUTES.preSpec} element={<NoticeTableScreen kind="pre-spec" />} />
-        <Route path={ROUTES.bidAnnounce} element={<NoticeTableScreen kind="bid-announce" />} />
+        {/*
+          공고 통합 검색 — 계획 · 사전규격 · 입찰 · 마감이 한 목록에 온다.
+          예전 표 셋(bid-plan / pre-spec / bid-announce)이 여기로 합쳐졌다.
+        */}
+        <Route path={ROUTES.noticeSearch} element={<NoticeSearchScreen />} />
+
+        {/* 옛 주소는 단계 필터를 붙여 넘긴다 — 공유된 링크를 죽이지 않는다. */}
+        {LEGACY_NOTICE_ROUTES.map((legacy) => (
+          <Route
+            key={legacy.path}
+            path={legacy.path}
+            element={<LegacyNoticeRedirect category={legacy.category} />}
+          />
+        ))}
+
+        {/* 낙찰 결과는 색인에 없다(색인은 공고까지다) — 팬아웃 API 를 그대로 쓴다. */}
         <Route path={ROUTES.bidResult} element={<NoticeTableScreen kind="bid-result" />} />
 
         {/* 탭이지만 표가 아닌 화면들 */}

@@ -135,6 +135,139 @@
   border-bottom-style: solid;
 }
 
+/* ── 공고 통합 검색(로컬 색인) 표 ──────────────────────────────────────── */
+.col-noticeName {
+  min-width: 420px;
+  width: 32%;
+}
+.col-noticeInstitutionName {
+  min-width: 140px;
+  width: 10%;
+}
+.col-id,
+.col-beforeSpecRgstNo {
+  min-width: 104px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.col-estimatedPrice,
+.col-createdDate,
+.col-closeDate,
+.col-updatedAt {
+  min-width: 92px;
+}
+.col-region,
+.col-category,
+.col-state,
+.col-businessDivision {
+  min-width: 68px;
+}
+.col-_opportunityPending {
+  min-width: 78px;
+}
+
+/* 조달 생애주기 단계 배지 — 계획 → 사전규격 → 입찰 → 마감 */
+.stage-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: var(--fs-badge);
+  font-weight: 700;
+  white-space: nowrap;
+}
+.stage-plan {
+  background: var(--type-goods-bg);
+  color: var(--type-goods-fg);
+}
+.stage-spec {
+  background: var(--type-service-bg);
+  color: var(--type-service-fg);
+}
+.stage-open {
+  background: var(--type-works-bg);
+  color: var(--type-works-fg);
+}
+.stage-closed {
+  background: var(--type-etc-bg);
+  color: var(--type-etc-fg);
+}
+
+/* 지역 제한이 없는 공고. '전국'이라고 적지 않으면 필터 오작동으로 읽힌다. */
+.region-any {
+  color: var(--muted);
+}
+
+.instt-pair {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+/* 수요기관은 공고기관과 다를 때만 붙는다(조달청 대행 공고). */
+.instt-pair em {
+  font-style: normal;
+  font-size: var(--fs-badge);
+  color: var(--muted);
+}
+
+.notice-name-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.body-preview {
+  margin: 0;
+  font-size: var(--fs-badge);
+  color: var(--muted);
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* 수주기회 점수는 백엔드 작업 중 — 칸은 남기고 누르면 알린다. */
+.opp-pending {
+  padding: 2px 8px;
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  background: none;
+  color: var(--muted);
+  font-size: var(--fs-badge);
+  font-family: inherit;
+  white-space: nowrap;
+}
+
+/*
+ * 취소 공고는 검색 결과에서 지우지 않는다 — 발주가 접혔다는 사실 자체가 정보다.
+ * 대신 눈에 띄게 표시한다.
+ */
+.cancelled-row td {
+  background: var(--status-cancelled-bg);
+}
+.cancelled-row td:first-child {
+  box-shadow: inset 3px 0 0 var(--status-cancelled-border);
+}
+.cancelled-row .bid-link {
+  text-decoration: line-through;
+}
+
+.attachment-list {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  font-size: var(--fs-table);
+  line-height: 1.8;
+}
+/* 색인 본문은 줄바꿈이 의미를 갖는 이어붙인 텍스트다 — 그대로 접어서 보여준다. */
+.notice-body {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: inherit;
+  font-size: var(--fs-table);
+  line-height: 1.7;
+}
+
 /* 다른 탭으로 질의를 넘기는 버튼 — 원본 .cross-tab-btn 의 인라인 스타일 */
 .cross-tab-btn {
   font-size: var(--fs-badge);

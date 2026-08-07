@@ -49,22 +49,29 @@ export function DataTable<T>({
         <thead>
           <tr>
             {columns.map((column, i) => {
-              const active = column.key === sort.key;
+              // sortKey 를 생략하면 컬럼 키로 정렬한다(기존 4탭). null 이면 정렬 불가라
+              // 머리글을 버튼으로 그리지 않는다 — 눌러도 아무 일이 없는 버튼은 거짓말이다.
+              const sortKey = column.sortKey === undefined ? column.key : column.sortKey;
+              const active = sortKey !== null && sortKey === sort.key;
               // 같은 키가 두 번 나오는 표가 있다(사전 규격의 opninRgstClseDt = 의견마감 +
               // D-DAY). key 에 인덱스를 섞어야 React 가 두 컬럼을 구분한다.
               return (
                 <th key={`${column.key}-${i}`} className={columnClass(column.key)}>
-                  <button
-                    type="button"
-                    className="th-sortable"
-                    onClick={() => onSort(column.key)}
-                    aria-label={`${column.label} 정렬`}
-                  >
-                    {column.label}
-                    <span className={active ? 'sort-icon active' : 'sort-icon'}>
-                      {active ? (sort.dir === 'asc' ? '▲' : '▼') : '⇅'}
-                    </span>
-                  </button>
+                  {sortKey === null ? (
+                    column.label
+                  ) : (
+                    <button
+                      type="button"
+                      className="th-sortable"
+                      onClick={() => onSort(sortKey)}
+                      aria-label={`${column.label} 정렬`}
+                    >
+                      {column.label}
+                      <span className={active ? 'sort-icon active' : 'sort-icon'}>
+                        {active ? (sort.dir === 'asc' ? '▲' : '▼') : '⇅'}
+                      </span>
+                    </button>
+                  )}
                 </th>
               );
             })}

@@ -7,9 +7,12 @@ import type { ScreenKind } from '@/domain/columns';
 import { SCREENS } from '@/domain/columns';
 
 export const ROUTES = {
-  bidPlan: '/notices/bid-plan',
-  preSpec: '/notices/pre-spec',
-  bidAnnounce: '/notices/bid-announce',
+  /**
+   * 공고 통합 검색. 예전 표 셋(bidPlan · preSpec · bidAnnounce)이 여기로 합쳐졌다 —
+   * 단계는 탭이 아니라 필터이므로 주소도 하나다. 옛 주소는 router 가 단계 필터를 붙여
+   * 이리로 넘긴다(공유된 링크가 죽지 않도록).
+   */
+  noticeSearch: '/notices',
   bidResult: '/notices/bid-result',
   dealRadar: '/deal-radar',
   saved: '/saved',
@@ -30,8 +33,34 @@ export const ROUTES = {
 
 export type RoutePath = (typeof ROUTES)[keyof typeof ROUTES];
 
-/** '/' 로 들어오면 여기로 보낸다. 원본의 첫 화면은 발주 계획이었으나 실사용 진입점은 입찰 공고다. */
-export const DEFAULT_ROUTE: RoutePath = ROUTES.bidAnnounce;
+/** '/' 로 들어오면 여기로 보낸다. 실사용 진입점은 언제나 공고 검색이다. */
+export const DEFAULT_ROUTE: RoutePath = ROUTES.noticeSearch;
+
+/**
+ * 옛 표 주소 → 통합 검색의 단계 필터.
+ *
+ * 링크를 공유하거나 즐겨찾기에 넣어 둔 사람이 404 를 보지 않게 한다. 입찰 공고는 단계를
+ * 걸지 않는다 — '입찰'만 남기면 이미 마감된 같은 공고가 목록에서 사라져, 예전 탭보다
+ * 좁은 결과를 보게 된다.
+ */
+export const LEGACY_NOTICE_ROUTES: ReadonlyArray<{ path: string; category?: string }> = [
+  { path: '/notices/bid-plan', category: '계획' },
+  { path: '/notices/pre-spec', category: '사전규격' },
+  { path: '/notices/bid-announce' },
+];
+
+/**
+ * 머무르지 않고 곧바로 다른 주소로 넘기는 경유지.
+ *
+ * 셸(App)은 이 경로에서도 렌더되므로 검색창의 효과가 한 번 돈다. 경유지에서 조건을 심으면
+ * 곧이어 일어나는 리다이렉트가 그것을 지우는데, 심었다는 사실(플래그)은 남아 목적지에서
+ * 다시 심지 않는다 — 기본 조회 기간이 통째로 사라진다. 그래서 경유지 목록이 필요하다.
+ */
+const TRANSIT_ROUTES: readonly string[] = ['/', ...LEGACY_NOTICE_ROUTES.map((r) => r.path)];
+
+export function isTransitRoute(pathname: string): boolean {
+  return TRANSIT_ROUTES.includes(pathname);
+}
 
 export interface TabItem {
   path: RoutePath;
@@ -40,13 +69,11 @@ export interface TabItem {
 }
 
 /**
- * 폴더 탭 스트립에 나오는 10개. 순서는 원본 index.html(281~290행) 그대로.
+ * 폴더 탭 스트립. 원본 10개에서 공고 표 셋이 '공고 검색' 하나로 합쳐져 8개다.
  * 라벨은 SCREENS 에서 가져온다 — 탭 이름과 화면 제목이 갈라지면 안 된다.
  */
 export const TAB_ITEMS: readonly TabItem[] = [
-  { path: ROUTES.bidPlan, kind: 'bid-plan', label: SCREENS['bid-plan'].label },
-  { path: ROUTES.preSpec, kind: 'pre-spec', label: SCREENS['pre-spec'].label },
-  { path: ROUTES.bidAnnounce, kind: 'bid-announce', label: SCREENS['bid-announce'].label },
+  { path: ROUTES.noticeSearch, kind: 'notice-search', label: SCREENS['notice-search'].label },
   { path: ROUTES.bidResult, kind: 'bid-result', label: SCREENS['bid-result'].label },
   { path: ROUTES.dealRadar, kind: 'deal-radar', label: SCREENS['deal-radar'].label },
   { path: ROUTES.saved, kind: 'saved-notices', label: SCREENS['saved-notices'].label },

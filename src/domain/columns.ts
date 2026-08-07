@@ -7,7 +7,15 @@
  * 원본의 `cfg?.deal` / `cfg?.saved` / `cfg?.trend` 분기는 전부 이 union 의 `kind` 로 대체된다.
  */
 
-/** 셀 포매터 종류 — 원본 formatCell(app.js:3990) 의 switch 분기와 1:1 대응. */
+/**
+ * 셀 포매터 종류.
+ *
+ * 앞쪽 스무 개는 원본 formatCell(app.js:3990) 의 switch 분기와 1:1 대응이고,
+ * 뒤쪽은 공고 통합 검색(로컬 색인) 전용이다. **어휘는 하나로 두되 다루는 렌더러는 둘**이다 —
+ * 두 계통은 같은 이름의 필드조차 의미가 다르다(색인의 `dday` 는 날짜 문자열이 아니라 남은
+ * 일수 숫자이고, `lowestBidRate` 는 이미 백분율이다). 한 switch 에 섞으면 그 차이가 조용히
+ * 뭉개진다. 각 렌더러는 자기 부분집합만 알고 나머지는 default 로 흘린다.
+ */
 export type CellFmt =
   | 'money'
   | 'date'
@@ -28,13 +36,28 @@ export type CellFmt =
   | 'spec-link'
   | 'ntce-cross'
   | 'result-cross'
-  | 'announce-cross';
+  | 'announce-cross'
+  /* ── 공고 통합 검색 전용 ─────────────────────────────────────────────── */
+  | 'category-badge'
+  | 'state-badge'
+  | 'region'
+  | 'institutions'
+  | 'dday-count'
+  | 'notice-name'
+  | 'spec-cross'
+  | 'opportunity-pending';
 
 export interface ColumnDef {
   label: string;
   key: string;
   /** 없으면 원본 default 분기 = 문자열 그대로 출력. */
   fmt?: CellFmt;
+  /**
+   * 정렬할 때 서버로 보낼 키. 생략하면 `key` 를 그대로 쓴다(기존 4탭의 동작).
+   * `null` 이면 **정렬할 수 없는 컬럼**이라 머리글이 버튼이 아니라 글자로만 그려진다 —
+   * 색인 검색은 정렬 화이트리스트가 여섯 개뿐이라 나머지를 누를 수 있게 두면 거짓말이 된다.
+   */
+  sortKey?: string | null;
 }
 
 /** 트렌드 화면 설정 — 원본 TABS[*].trend. */
@@ -46,6 +69,7 @@ export interface TrendConfig {
 
 /** 라우트가 고르는 화면 식별자. 원본 state.tab 의 값과 같은 문자열을 쓴다. */
 export type ScreenKind =
+  | 'notice-search'
   | 'bid-plan'
   | 'pre-spec'
   | 'bid-announce'
@@ -70,6 +94,40 @@ export type ScreenConfig =
   | (ScreenBase & { kind: 'spec-search' });
 
 export const SCREENS: Readonly<Record<ScreenKind, ScreenConfig>> = {
+  /*
+   * 공고 통합 검색 — 계획 · 사전규격 · 입찰 · 마감이 한 목록에 섞여 온다.
+   *
+   * 아래 세 화면(bid-plan · pre-spec · bid-announce)을 이 하나로 갈아 끼웠다. 넷은 서로 다른
+   * 종류가 아니라 같은 조달 건의 **단계**라, 탭으로 갈라 두면 "이 사업이 지금 어디까지 왔나"를
+   * 보려고 탭을 세 번 옮겨 다녀야 했다. 단계는 이제 탭이 아니라 필터다.
+   * 정렬 화이트리스트가 여섯 개(relevance·created·close·name·amount·updated)뿐이므로
+   * 나머지 컬럼은 sortKey: null 로 못 누르게 막는다.
+   */
+  'notice-search': {
+    kind: 'table',
+    label: '공고 검색',
+    endpoint: '/api/search/notices',
+    columns: [
+      { label: '수주기회', key: '_opportunityPending', fmt: 'opportunity-pending', sortKey: null },
+      { label: '단계', key: 'category', fmt: 'category-badge', sortKey: null },
+      { label: '구분', key: 'businessDivision', fmt: 'type-badge', sortKey: null },
+      { label: '공고번호', key: 'id', sortKey: null },
+      { label: '공고명', key: 'noticeName', fmt: 'notice-name', sortKey: 'name' },
+      // 공고기관과 수요기관이 다른 건이 흔하다(조달청 대행) — 다를 때 둘 다 보여준다.
+      { label: '기관', key: 'noticeInstitutionName', fmt: 'institutions', sortKey: null },
+      { label: '지역', key: 'region', fmt: 'region', sortKey: null },
+      { label: '추정가격', key: 'estimatedPrice', fmt: 'money', sortKey: 'amount' },
+      { label: '공고일', key: 'createdDate', fmt: 'datetime', sortKey: 'created' },
+      { label: '마감일시', key: 'closeDate', fmt: 'datetime', sortKey: 'close' },
+      { label: 'D-DAY', key: 'dday', fmt: 'dday-count', sortKey: 'close' },
+      { label: '담당자', key: 'officerName', sortKey: null },
+      { label: '연락처', key: 'officerContact', fmt: 'tel', sortKey: null },
+      { label: '상태', key: 'state', fmt: 'state-badge', sortKey: null },
+      { label: '관련', key: 'beforeSpecRgstNo', fmt: 'spec-cross', sortKey: null },
+      // 원본 변경일시가 아니라 **색인에 반영된 때**다.
+      { label: '색인 갱신', key: 'updatedAt', fmt: 'datetime', sortKey: 'updated' },
+    ],
+  },
   'bid-plan': {
     kind: 'table',
     label: '발주 계획',
@@ -221,10 +279,16 @@ export const SCREENS: Readonly<Record<ScreenKind, ScreenConfig>> = {
   },
 };
 
-/** 표 화면(bid-plan · pre-spec · bid-announce · bid-result)만 컬럼을 가진다. */
+/**
+ * 팬아웃 검색(요청마다 나라장터를 훑는 쪽) 표 화면.
+ *
+ * 통합 검색으로 갈아 끼운 뒤 실제로 라우팅되는 것은 `bid-result` 하나다. 나머지 셋은
+ * 컬럼 정의와 엔드포인트가 남아 있다 — AI 수주 데스크가 `/api/bid-announce` 를 그대로 쓰고,
+ * 되돌릴 때 다시 짜지 않기 위해서다.
+ */
 export type NoticeTableKind = 'bid-plan' | 'pre-spec' | 'bid-announce' | 'bid-result';
 
-export function columnsFor(kind: NoticeTableKind): readonly ColumnDef[] {
+export function columnsFor(kind: ScreenKind): readonly ColumnDef[] {
   const cfg = SCREENS[kind];
   return cfg.kind === 'table' ? cfg.columns : [];
 }
