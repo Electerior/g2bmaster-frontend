@@ -34,7 +34,18 @@ export class ApiError extends Error {
   }
 }
 
-type ErrorBody = { message?: string; error?: string; code?: string; details?: unknown };
+/**
+ * `missing[]` 은 베타 모듈의 검증 실패(400)가 문제 된 필드명을 실어 보내는 자리다
+ * (계약 §1.1-2). 화면은 보통 error 문구만 띄우지만, 필드 하이라이트가 필요해지면
+ * details 로 받아 쓴다 — 여기서 버리면 서버가 보낸 정보가 사라진다.
+ */
+type ErrorBody = {
+  message?: string;
+  error?: string;
+  code?: string;
+  details?: unknown;
+  missing?: string[];
+};
 
 apiClient.interceptors.response.use(
   (response) => response,
@@ -45,7 +56,9 @@ apiClient.interceptors.response.use(
       body?.message ??
       body?.error ??
       (status === 0 ? '백엔드에 연결하지 못했습니다.' : error.message);
-    return Promise.reject(new ApiError(message, status, body?.code, body?.details));
+    return Promise.reject(
+      new ApiError(message, status, body?.code, body?.details ?? body?.missing),
+    );
   },
 );
 
