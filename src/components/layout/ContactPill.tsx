@@ -8,7 +8,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import './layout.css';
 
-export type ContactPillVariant = 'default' | 'kakao' | 'download' | 'home' | 'service';
+export type ContactPillVariant =
+  | 'default'
+  | 'kakao'
+  | 'download'
+  | 'home'
+  | 'service'
+  | 'header';
 
 const VARIANT_CLASS: Record<ContactPillVariant, string> = {
   default: '',
@@ -16,6 +22,8 @@ const VARIANT_CLASS: Record<ContactPillVariant, string> = {
   download: 'contact-pill--download',
   home: 'contact-pill--home',
   service: 'contact-pill--service',
+  // 파란 통합 헤더 위에 얹히는 반투명 흰 칩.
+  header: 'contact-pill--header',
 };
 
 const COPIED_MS = 1600;

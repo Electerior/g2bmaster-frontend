@@ -66,6 +66,12 @@ export interface TabItem {
   path: RoutePath;
   label: string;
   kind: ScreenKind;
+  /**
+   * 화면 속은 아직 ScreenPlaceholder('준비 중')다 — 대응 API 는 백엔드에 있으나 화면 구현이
+   * 다음 웨이브다. 탭에서 숨기지 않고 «준비» 배지로 표시한다: 숨기면 로드맵이 안 보이고,
+   * 아무 표시 없이 두면 클릭한 뒤에야 준비 중임을 알게 된다.
+   */
+  notReady?: boolean;
 }
 
 /**
@@ -75,9 +81,10 @@ export interface TabItem {
 export const TAB_ITEMS: readonly TabItem[] = [
   { path: ROUTES.noticeSearch, kind: 'notice-search', label: SCREENS['notice-search'].label },
   { path: ROUTES.bidResult, kind: 'bid-result', label: SCREENS['bid-result'].label },
-  { path: ROUTES.dealRadar, kind: 'deal-radar', label: SCREENS['deal-radar'].label },
+  // AI 수주 데스크·스펙 검색은 아직 ScreenPlaceholder 다 — «준비» 배지로 표시한다.
+  { path: ROUTES.dealRadar, kind: 'deal-radar', label: SCREENS['deal-radar'].label, notReady: true },
   { path: ROUTES.saved, kind: 'saved-notices', label: SCREENS['saved-notices'].label },
-  { path: ROUTES.specSearch, kind: 'spec-search', label: SCREENS['spec-search'].label },
+  { path: ROUTES.specSearch, kind: 'spec-search', label: SCREENS['spec-search'].label, notReady: true },
   { path: ROUTES.trendProduct, kind: 'product-trend', label: SCREENS['product-trend'].label },
   { path: ROUTES.trendService, kind: 'service-trend', label: SCREENS['service-trend'].label },
   {

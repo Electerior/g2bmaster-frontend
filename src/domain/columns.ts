@@ -45,6 +45,8 @@ export type CellFmt =
   | 'dday-count'
   | 'notice-name'
   | 'spec-cross'
+  | 'save-star'
+  | 'close-dday'
   | 'opportunity-pending';
 
 export interface ColumnDef {
@@ -107,25 +109,33 @@ export const SCREENS: Readonly<Record<ScreenKind, ScreenConfig>> = {
     kind: 'table',
     label: '공고 검색',
     endpoint: '/api/search/notices',
+    /*
+     * 표는 **간결하게** 둔다(SVG 목업 기준). 훑어보며 결정에 필요한 값 — 단계·구분·공고명·
+     * 기관·지역·추정가격·공고일·마감(+D-DAY) — 만 컬럼으로 남기고, 나머지 상세(담당자·연락처·
+     * 상태·사전규격 연결·색인 갱신 시각·공고 본문·첨부)는 **행을 눌러 여는 드로어**로 보낸다.
+     *
+     * 이렇게 나눈 이유: 계획·사전규격 단계는 담당자·연락처·상태·마감이 대부분 비어 온다.
+     * 그 빈 칸들을 표에 그대로 두면 화면이 휑해 "데이터가 없다"로 오해된다. 상세는 드로어에서
+     * 조건부로(값이 있을 때만 줄이 생기게) 그리므로 단계가 무엇이든 깔끔하다.
+     * 상세용 필드는 여전히 같은 API(GET /api/search/notices/{id})가 채운다 — 배선은 그대로다.
+     *
+     * 정렬 화이트리스트가 여섯 개(relevance·created·close·name·amount·updated)뿐이므로
+     * 나머지 컬럼은 sortKey: null 로 못 누르게 막는다.
+     */
     columns: [
-      { label: '수주기회', key: '_opportunityPending', fmt: 'opportunity-pending', sortKey: null },
       { label: '단계', key: 'category', fmt: 'category-badge', sortKey: null },
       { label: '구분', key: 'businessDivision', fmt: 'type-badge', sortKey: null },
-      { label: '공고번호', key: 'id', sortKey: null },
-      { label: '공고명', key: 'noticeName', fmt: 'notice-name', sortKey: 'name' },
+      // 공고명 셀이 공고번호·본문 미리보기를 서브텍스트로 함께 그린다(IndexCell 'notice-name').
+      { label: '공고명 · 공고번호', key: 'noticeName', fmt: 'notice-name', sortKey: 'name' },
       // 공고기관과 수요기관이 다른 건이 흔하다(조달청 대행) — 다를 때 둘 다 보여준다.
       { label: '기관', key: 'noticeInstitutionName', fmt: 'institutions', sortKey: null },
       { label: '지역', key: 'region', fmt: 'region', sortKey: null },
       { label: '추정가격', key: 'estimatedPrice', fmt: 'money', sortKey: 'amount' },
       { label: '공고일', key: 'createdDate', fmt: 'datetime', sortKey: 'created' },
-      { label: '마감일시', key: 'closeDate', fmt: 'datetime', sortKey: 'close' },
-      { label: 'D-DAY', key: 'dday', fmt: 'dday-count', sortKey: 'close' },
-      { label: '담당자', key: 'officerName', sortKey: null },
-      { label: '연락처', key: 'officerContact', fmt: 'tel', sortKey: null },
-      { label: '상태', key: 'state', fmt: 'state-badge', sortKey: null },
-      { label: '관련', key: 'beforeSpecRgstNo', fmt: 'spec-cross', sortKey: null },
-      // 원본 변경일시가 아니라 **색인에 반영된 때**다.
-      { label: '색인 갱신', key: 'updatedAt', fmt: 'datetime', sortKey: 'updated' },
+      // 마감일시 셀 안에 D-DAY 배지를 함께 그린다 — 별도 컬럼을 두면 계획 단계에서 둘 다 빈다.
+      { label: '마감일시', key: 'closeDate', fmt: 'close-dday', sortKey: 'close' },
+      // ★ 저장 — POST /api/saved-notices 로 바로 담는다(SVG 목업의 행 끝 별).
+      { label: '', key: 'id', fmt: 'save-star', sortKey: null },
     ],
   },
   'bid-plan': {
@@ -192,10 +202,15 @@ export const SCREENS: Readonly<Record<ScreenKind, ScreenConfig>> = {
     kind: 'table',
     label: '입찰 결과',
     endpoint: '/api/bid-result',
+    /*
+     * 공고명을 누르면 바로 오른쪽 슬라이딩 패널(BidNoticeDrawer)이 뜬다 — 예전의 '공고보기 →'
+     * 별도 컬럼을 없앴다. 행 어디를 눌러야 상세가 뜨는지 한 곳(공고명)으로 모으면, 오른쪽
+     * 끝까지 눈을 옮겨 버튼을 찾을 필요가 없다. 링크는 'ntce-link' 가 openNotice 를 호출한다.
+     */
     columns: [
       { label: '구분', key: '_type', fmt: 'type-badge' },
       { label: '공고번호', key: 'bidNtceNo' },
-      { label: '공고명', key: 'bidNtceNm' },
+      { label: '공고명', key: 'bidNtceNm', fmt: 'ntce-link' },
       { label: '수요기관', key: 'dminsttNm' },
       { label: '낙찰업체', key: 'bidwinnrNm' },
       { label: '낙찰금액', key: 'sucsfbidAmt', fmt: 'money' },
@@ -203,7 +218,6 @@ export const SCREENS: Readonly<Record<ScreenKind, ScreenConfig>> = {
       { label: '참여업체수', key: 'prtcptCnum' },
       { label: '개찰일시', key: 'rlOpengDt', fmt: 'datetime' },
       { label: '낙찰확정일', key: 'fnlSucsfDate', fmt: 'date' },
-      { label: '공고보기', key: 'bidNtceNo', fmt: 'announce-cross' },
     ],
   },
   // 공고 소스를 재사용한다 — 점수 게이트를 통과한 건만 딜 분석으로 넘긴다.

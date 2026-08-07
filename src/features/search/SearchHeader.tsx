@@ -13,10 +13,8 @@ import { useNotReady } from '@/components/feedback/notReadyContext';
 import { fmtInputDate } from '@/domain/format';
 import { searchModeLayout } from '@/domain/searchModes';
 import type { SearchMode } from '@/domain/searchModes';
-import type { SearchPreset } from '@/domain/storage';
 import { isTransitRoute } from '@/routes/routePaths';
 import { useSearchCriteria, type SearchCriteria } from './useSearchCriteria';
-import { PresetBar } from './PresetBar';
 import { SearchModeTabs } from './SearchModeTabs';
 import { activeSearchMode } from './searchRoutes';
 import { TagInput } from './TagInput';
@@ -179,14 +177,6 @@ export function SearchHeader() {
       brnNo: brnDraft.replace(/[^0-9]/g, ''),
       officerInsttNm: officerDraft.trim(),
       ...patch,
-    });
-  };
-
-  const applyPreset = (preset: SearchPreset) => {
-    setCriteria({
-      andTerms: [...(preset.andTerms ?? [])],
-      orTerms: [...(preset.orTerms ?? [])],
-      notTerms: [...(preset.notTerms ?? [])],
     });
   };
 
@@ -371,15 +361,6 @@ export function SearchHeader() {
           </div>
         ) : null}
       </section>
-
-      {layout.searchUi ? (
-        <PresetBar
-          andTerms={criteria.andTerms}
-          orTerms={criteria.orTerms}
-          notTerms={criteria.notTerms}
-          onApply={applyPreset}
-        />
-      ) : null}
     </>
   );
 }

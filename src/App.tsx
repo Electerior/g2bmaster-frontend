@@ -7,7 +7,6 @@ import { NotReadyProvider } from '@/components/feedback/NotReady';
 import { AiActivityBar } from '@/components/layout/AiActivityBar';
 import { AppHeader } from '@/components/layout/AppHeader';
 import { AppTabs } from '@/components/layout/AppTabs';
-import { PartnerBanner } from '@/components/layout/PartnerBanner';
 import { SearchHeader } from '@/features/search/SearchHeader';
 import { ROUTES } from '@/routes/routePaths';
 
@@ -30,10 +29,10 @@ export function App() {
     */
     <NotReadyProvider>
       <AiActivityBar />
-      <PartnerBanner />
       {/*
-        '⚙ 우리 회사' 버튼의 모달(SettingsModal)은 다음 웨이브에서 붙는다.
-        핸들러를 넘기지 않으면 버튼은 아무 일도 하지 않는다 — 셸의 배치만 확정한 상태.
+        상단은 통합 헤더 하나다(예전의 흰색 파트너 배너 + 파란 앱 헤더를 합쳤다).
+        '⚙ 우리 회사' 버튼의 모달(SettingsModal)은 다음 웨이브에서 붙는다 —
+        핸들러를 넘기지 않으면 버튼은 아무 일도 하지 않는다.
       */}
       <AppHeader />
       <main>

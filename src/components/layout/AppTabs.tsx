@@ -26,9 +26,15 @@ export function AppTabs() {
            * 둘이 켜지면 어느 화면인지 알 수 없게 된다(aria-current 도 둘이 된다).
            */
           end
-          className={({ isActive }) => (isActive ? 'app-tab active' : 'app-tab')}
+          className={({ isActive }) =>
+            [isActive ? 'app-tab active' : 'app-tab', tab.notReady ? 'not-ready' : '']
+              .filter(Boolean)
+              .join(' ')
+          }
         >
           {tab.label}
+          {/* 화면 속이 아직 준비 중임을 클릭 전에 알린다 — routePaths.ts TabItem.notReady 참고. */}
+          {tab.notReady ? <span className="tab-ready-badge">준비</span> : null}
         </NavLink>
       ))}
     </nav>

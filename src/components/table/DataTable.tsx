@@ -27,6 +27,12 @@ export interface DataTableProps<T> {
   loading?: boolean;
   /** 결과가 없을 때 표 아래에 보일 것. 표 자체는 헤더만 남는다. */
   empty?: ReactNode;
+  /**
+   * 이 값이 바뀌면 표 본문을 부드럽게 새로 그린다(페이드-인). 단계·구분 필터를 바꿔
+   * 결과가 통째로 교체될 때, 데이터가 툭 갈리지 않고 젠틀하게 전환되게 하는 용도다.
+   * 정렬·페이지처럼 "같은 결과의 순서/조각"만 바뀔 때는 넘기지 않아야 깜빡이지 않는다.
+   */
+  transitionKey?: string;
 }
 
 const SKELETON_ROWS = 5;
@@ -42,6 +48,7 @@ export function DataTable<T>({
   renderSubRow,
   loading = false,
   empty,
+  transitionKey,
 }: DataTableProps<T>) {
   return (
     <div className="table-wrap">
@@ -77,28 +84,43 @@ export function DataTable<T>({
             })}
           </tr>
         </thead>
-        <tbody>
-          {loading
-            ? Array.from({ length: SKELETON_ROWS }, (_, r) => (
-                <tr key={`skeleton-${r}`} className="loading-row">
-                  {columns.map((column, c) => (
-                    <td key={`${column.key}-${c}`}>&nbsp;</td>
+        {loading ? (
+          <tbody>
+            {Array.from({ length: SKELETON_ROWS }, (_, r) => (
+              <tr key={`skeleton-${r}`} className="loading-row">
+                {columns.map((column, c) => (
+                  <td key={`${column.key}-${c}`} className={columnClass(column.key)}>
+                    {/* 셀 전체를 블록으로 칠하지 않고 콘텐츠 자리에 옅은 막대만 둔다 —
+                        빈 칸이 '고장'처럼 보이지 않게. 빈 칸(★ 컬럼)은 막대를 그리지 않는다. */}
+                    {column.fmt === 'save-star' ? null : (
+                      <span className="skeleton-bar" aria-hidden="true" />
+                    )}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        ) : (
+          /*
+           * transitionKey 가 바뀌면 이 tbody 가 새 key 로 리마운트되며 fade-in 을 재생한다.
+           * 단계·구분 필터를 바꿔 결과가 통째로 갈릴 때 툭 바뀌지 않고 부드럽게 나타난다.
+           * key 를 안 주면(정렬·페이지 변경) 리마운트가 없어 깜빡이지 않는다.
+           */
+          <tbody key={transitionKey} className="table-body-fade">
+            {rows.map((row, index) => (
+              <Fragment key={rowKey(row, index)}>
+                <tr className={rowClassName?.(row)}>
+                  {columns.map((column, columnIndex) => (
+                    <td key={`${column.key}-${columnIndex}`} className={columnClass(column.key)}>
+                      {renderCell(row, column, columnIndex)}
+                    </td>
                   ))}
                 </tr>
-              ))
-            : rows.map((row, index) => (
-                <Fragment key={rowKey(row, index)}>
-                  <tr className={rowClassName?.(row)}>
-                    {columns.map((column, columnIndex) => (
-                      <td key={`${column.key}-${columnIndex}`} className={columnClass(column.key)}>
-                        {renderCell(row, column, columnIndex)}
-                      </td>
-                    ))}
-                  </tr>
-                  {renderSubRow?.(row, columns.length)}
-                </Fragment>
-              ))}
-        </tbody>
+                {renderSubRow?.(row, columns.length)}
+              </Fragment>
+            ))}
+          </tbody>
+        )}
       </table>
       {loading ? null : empty}
     </div>

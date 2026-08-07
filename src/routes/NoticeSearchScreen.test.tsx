@@ -144,12 +144,16 @@ describe('NoticeSearchScreen', () => {
 
   it('D-DAY 를 서버가 센 일수로 그린다', async () => {
     const { container } = renderScreen();
+    // D-DAY 는 별도 컬럼이 아니라 '마감일시' 셀 안의 배지다(표를 간결하게 줄였다).
     await screen.findByText('D-37');
-    // 지난 것은 '마감'. '마감'은 단계 칩·단계 배지에도 나오는 말이라 D-DAY 칸으로 좁혀 본다.
-    expect(container.querySelector('.dday-expired')?.textContent).toBe('마감');
-    // 마감이 없는 계획 단계는 값 자체가 없어 D-DAY 칸이 '-' 로 남는다.
-    expect(container.querySelectorAll('.dday-expired')).toHaveLength(1);
-    expect(container.querySelectorAll('.dday')).toHaveLength(1);
+    // 지난 것은 '마감'. '마감'은 단계 칩·단계 배지에도 나오는 말이라 D-DAY 배지로 좁혀 본다.
+    expect(container.querySelector('.dday-badge.dday-expired')?.textContent).toBe('마감');
+    // 마감이 없는 계획 단계는 값 자체가 없어 배지 없이 마감일시만(또는 '-') 남는다.
+    expect(container.querySelectorAll('.dday-badge.dday-expired')).toHaveLength(1);
+    // 남은 일수 배지(마감 아닌 것)도 정확히 하나.
+    expect(
+      container.querySelectorAll('.dday-badge:not(.dday-expired)'),
+    ).toHaveLength(1);
   });
 
   it('취소 공고를 지우지 않고 표시만 한다', async () => {
@@ -221,9 +225,10 @@ describe('NoticeSearchScreen', () => {
   it('정렬할 수 없는 컬럼은 머리글을 버튼으로 그리지 않는다', async () => {
     renderScreen();
     await screen.findByText('2026년 노트북 및 모니터 구매');
-    expect(screen.getByLabelText('공고명 정렬')).toBeInTheDocument();
+    // 공고명 컬럼은 공고번호를 함께 담으므로 라벨이 '공고명 · 공고번호'다(표를 간결하게 줄였다).
+    expect(screen.getByLabelText('공고명 · 공고번호 정렬')).toBeInTheDocument();
     expect(screen.getByLabelText('마감일시 정렬')).toBeInTheDocument();
-    // 화이트리스트 밖(단계·구분·지역·담당자 …)
+    // 화이트리스트 밖(단계·구분·지역 …)
     expect(screen.queryByLabelText('단계 정렬')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('지역 정렬')).not.toBeInTheDocument();
   });

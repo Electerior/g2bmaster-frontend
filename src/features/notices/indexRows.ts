@@ -6,6 +6,7 @@
  * 표·서랍 두 곳이 같은 규칙을 써야 하기 때문이다.
  */
 import type { NoticeIndexItem, NoticeProduct } from '@/api/search';
+import type { SaveNoticeRequest } from '@/api/saved';
 
 /**
  * 지역 표기. **빈 문자열은 '전국'** 이다(지역 제한 없음).
@@ -72,6 +73,33 @@ export function productSummary(list: NoticeProduct[] | null | undefined): string
  */
 export function indexRowKey(item: NoticeIndexItem, index: number): string {
   return item.id ? String(item.id) : `row-${index}`;
+}
+
+/**
+ * 색인 행 → 저장 공고 요청.
+ *
+ * `POST /api/saved-notices` 는 백엔드가 제목·기관·요약·메모·견적 품목명을 한 칸(`search_text`)에
+ * 모아 두고 `real_estimate = round(amount * 1.1)` 을 파생시키는 자리다(계약 §G). 여기서는 그
+ * 원재료만 넘긴다 — 색인 행이 가진 값 그대로. 없는 값은 보내지 않는다(백엔드가 빈 값을 필터로
+ * 오해하진 않지만, 저장 레코드에 빈 문자열을 박아 두면 나중에 '있음/없음' 구분이 흐려진다).
+ *
+ * 주의: 색인의 `id` 는 단계마다 다른 번호다 — 입찰은 공고번호, 계획은 조달요청번호,
+ * 사전규격은 사전규격등록번호. 복합 PK 는 `(bid_ntce_no, bid_ntce_ord)` 이므로 차수는
+ * 색인이 가진 `noticeOrder` 를 그대로 싣고, 없으면 백엔드 기본값('000')에 맡긴다.
+ */
+export function toSaveRequest(item: NoticeIndexItem): SaveNoticeRequest {
+  const { primary } = institutionPair(item);
+  const body: SaveNoticeRequest = { bidNtceNo: String(item.id) };
+  if (item.noticeOrder) body.bidNtceOrd = String(item.noticeOrder);
+  if (item.noticeName) body.title = String(item.noticeName);
+  if (primary) body.insttNm = primary;
+  if (item.closeDate) body.bidClseDt = String(item.closeDate);
+
+  const amount = item.estimatedPrice ?? item.priceDetail?.estimatedPrice;
+  if (amount != null) body.amount = amount;
+  if (item.aiSummary) body.summary = String(item.aiSummary);
+
+  return body;
 }
 
 /** 낙찰하한율. **백분율 그대로** 온다(88.000 = 88%) — 100을 곱하지 말 것. */

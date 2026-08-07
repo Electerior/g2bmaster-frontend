@@ -16,6 +16,7 @@ import { useNotReady } from '@/components/feedback/notReadyContext';
 import type { ColumnDef } from '@/domain/columns';
 import { fmtDisplayDatetime, fmtMoney } from '@/domain/format';
 import { ddayLabel, ddayTone, institutionPair, regionLabel } from './indexRows';
+import { SaveNoticeButton } from './SaveNoticeButton';
 
 const EMPTY = <span className="cell-empty">-</span>;
 
@@ -103,12 +104,38 @@ export function IndexCell({ item, column, actions }: IndexCellProps): ReactNode 
     case 'notice-name': {
       const name = String(item.noticeName ?? '').trim();
       if (!name) return EMPTY;
+      const no = String(item.id ?? '').trim();
       return (
         <div className="notice-name-cell">
           <button type="button" className="bid-link" onClick={() => actions.openDetail(item)}>
             {name}
           </button>
+          {/* 공고번호는 표에서 별도 컬럼을 빼는 대신 공고명 아래 옅게 붙인다(SVG 목업). */}
+          {no ? <span className="notice-no">{no}</span> : null}
           {item.bodyPreview ? <p className="body-preview">{item.bodyPreview}</p> : null}
+        </div>
+      );
+    }
+
+    // 마감일시 + D-DAY 를 한 칸에. 계획 단계는 마감이 없어 '-' 하나로 깔끔히 떨어진다.
+    case 'close-dday': {
+      if (!item.closeDate) return EMPTY;
+      const label = ddayLabel(item.dday);
+      return (
+        <div className="close-dday-cell">
+          <span>{fmtDisplayDatetime(String(item.closeDate))}</span>
+          {label != null ? (
+            label === '마감' ? (
+              <span className="dday-badge dday-expired">마감</span>
+            ) : (
+              <span
+                className="dday-badge"
+                style={{ color: ddayTone(item.dday as number), borderColor: ddayTone(item.dday as number) }}
+              >
+                {label}
+              </span>
+            )
+          ) : null}
         </div>
       );
     }
@@ -142,6 +169,10 @@ export function IndexCell({ item, column, actions }: IndexCellProps): ReactNode 
         </button>
       );
     }
+
+    // ★ 저장 — 구현돼 있으나 부를 UI 가 없던 POST /api/saved-notices 를 행에서 바로 잇는다.
+    case 'save-star':
+      return <SaveNoticeButton item={item} variant="icon" />;
 
     case 'money':
       return raw == null || raw === '' ? (

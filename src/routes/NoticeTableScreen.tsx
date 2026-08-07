@@ -362,6 +362,16 @@ export function NoticeTableScreen({ kind }: NoticeTableScreenProps) {
             }
             renderSubRow={renderSubRow}
             loading={loading}
+            // 구분(물품/용역/공사)·검색어를 바꿔 결과가 갈릴 때 부드럽게 전환한다(정렬·페이지 제외).
+            transitionKey={[
+              kind,
+              criteria.bidType,
+              criteria.andTerms.join(','),
+              criteria.orTerms.join(','),
+              criteria.notTerms.join(','),
+              criteria.insttNm,
+              criteria.corpNm,
+            ].join('|')}
             empty={rows.length === 0 && !loading ? <EmptyState /> : null}
           />
 

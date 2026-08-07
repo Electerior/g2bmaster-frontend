@@ -13,11 +13,34 @@ import axios, {
  */
 const baseURL = import.meta.env.VITE_API_BASE_URL ?? '';
 
+/**
+ * 앱 API 키. 쓰기·비용 경로(`@RequireAppAuth`: 저장 공고, 색인 수동 적재, 분석 작업 등)는
+ * 백엔드가 `Authorization: Bearer <key>` 또는 `X-API-Key` 를 요구한다
+ * (`security/AppAuthInterceptor`). 키가 비어 있으면 백엔드도 인증을 끄므로(개발 모드),
+ * 값이 있을 때만 헤더를 붙인다 — 빈 문자열 Bearer 를 보내면 운영에서 401 이 된다.
+ *
+ * 이 키는 브라우저 번들에 그대로 들어간다. 조직 내부 배포 기준의 저강도 게이트일 뿐이며,
+ * 공개 서비스라면 사용자별 토큰으로 대체해야 한다(그때도 주입 지점은 이 인터셉터 하나다).
+ */
+const appApiKey = import.meta.env.VITE_APP_API_KEY ?? '';
+
 export const apiClient: AxiosInstance = axios.create({
   baseURL,
   timeout: 60_000,
   headers: { 'Content-Type': 'application/json' },
 });
+
+/**
+ * 앱 키 주입 — 저장소를 나누기 전(모놀리스)에는 같은 오리진 세션이라 필요 없던 것이,
+ * 프론트가 별도 오리진에서 뜨면서 명시적으로 실어 보내야 하는 값이 됐다.
+ * 백엔드가 두 헤더를 모두 받으므로(`AppAuthInterceptor.presentedKey`) 표준적인 Bearer 를 쓴다.
+ */
+if (appApiKey) {
+  apiClient.interceptors.request.use((config) => {
+    config.headers.set('Authorization', `Bearer ${appApiKey}`);
+    return config;
+  });
+}
 
 /** 백엔드가 4xx/5xx 로 내려준 오류를 화면에서 쓸 수 있는 형태로 좁힌다. */
 export class ApiError extends Error {

@@ -174,6 +174,26 @@ export function NoticeSearchScreen() {
         renderCell={renderCell}
         rowClassName={(item) => (item.state === '취소' ? 'cancelled-row' : undefined)}
         loading={search.isPending}
+        /*
+          결과 집합을 바꾸는 조건(단계·구분·상태·지역·기간·금액·검색어)만 전환 키에 넣는다.
+          정렬·페이지는 같은 결과의 순서/조각이라 넣지 않는다 — 넣으면 페이지를 넘길 때마다
+          표가 깜빡인다. 이 키가 바뀌면 tbody 가 부드럽게 페이드-인 된다.
+        */
+        transitionKey={[
+          criteria.category,
+          criteria.bidType,
+          criteria.noticeState,
+          criteria.region,
+          criteria.fromDate,
+          criteria.toDate,
+          criteria.closeFrom,
+          criteria.closeTo,
+          criteria.minAmount,
+          criteria.maxAmount,
+          criteria.andTerms.join(','),
+          criteria.orTerms.join(','),
+          criteria.notTerms.join(','),
+        ].join('|')}
         empty={
           items.length === 0 && !search.isPending ? (
             <EmptyState>

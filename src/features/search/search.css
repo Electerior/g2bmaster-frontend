@@ -4,14 +4,24 @@
  */
 
 .search-box {
-  background: var(--surface);
-  border: 1px solid var(--border);
+  /* Soft Glass — 캔버스 위에 뜬 반투명 유리. 표에는 쓰지 않는다(SVG 설계 주석 ⑪). */
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
   border-radius: var(--radius);
   padding: 16px 20px;
   margin-bottom: 16px;
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+/* backdrop-filter 미지원 브라우저에서는 불투명 흰색으로 떨어뜨린다 — 유리 대신 카드. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .search-box {
+    background: var(--surface);
+  }
 }
 
 /* ── 검색 방식 탭 ──────────────────────────────────────────────────────── */
@@ -547,6 +557,31 @@
 .filter-tilde,
 .filter-unit {
   color: var(--muted);
+}
+
+/* 행 끝 ★ 저장 별 — POST /api/saved-notices. 저장 전 빈 별(☆), 저장 후 채운 별(★). */
+.row-save-star {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 4px;
+  font-size: 15px;
+  line-height: 1;
+  color: var(--table-empty-fg);
+  transition:
+    color 0.15s,
+    transform 0.1s;
+}
+.row-save-star:hover:not(:disabled) {
+  color: var(--primary);
+  transform: scale(1.15);
+}
+.row-save-star.saved {
+  color: var(--primary);
+}
+.row-save-star:disabled {
+  cursor: default;
+  opacity: 0.6;
 }
 
 /* 준비 중인 태그 입력의 자리 표시 — 실제 입력과 높이를 맞춰 줄이 흔들리지 않게 한다. */
