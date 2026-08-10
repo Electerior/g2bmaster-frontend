@@ -17,6 +17,7 @@ export const ROUTES = {
   dealRadar: '/deal-radar',
   saved: '/saved',
   specSearch: '/spec-search',
+  priceDb: '/price-db',
   trendProduct: '/trends/product',
   trendService: '/trends/service',
   trendConstruction: '/trends/construction',
@@ -81,10 +82,11 @@ export interface TabItem {
 export const TAB_ITEMS: readonly TabItem[] = [
   { path: ROUTES.noticeSearch, kind: 'notice-search', label: SCREENS['notice-search'].label },
   { path: ROUTES.bidResult, kind: 'bid-result', label: SCREENS['bid-result'].label },
-  // AI 수주 데스크·스펙 검색은 아직 ScreenPlaceholder 다 — «준비» 배지로 표시한다.
-  { path: ROUTES.dealRadar, kind: 'deal-radar', label: SCREENS['deal-radar'].label, notReady: true },
+  // AI 수주 데스크는 이제 실제 화면이다 — 준비 배지를 떼었다.
+  { path: ROUTES.dealRadar, kind: 'deal-radar', label: SCREENS['deal-radar'].label },
   { path: ROUTES.saved, kind: 'saved-notices', label: SCREENS['saved-notices'].label },
   { path: ROUTES.specSearch, kind: 'spec-search', label: SCREENS['spec-search'].label, notReady: true },
+  { path: ROUTES.priceDb, kind: 'price-db', label: SCREENS['price-db'].label },
   { path: ROUTES.trendProduct, kind: 'product-trend', label: SCREENS['product-trend'].label },
   { path: ROUTES.trendService, kind: 'service-trend', label: SCREENS['service-trend'].label },
   {

@@ -58,6 +58,9 @@
   --type-works-bg: #d1fae5;
   --type-etc-fg: #6b7a99;
   --type-etc-bg: #f0f3f8;
+  /* 외자(수입 조달) — 물품(파랑)·용역(보라)·공사(초록)과 또렷이 갈리는 앰버. */
+  --type-foreign-fg: #b45309;
+  --type-foreign-bg: #fef3c7;
 
   /* 표 ─ 원본이 #f0f3f8 / #f7f9fd 로 박아 두었던 값 */
   --table-head-bg: #f0f3f8;

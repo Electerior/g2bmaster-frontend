@@ -23,6 +23,7 @@ import {
   type NoticeTableKind,
 } from '@/domain/columns';
 import {
+  ATTACHMENT_SCAN_READY,
   buildQuery,
   isBlockingRelevant,
   isPastOnlyAnnounceRange,
@@ -30,6 +31,7 @@ import {
   useSearchCriteria,
   type BidType,
 } from '@/features/search/useSearchCriteria';
+import { useNotReady } from '@/components/feedback/notReadyContext';
 import { crossSearchTo } from '@/features/notices/crossSearch';
 import { highlightKeywords } from '@/features/notices/highlight';
 import { rowKeyForItem, type ScannedRow } from '@/features/notices/rows';
@@ -81,10 +83,22 @@ export function NoticeTableScreen({ kind }: NoticeTableScreenProps) {
   const location = useLocation();
   const { criteria, setCriteria, setPage } = useSearchCriteria();
   const [selection, setSelection] = useState<DrawerSelection | null>(null);
+  const { notify } = useNotReady();
 
   useEffect(() => {
     document.title = `${screen.label} — G2B Masters`;
   }, [screen.label]);
+
+  /*
+   * 파일 키워드는 검색창에서 막혀 있지만 조건의 출처는 URL 이다 — 예전에 공유된 링크에는
+   * 아직 `?file=...` 이 남아 있다. 지금은 백엔드에 스캔 표면이 없어 그 조건이 적용되지
+   * 않으므로, 조용히 무시하지 않고 준비 중임을 알린다. 사용자가 친 조건이 소리 없이
+   * 사라지면 "키워드를 넣었는데 왜 다 나오지" 가 된다.
+   */
+  const fileKeywordsIgnored = !ATTACHMENT_SCAN_READY && criteria.fileKeywords.length > 0;
+  useEffect(() => {
+    if (fileKeywordsIgnored) notify('첨부문서 전수조사');
+  }, [fileKeywordsIgnored, notify]);
 
   // 화면을 옮기면 서랍은 닫는다 — 옛 공고의 서랍이 새 표 위에 남으면 안 된다.
   useEffect(() => setSelection(null), [kind]);

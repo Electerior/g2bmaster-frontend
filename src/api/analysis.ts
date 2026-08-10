@@ -25,8 +25,12 @@ export interface DealAnalysisRequest {
   bidPrice?: number;
   unitCost?: number;
   quantity?: number;
-  /** 깊은 분석 — 첨부까지 열어 본다. 느리므로 사용자가 명시적으로 켤 때만. */
+  /** 깊은 분석 — 규격서 첨부까지 열어 부품 단가를 추정한다. **기본 켜짐**(백엔드도 기본 true). */
   deep?: boolean;
+  /** 갈래별 on/off. 안 주면 각 true. spec·parts 는 deep 이 켜져 있어야 돈다. */
+  include?: { spec?: boolean; parts?: boolean; market?: boolean; opening?: boolean };
+  /** 저장된 deep 결과를 무시하고 다시 분석한다. */
+  forceRefresh?: boolean;
 }
 
 /** 단가 추정 결과는 "못 찾음"과 "찾음"이 형태가 달라 union 으로 온다. */
@@ -38,17 +42,33 @@ export type EstimatedUnitCost =
       high: number;
       mid: number;
       gpuCount: number;
+      /** 베어본(완본체 베이스) 행을 포함하는가. 부품과 함께 나열된다. */
       hasBase: boolean;
+      /** 모든 행의 가격이 확인됐는가. false 면 일부 행이 미확인(low=null). */
+      allPriced?: boolean;
       breakdown: Array<{
         category: string;
         option: string;
-        product: string;
+        product: string | null;
         qty: number;
-        low: number;
-        high: number;
+        low: number | null;
+        high: number | null;
         inferred?: boolean;
+        /** 'base'(베어본/완본체 베이스) | 'part'(부품). */
+        role?: 'base' | 'part';
+        /** 'itmaya'(가격표 색인) | 'danawa'(웹검색). */
+        source?: string;
       }>;
       currency: 'KRW';
+      /** 'itmaya' | 'danawa' | 'hybrid'(베어본은 색인, 부품은 웹). */
+      priceSource?: string;
+      /** 부품 합보다 완제품이 나은지 — 완제품이면 유사 완제품 후보를 함께 준다. */
+      prebuilt?: {
+        isPrebuilt: boolean;
+        score?: number;
+        reason?: string;
+        comparables?: Array<{ name: string; priceKrw: number; url: string; source?: string }>;
+      };
     };
 
 export interface DealAnalysisResponse {
@@ -61,6 +81,7 @@ export interface DealAnalysisResponse {
     unitPrice: number;
     budget: number;
   };
+  /** include.market=false 면 null 로 온다(백엔드 non_null 직렬화). */
   market: {
     sampleCount: number;
     rateSampleCount: number;
@@ -75,7 +96,7 @@ export interface DealAnalysisResponse {
     expectedSavingPct: number;
     usedBaseline: boolean;
     matchCount: number;
-  };
+  } | null;
   opening: {
     participantCount: number;
     participants: Array<{
@@ -112,7 +133,8 @@ export interface DealAnalysisResponse {
     text: string;
     products: unknown[];
     parsedFiles: Array<{ name: string; textLength: number }>;
-    files: Array<{ url: string; name: string }>;
+    /** confidence: confirmed|heuristic|estimated — 규격서 선택의 확신도. */
+    files: Array<{ url: string; name: string; confidence?: string }>;
     fileEntryCount: number;
     quantityFound: unknown;
     deliveryFound: string | null;
@@ -146,6 +168,10 @@ export interface DealAnalysisResponse {
   };
   /** 단가를 못 구했을 때만 붙는 안내 문구. */
   note?: string;
+  /** 저장된 deep 결과를 재사용했는가. */
+  _fromCache?: boolean;
+  /** 저장된 결과의 분석 시각(ISO). `_fromCache` 일 때만. */
+  _analyzedAt?: string;
 }
 
 export function analyzeDeal(body: DealAnalysisRequest): Promise<DealAnalysisResponse> {

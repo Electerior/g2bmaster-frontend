@@ -16,6 +16,8 @@ const TYPE_CLASS: Readonly<Record<string, string>> = {
   물품: 'type-goods',
   용역: 'type-service',
   공사: 'type-works',
+  // 외자(수입 조달)는 색인 검색·수주 데스크에만 나온다. 회색 fallback 대신 전용 색을 준다.
+  외자: 'type-foreign',
 };
 
 interface TypeBadgeProps {
@@ -23,16 +25,9 @@ interface TypeBadgeProps {
 }
 
 export function TypeBadge({ value }: TypeBadgeProps) {
-  // 색은 tokens.css 의 --type-*-fg/bg 를 쓴다. 모르는 구분은 회색(--type-etc-*).
+  // 색은 badges.css 의 .type-badge.type-* 규칙이 갖는다. 모르는 구분은 회색(type-etc).
   const key = TYPE_CLASS[value] ?? 'type-etc';
-  return (
-    <span
-      className="type-badge"
-      style={{ color: `var(--${key}-fg)`, background: `var(--${key}-bg)` }}
-    >
-      {value}
-    </span>
-  );
+  return <span className={`type-badge ${key}`}>{value}</span>;
 }
 
 /* ─── 출처(나라장터 · 누리장터 · 국방전자조달) ───────────────────────────── */

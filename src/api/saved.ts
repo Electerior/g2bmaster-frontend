@@ -42,6 +42,21 @@ export function fetchSavedNotices(query: SavedNoticesQuery = {}): Promise<SavedN
   return get<SavedNoticesResponse>(`/api/saved-notices?${toSearchParams({ ...query }).toString()}`);
 }
 
+/** 단건 전문 — 목록은 합계·미리보기만 주므로, 저장된 가격표(price_rows)는 이걸로 받는다. */
+export interface SavedNoticeDetail extends Record<string, unknown> {
+  bid_ntce_no: string;
+  bid_ntce_ord: string;
+  title: string | null;
+  price_total: number | null;
+  /** 저장된 가격표 행. 저장 시 넣은 그대로(PriceRow[]). */
+  price_rows: Array<Record<string, unknown>> | null;
+}
+
+export function fetchSavedNotice(bidNtceNo: string, ord = ''): Promise<SavedNoticeDetail> {
+  const query = ord ? `?${toSearchParams({ ord }).toString()}` : '';
+  return get<SavedNoticeDetail>(`/api/saved-notices/${encodeURIComponent(bidNtceNo)}${query}`);
+}
+
 export interface SaveNoticeRequest {
   bidNtceNo: string;
   bidNtceOrd?: string;
@@ -74,12 +89,22 @@ export function deleteSavedNotice(
 export const savedKeys = {
   all: ['saved-notices'] as const,
   list: (q: SavedNoticesQuery) => ['saved-notices', 'list', q] as const,
+  detail: (no: string, ord: string) => ['saved-notices', 'detail', no, ord] as const,
 };
 
 export function useSavedNotices(query: SavedNoticesQuery = {}, options: { enabled?: boolean } = {}) {
   return useQuery({
     queryKey: savedKeys.list(query),
     queryFn: () => fetchSavedNotices(query),
+    enabled: options.enabled ?? true,
+  });
+}
+
+/** 저장된 가격표를 열 때만 부른다(enabled). 목록엔 합계·행수만 있다. */
+export function useSavedNoticeDetail(bidNtceNo: string, ord = '', options: { enabled?: boolean } = {}) {
+  return useQuery({
+    queryKey: savedKeys.detail(bidNtceNo, ord),
+    queryFn: () => fetchSavedNotice(bidNtceNo, ord),
     enabled: options.enabled ?? true,
   });
 }

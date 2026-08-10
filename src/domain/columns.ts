@@ -79,6 +79,7 @@ export type ScreenKind =
   | 'deal-radar'
   | 'saved-notices'
   | 'spec-search'
+  | 'price-db'
   | 'product-trend'
   | 'service-trend'
   | 'construction-trend';
@@ -93,7 +94,8 @@ export type ScreenConfig =
   | (ScreenBase & { kind: 'deal' })
   | (ScreenBase & { kind: 'saved' })
   | (ScreenBase & { kind: 'trend'; trend: TrendConfig })
-  | (ScreenBase & { kind: 'spec-search' });
+  | (ScreenBase & { kind: 'spec-search' })
+  | (ScreenBase & { kind: 'price-db' });
 
 export const SCREENS: Readonly<Record<ScreenKind, ScreenConfig>> = {
   /*
@@ -238,6 +240,12 @@ export const SCREENS: Readonly<Record<ScreenKind, ScreenConfig>> = {
     kind: 'spec-search',
     label: '하드웨어 스펙 검색',
     endpoint: '/api/search/titles',
+  },
+  // 물품 시세 카탈로그. G2B 를 부르지 않고 price_catalog 만 조회·수정한다(Contract B).
+  'price-db': {
+    kind: 'price-db',
+    label: '단가 DB',
+    endpoint: '/api/price-catalog',
   },
   'product-trend': {
     kind: 'trend',

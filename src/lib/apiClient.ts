@@ -62,7 +62,7 @@ export class ApiError extends Error {
  * (계약 §1.1-2). 화면은 보통 error 문구만 띄우지만, 필드 하이라이트가 필요해지면
  * details 로 받아 쓴다 — 여기서 버리면 서버가 보낸 정보가 사라진다.
  */
-type ErrorBody = {
+export type ErrorBody = {
   message?: string;
   error?: string;
   code?: string;
@@ -70,17 +70,51 @@ type ErrorBody = {
   missing?: string[];
 };
 
+/**
+ * 화면에 띄울 오류 문구를 고른다.
+ *
+ * @param transportMessage axios 가 만든 문구(`Request failed with status code 500` 등).
+ *                         **마지막 수단이다** — 사용자에게는 아무 정보도 주지 못한다.
+ */
+export function errorMessageFrom(
+  status: number,
+  body: ErrorBody | undefined,
+  transportMessage: string,
+): string {
+  // 백엔드가 준 한국어 문구가 있으면 그것이 사용자 대상 계약이다(api-contract §1.1-2).
+  if (body?.message) return body.message;
+  if (body?.error) return body.error;
+
+  // 응답 자체가 오지 않았다 — 네트워크·DNS·CORS.
+  if (status === 0) return '백엔드에 연결하지 못했습니다.';
+
+  /*
+   * 5xx 인데 본문에 문구가 없다 = **우리 백엔드가 만든 오류가 아니다.**
+   * 백엔드의 5xx 는 GlobalExceptionHandler 를 거쳐 언제나 `{error: "한국어 문구"}` 를 싣는다.
+   * 그러니 이 응답은 앞단(개발 서버 프록시·리버스 프록시)이 상류에 닿지 못해 만든 것이다 —
+   * vite dev 프록시는 ECONNREFUSED 를 500 으로 바꾼다.
+   *
+   * 예전에는 여기서 axios 문구가 그대로 나가 화면에 "Request failed with status code 500"
+   * 만 떴다. 백엔드가 죽어 있다는 사실이 그 문구 어디에도 없어서, 원인을 찾으려면
+   * 개발 서버 로그를 열어야 했다.
+   */
+  if (status >= 500) return `백엔드에 연결하지 못했습니다 (HTTP ${status}).`;
+
+  return transportMessage;
+}
+
 apiClient.interceptors.response.use(
   (response) => response,
   (error: AxiosError<ErrorBody>) => {
     const status = error.response?.status ?? 0;
     const body = error.response?.data;
-    const message =
-      body?.message ??
-      body?.error ??
-      (status === 0 ? '백엔드에 연결하지 못했습니다.' : error.message);
     return Promise.reject(
-      new ApiError(message, status, body?.code, body?.details ?? body?.missing),
+      new ApiError(
+        errorMessageFrom(status, body, error.message),
+        status,
+        body?.code,
+        body?.details ?? body?.missing,
+      ),
     );
   },
 );
@@ -98,6 +132,16 @@ export async function post<T>(
   config?: AxiosRequestConfig,
 ): Promise<T> {
   const { data } = await apiClient.post<T>(url, body, config);
+  return data;
+}
+
+/** PUT 헬퍼 — 응답 본문만 돌려준다. post 와 같은 모양(부분 수정 계약에 쓴다). */
+export async function put<T>(
+  url: string,
+  body?: unknown,
+  config?: AxiosRequestConfig,
+): Promise<T> {
+  const { data } = await apiClient.put<T>(url, body, config);
   return data;
 }
 

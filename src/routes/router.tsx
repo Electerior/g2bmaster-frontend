@@ -15,6 +15,7 @@ import { NotFoundScreen } from './NotFoundScreen';
 import { NoticeSearchScreen } from './NoticeSearchScreen';
 import { NoticeTableScreen } from './NoticeTableScreen';
 import { OfficerDirectoryScreen } from './OfficerDirectoryScreen';
+import { PriceDatabaseScreen } from './PriceDatabaseScreen';
 import { SavedNoticesScreen } from './SavedNoticesScreen';
 import { SpecSearchScreen } from './SpecSearchScreen';
 import { SystemDashboardScreen } from './SystemDashboardScreen';
@@ -56,6 +57,9 @@ export function AppRouter() {
         <Route path={ROUTES.dealRadar} element={<DealRadarScreen />} />
         <Route path={ROUTES.saved} element={<SavedNoticesScreen />} />
         <Route path={ROUTES.specSearch} element={<SpecSearchScreen />} />
+
+        {/* 단가 DB — 물품 시세 카탈로그(price_catalog) 조회·수정·AI 적재. */}
+        <Route path={ROUTES.priceDb} element={<PriceDatabaseScreen />} />
 
         {/* 트렌드 3종 */}
         <Route path={ROUTES.trendProduct} element={<TrendScreen kind="product" />} />

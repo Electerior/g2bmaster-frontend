@@ -302,10 +302,27 @@ export function isBlockingRelevant(kind: ScreenKind, mode: SearchMode): boolean 
 }
 
 /**
+ * 백엔드에 첨부 전수조사 표면(`POST /api/scan-attachments`)이 아직 없다.
+ * 첨부 파싱(HWP/PDF/ZIP)이 미착수라 컨트롤러 자체가 없다 —
+ * `g2bmaster-backend/docs/porting-status.md` 의 "첨부 파싱 ❌ 미착수".
+ *
+ * 검색창은 이미 이 기능을 '준비 중'으로 막아 두었지만(`SearchHeader`),
+ * **막은 것은 입력이지 조건이 아니다** — 조건의 단일 출처는 URL 이라 예전에 공유된 링크나
+ * 손으로 붙인 `?file=...` 이 그대로 살아 있다. 그 상태로 아래가 참이 되면 화면은
+ * 없는 엔드포인트를 부르고, 404 로 스캔이 실패한 자리를 `rows = scan.data?.rows ?? []`
+ * 가 **빈 표**로 그린다 — 검색은 멀쩡히 성공했는데 결과가 0건으로 보인다.
+ *
+ * 백엔드가 이 표면을 내면 `true` 로 되돌린다. 그때 되살아나야 하는 것은 아래 함수의
+ * 원래 판정과 `buildQuery` 의 `fileScan=true`(캐시 우회) 둘이다.
+ */
+export const ATTACHMENT_SCAN_READY = false;
+
+/**
  * 체크박스와 무관하게 스캔한다 — 체크 해제 시엔 제외 대신 '?'로 사유를 표시해야 하므로.
  * 원본 shouldScanAttachments(app.js:1201).
  */
 export function shouldScanAttachments(criteria: SearchCriteria, kind: ScreenKind): boolean {
+  if (!ATTACHMENT_SCAN_READY) return false;
   return criteria.fileKeywords.length > 0 || isBlockingRelevant(kind, criteria.mode);
 }
 
