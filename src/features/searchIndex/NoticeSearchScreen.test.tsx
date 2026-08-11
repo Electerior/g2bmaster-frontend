@@ -56,13 +56,13 @@ function LocationProbe() {
 }
 
 /** 행은 {@link stubApi} 가 공급한다 — 여기서는 화면만 띄운다. */
-function renderScreen() {
+function renderScreen(initialEntry = '/search') {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
   return render(
     <QueryClientProvider client={client}>
-      <MemoryRouter initialEntries={['/search']}>
+      <MemoryRouter initialEntries={[initialEntry]}>
         <Routes>
           <Route
             path="/search"
@@ -223,6 +223,71 @@ describe('NoticeSearchScreen', () => {
     await waitFor(() => {
       expect(screen.getByTestId('location').textContent).toContain('category=');
     });
+  });
+
+  /*
+   * '마감' 단계 × activeOnly 회귀 테스트.
+   *
+   * activeOnly('마감 전 공고만 보기')는 기본 ON 인데, 마감 단계 행은 정의상 마감일이 전부
+   * 과거라 둘을 함께 쓰면 서버 조건 (close_date IS NULL OR close_date >= NOW()) 을 절대
+   * 통과하지 못한다 — 마감 칩이 항상 0건이 되는 버그가 실제로 있었다.
+   */
+  it("'마감' 칩을 누르면 activeOnly 를 끄고 질의한다", async () => {
+    const spy = stubApi([item()]);
+    renderScreen();
+    await screen.findByText('실험실용 공급기기 구매');
+
+    await userEvent.click(screen.getByRole('button', { name: '마감' }));
+
+    // 마감 조건이 붙은 요청(목록·패싯 모두)에 activeOnly 가 함께 나가면 안 된다.
+    await waitFor(() => {
+      const closed = spy.mock.calls
+        .map(([url]) => decodeURIComponent(String(url)))
+        .filter((url) => url.includes('category=마감'));
+      expect(closed.length).toBeGreaterThan(0);
+      for (const url of closed) expect(url).not.toContain('activeOnly');
+    });
+
+    // 체크박스는 꺼진 채 잠긴다 — 켤 수 있으면 같은 0건 함정이 그대로 남는다.
+    const checkbox = screen.getByRole('checkbox', { name: '마감 전 공고만 보기' });
+    expect(checkbox).not.toBeChecked();
+    expect(checkbox).toBeDisabled();
+  });
+
+  it("'마감' 칩을 해제하면 activeOnly 가 기본값(켜짐)으로 돌아온다", async () => {
+    stubApi([item()]);
+    renderScreen();
+    await screen.findByText('실험실용 공급기기 구매');
+
+    await userEvent.click(screen.getByRole('button', { name: '마감' }));
+    await waitFor(() => {
+      expect(screen.getByRole('checkbox', { name: '마감 전 공고만 보기' })).toBeDisabled();
+    });
+
+    // 같은 칩을 다시 누르면 '전체'로 돌아간다.
+    await userEvent.click(screen.getByRole('button', { name: '마감' }));
+
+    await waitFor(() => {
+      const checkbox = screen.getByRole('checkbox', { name: '마감 전 공고만 보기' });
+      expect(checkbox).toBeChecked();
+      expect(checkbox).toBeEnabled();
+    });
+    // 기본값이므로 URL 에도 흔적이 남지 않아야 한다.
+    expect(screen.getByTestId('location').textContent).not.toContain('activeOnly');
+  });
+
+  /** 공유 URL 로 바로 들어와도 같아야 한다 — 칩 클릭만 고치면 이 경로가 그대로 0건이다. */
+  it('URL 로 category=마감 에 바로 들어와도 activeOnly 를 끈다', async () => {
+    const spy = stubApi([item()]);
+    renderScreen('/search?category=%EB%A7%88%EA%B0%90');
+    await screen.findByText('실험실용 공급기기 구매');
+
+    const closed = spy.mock.calls
+      .map(([url]) => decodeURIComponent(String(url)))
+      .filter((url) => url.includes('category=마감'));
+    expect(closed.length).toBeGreaterThan(0);
+    for (const url of closed) expect(url).not.toContain('activeOnly');
+    expect(screen.getByRole('checkbox', { name: '마감 전 공고만 보기' })).not.toBeChecked();
   });
 
   it('결과가 없으면 안내 문구를 보여준다', async () => {

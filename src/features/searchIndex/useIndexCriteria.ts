@@ -34,9 +34,10 @@ export interface IndexCriteria {
 const DEFAULT_PER_PAGE = 20;
 
 function read(params: URLSearchParams): IndexCriteria {
+  const category = params.get('category') ?? '';
   return {
     q: params.get('q') ?? '',
-    category: params.get('category') ?? '',
+    category,
     division: params.get('division') ?? '',
     region: params.get('region') ?? '',
     state: params.get('state') ?? '',
@@ -46,7 +47,9 @@ function read(params: URLSearchParams): IndexCriteria {
     toDate: params.get('to') ?? '',
     // URL 에 없으면 켜 둔다. 이 화면의 기본 용도는 "지금 참여할 수 있는 공고 찾기"라
     // 마감된 것까지 섞여 나오면 첫 화면이 쓸모없어진다. 끄면 'activeOnly=0' 이 남는다.
-    activeOnly: params.get('activeOnly') !== '0',
+    // 단, '마감' 단계는 정의상 마감일이 전부 과거라 activeOnly 와 양립할 수 없다 —
+    // 켠 채로 두면 어떤 URL 로 들어와도 항상 0건이므로, 이 단계에서는 무조건 끈다.
+    activeOnly: category === '마감' ? false : params.get('activeOnly') !== '0',
     minAmount: params.get('minAmount') ?? '',
     maxAmount: params.get('maxAmount') ?? '',
     sort: params.get('sort') ?? '',
@@ -89,7 +92,8 @@ export function useIndexCriteria() {
       put('sort', next.sort);
       put('dir', next.dir);
       // 기본값은 URL 에 쓰지 않는다 — 주소가 짧아야 공유가 편하다.
-      if (!next.activeOnly) out.set('activeOnly', '0');
+      // '마감'에서는 어떤 값이든 read 가 끈 것으로 읽으므로 파라미터 자체를 남기지 않는다.
+      if (!next.activeOnly && next.category !== '마감') out.set('activeOnly', '0');
       if (next.page > 1) out.set('page', String(next.page));
       if (next.perPage !== DEFAULT_PER_PAGE) out.set('perPage', String(next.perPage));
 

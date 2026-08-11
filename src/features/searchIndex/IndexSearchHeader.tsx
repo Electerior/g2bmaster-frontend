@@ -190,7 +190,16 @@ export function IndexSearchHeader({ criteria, setCriteria, facets }: Props) {
         options={CATEGORIES}
         value={criteria.category}
         counts={facets?.category}
-        onChange={(category) => setCriteria({ category })}
+        onChange={(category) => {
+          // '마감' 단계는 activeOnly 와 양립할 수 없어 훅이 강제로 끈다(useIndexCriteria).
+          // 벗어날 때는 기본값(켜짐)으로 되돌린다 — 꺼진 채 남으면 다른 단계에서 마감 공고가
+          // 소리 없이 섞여 나오는 화면이 된다.
+          setCriteria(
+            criteria.category === '마감' && category !== '마감'
+              ? { category, activeOnly: true }
+              : { category },
+          );
+        }}
       />
       <ChipRow
         label="구분"
@@ -292,10 +301,18 @@ export function IndexSearchHeader({ criteria, setCriteria, facets }: Props) {
           </button>
         </div>
 
-        <label className="filter-check" title="마감일시가 지나지 않은 공고만 보여줍니다.">
+        <label
+          className="filter-check"
+          title={
+            criteria.category === '마감'
+              ? "'마감' 단계는 이미 마감된 공고만 모으므로 이 옵션과 함께 쓸 수 없습니다."
+              : '마감일시가 지나지 않은 공고만 보여줍니다.'
+          }
+        >
           <input
             type="checkbox"
             checked={criteria.activeOnly}
+            disabled={criteria.category === '마감'}
             onChange={(e) => setCriteria({ activeOnly: e.target.checked })}
           />{' '}
           마감 전 공고만 보기
