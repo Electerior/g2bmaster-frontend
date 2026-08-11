@@ -28,6 +28,13 @@ const config: ViteConfigWithTest = {
   },
   server: {
     port: 5173,
+    // Tailscale Funnel 로 외부에 노출할 때 dev 서버가 ts.net Host 헤더를 막지 않게 허용한다.
+    // (Vite 6 는 기본적으로 알 수 없는 Host 를 'Blocked request' 로 막는다.)
+    // 추가 도메인은 VITE_ALLOWED_HOSTS(콤마 구분)로 넣을 수 있다.
+    allowedHosts: [
+      '.ts.net',
+      ...(process.env.VITE_ALLOWED_HOSTS?.split(',').map((h) => h.trim()).filter(Boolean) ?? []),
+    ],
     proxy: {
       '/api': { target: BACKEND, changeOrigin: true },
       '/healthz': { target: BACKEND, changeOrigin: true },

@@ -19,9 +19,22 @@ export function AppTabs() {
         <NavLink
           key={tab.path}
           to={{ pathname: tab.path, search: location.search }}
-          className={({ isActive }) => (isActive ? 'app-tab active' : 'app-tab')}
+          /*
+           * end 가 없으면 NavLink 는 접두 일치로도 활성이 된다. 공고 검색이 '/notices' 가 되면서
+           * '/notices/bid-result' 의 접두가 됐고, 그대로 두면 입찰 결과 화면에서 탭 두 개가 함께
+           * 켜진다 — .app-tab.active 는 아래 패널과 이어 붙이려고 아래 테두리를 덮는 트릭이라
+           * 둘이 켜지면 어느 화면인지 알 수 없게 된다(aria-current 도 둘이 된다).
+           */
+          end
+          className={({ isActive }) =>
+            [isActive ? 'app-tab active' : 'app-tab', tab.notReady ? 'not-ready' : '']
+              .filter(Boolean)
+              .join(' ')
+          }
         >
           {tab.label}
+          {/* 화면 속이 아직 준비 중임을 클릭 전에 알린다 — routePaths.ts TabItem.notReady 참고. */}
+          {tab.notReady ? <span className="tab-ready-badge">준비</span> : null}
         </NavLink>
       ))}
     </nav>

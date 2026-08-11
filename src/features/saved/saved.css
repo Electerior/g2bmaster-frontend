@@ -74,3 +74,6 @@
   font-size: var(--fs-meta);
   margin-top: 6px;
 }
+
+.saved-card-actions { display: flex; align-items: center; gap: 8px; }
+.saved-table-actions { margin-top: 10px; text-align: right; }

@@ -66,141 +66,70 @@
   }
 }
 
-/* ─── 파트너 배너 ─────────────────────────────────────────────────────────── */
-.partner-banner {
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-}
-.partner-banner-inner {
-  min-height: 58px;
-  padding: 8px 24px;
-  display: flex;
-  align-items: center;
-  gap: 18px;
-}
-.partner-logo {
-  display: inline-flex;
-  align-items: center;
-  flex-shrink: 0;
-}
-.partner-logo img {
-  display: block;
-  width: 192px;
-  height: 42px;
-}
-.partner-message {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  min-width: 0;
-  flex: 1;
-  line-height: 1.35;
-}
-.partner-message strong {
-  color: var(--ink);
-  font-size: 14px;
-  letter-spacing: 0;
-}
-.partner-message span {
-  color: var(--muted);
-  font-size: var(--fs-meta);
-}
-.partner-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-}
-
-/* ─── 연락처 알약 ─────────────────────────────────────────────────────────── */
+/* ─── 연락처 알약 (기본) ──────────────────────────────────────────────────────
+ * ContactPill 컴포넌트가 늘 붙이는 베이스. 지금은 통합 헤더의 --header 변종만 쓰지만,
+ * 컴포넌트가 재사용될 수 있으므로 형태 기본값만 남기고 색은 변종이 정한다. */
 .contact-pill {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 34px;
-  padding: 0 14px;
-  border-radius: var(--radius);
-  background: var(--ink);
-  border: 1px solid var(--ink);
-  color: #fff;
-  font-size: var(--fs-table);
-  font-weight: 800;
-  text-decoration: none;
-  white-space: nowrap;
-  cursor: pointer;
   font-family: inherit;
-}
-.contact-pill:hover {
-  background: var(--ink-hover);
-  border-color: var(--ink-hover);
+  cursor: pointer;
+  white-space: nowrap;
   text-decoration: none;
-}
-.contact-pill--kakao {
-  background: var(--kakao);
-  border-color: var(--kakao);
-  color: var(--kakao-text);
-}
-.contact-pill--kakao:hover {
-  background: var(--kakao-hover);
-  border-color: var(--kakao-hover);
-  color: var(--kakao-text);
-}
-.contact-pill--download {
-  background: var(--surface);
-  border-color: var(--pill-outline);
-  color: var(--ink);
-}
-.contact-pill--download:hover {
-  background: #f4f7fb;
-  border-color: var(--pill-outline-hover);
-  color: var(--ink);
-}
-.contact-pill--home {
-  background: var(--primary);
-  border-color: var(--primary);
-  color: #fff;
-}
-.contact-pill--home:hover {
-  background: var(--primary-dark);
-  border-color: var(--primary-dark);
-}
-.contact-pill--service {
-  min-width: 176px;
-  padding: 4px 12px;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 1px;
-  background: var(--teal);
-  border-color: var(--teal);
-  color: #fff;
-  box-shadow: 0 6px 16px rgba(15, 118, 110, 0.18);
-}
-.contact-pill--service:hover {
-  background: var(--teal-dark);
-  border-color: var(--teal-dark);
-}
-.contact-pill--service span {
-  font-size: 12.5px;
-  line-height: 1.1;
-  font-weight: 900;
-}
-.contact-pill--service small {
-  font-size: var(--fs-badge-sm);
-  line-height: 1.1;
-  font-weight: 700;
-  color: rgba(255, 255, 255, 0.78);
 }
 
-/* ─── 헤더 ────────────────────────────────────────────────────────────────── */
+/* ─── 통합 헤더 (파트너 배너 + 앱 헤더 합침) ───────────────────────────────── */
 .app-header {
-  background: var(--primary);
-  padding: 0 24px;
-  height: var(--header-height);
+  /* 은은한 파랑 그라데이션 — 단색보다 깊이가 있고, 유리 패널과도 톤이 맞는다. */
+  background: linear-gradient(100deg, var(--primary-dark) 0%, var(--primary) 55%, #2360b8 100%);
+  padding: 10px 24px;
+  min-height: var(--header-height);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  gap: 16px 20px;
+  flex-wrap: wrap;
+  box-shadow: 0 2px 12px rgba(9, 30, 66, 0.22);
+}
+/* 왼쪽 정체성 묶음: ELECTERIOR · G2B Masters */
+.app-header-brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+.brand-partner {
+  display: flex;
+  flex-direction: column;
+  line-height: 1;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+.brand-partner-name {
+  color: #fff;
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+.brand-partner-sub {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.55em;
+  margin-top: 2px;
+}
+.brand-partner:hover .brand-partner-name {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+/* 두 정체성 사이 세로 구분선. 액션 묶음 안(연락처↔앱메뉴)에서도 재사용. */
+.brand-divider {
+  width: 1px;
+  align-self: stretch;
+  min-height: 26px;
+  background: rgba(255, 255, 255, 0.28);
+  flex-shrink: 0;
 }
 .app-header-inner {
   display: flex;
@@ -229,70 +158,97 @@
 .app-header-actions {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
   margin-left: auto;
-  flex-shrink: 0;
 }
+/* 파란 헤더 위 연락처 칩 — 반투명 흰 유리. 앱 액션 버튼과 톤을 맞춘다. */
+.contact-pill--header {
+  min-height: 32px;
+  padding: 6px 13px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-size: var(--fs-table);
+  font-weight: 700;
+  white-space: nowrap;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  transition:
+    background 0.16s ease,
+    border-color 0.16s ease,
+    transform 0.16s ease;
+}
+.contact-pill--header:hover {
+  background: rgba(255, 255, 255, 0.22);
+  border-color: rgba(255, 255, 255, 0.4);
+  transform: translateY(-1px);
+  text-decoration: none;
+}
+/* 처음 화면 — 주 CTA. 흰 알약에 옅은 그림자로 헤더 위에서 도드라진다. */
 .btn-home {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   min-height: 32px;
-  padding: 6px 14px;
-  border-radius: var(--radius);
-  border: 1px solid rgba(255, 255, 255, 0.46);
-  background: var(--surface);
+  padding: 6px 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  background: #fff;
   color: var(--primary);
   font-size: var(--fs-table);
   font-weight: 800;
   text-decoration: none;
   white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(9, 30, 66, 0.18);
   transition:
     background 0.15s,
     color 0.15s,
-    border-color 0.15s;
+    transform 0.15s,
+    box-shadow 0.15s;
 }
 .btn-home:hover {
   background: #eaf2ff;
-  border-color: #eaf2ff;
   color: var(--primary-dark);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(9, 30, 66, 0.24);
   text-decoration: none;
 }
-.btn-full-reset {
+/* 전체 리셋 · ⚙ 우리 회사 — 헤더 칩과 같은 반투명 유리 알약. */
+.btn-full-reset,
+.btn-settings {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   min-height: 32px;
-  padding: 6px 12px;
-  border-radius: var(--radius);
-  border: 1px solid rgba(255, 255, 255, 0.42);
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff7ed;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
   font-size: var(--fs-table);
-  font-weight: 800;
+  font-weight: 700;
   white-space: nowrap;
   transition:
-    background 0.15s,
-    border-color 0.15s,
-    color 0.15s;
+    background 0.16s ease,
+    border-color 0.16s ease,
+    color 0.16s ease,
+    transform 0.16s ease;
 }
+.btn-full-reset:hover,
+.btn-settings:hover {
+  background: rgba(255, 255, 255, 0.22);
+  border-color: rgba(255, 255, 255, 0.4);
+  transform: translateY(-1px);
+}
+/* 전체 리셋은 파괴적 동작이라 hover 에서만 붉은 톤으로 경고. */
 .btn-full-reset:hover {
   background: #fff1f2;
   border-color: #fff1f2;
   color: #be123c;
-}
-.btn-settings {
-  background: rgba(255, 255, 255, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  color: #fff;
-  padding: 6px 14px;
-  border-radius: var(--radius);
-  font-size: var(--fs-table);
-  white-space: nowrap;
-  transition: background 0.15s;
-}
-.btn-settings:hover {
-  background: rgba(255, 255, 255, 0.28);
 }
 
 /* ─── 탭 (고전 폴더 탭) ───────────────────────────────────────────────────── */
@@ -304,7 +260,16 @@
   border-bottom: none;
   border-radius: var(--radius) var(--radius) 0 0;
   padding: 8px 8px 0;
+  /* 가로로 넘치면 스크롤은 되되, 세로 넘침(탭 아래 테두리 트릭 bottom:-1px)이 만들던
+     세로 스크롤바와 그 ▲▼ 버튼은 없앤다. 스크롤바 자체도 숨겨 깔끔하게. */
   overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* 구형 Edge */
+}
+/* WebKit(Chrome·Safari) 스크롤바 숨김. */
+.app-tabs::-webkit-scrollbar {
+  display: none;
 }
 .app-tab {
   padding: 10px 22px;
@@ -336,39 +301,38 @@
   color: var(--primary);
   font-weight: 700;
 }
+/* 준비 중 화면의 탭 — 라벨은 흐리게, 옆에 «준비» 배지. 클릭 전에 미완임을 알린다. */
+.app-tab.not-ready {
+  color: var(--table-empty-fg);
+}
+.app-tab.not-ready.active {
+  color: var(--muted);
+}
+.tab-ready-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: #fdf3e2;
+  color: #8a5b0c;
+  font-size: var(--fs-badge-sm);
+  font-weight: 700;
+  vertical-align: middle;
+}
 
 @media (max-width: 760px) {
-  .partner-banner-inner {
-    padding: 10px 12px;
-    align-items: stretch;
-    flex-direction: column;
-    gap: 8px;
-  }
-  .partner-logo img {
-    width: 156px;
-    height: auto;
-  }
-  .partner-actions {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  .contact-pill {
-    width: 100%;
-  }
-  .contact-pill--service {
-    min-width: 0;
-    align-items: center;
-  }
   .app-header {
-    height: auto;
-    min-height: var(--header-height);
     padding: 10px 14px;
     align-items: flex-start;
     flex-direction: column;
+    gap: 10px;
+  }
+  .app-header-brand {
+    gap: 10px;
   }
   .app-header-inner {
     flex-wrap: wrap;
-    row-gap: 6px;
+    row-gap: 4px;
   }
   .app-header-sub {
     flex-basis: 100%;
@@ -377,10 +341,15 @@
     width: 100%;
     margin-left: 0;
   }
+  /* 좁은 화면에선 연락처 칩·앱 버튼이 한 줄에 흐르도록 폭을 자유롭게 둔다. */
+  .contact-pill--header,
   .btn-home,
   .btn-full-reset,
   .btn-settings {
-    flex: 1;
-    justify-content: center;
+    flex: 1 1 auto;
+  }
+  /* 세로 구분선은 좁은 화면에서 숨긴다 — 줄바꿈되면 의미가 없다. */
+  .app-header-actions .brand-divider {
+    display: none;
   }
 }
