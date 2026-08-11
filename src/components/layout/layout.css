@@ -67,11 +67,11 @@
 }
 
 /* ─── 파트너 배너 ─────────────────────────────────────────────────────────── */
-.partner-banner {
+.partner-strip {
   background: var(--surface);
   border-bottom: 1px solid var(--border);
 }
-.partner-banner-inner {
+.partner-strip-inner {
   min-height: 58px;
   padding: 8px 24px;
   display: flex;
@@ -338,7 +338,7 @@
 }
 
 @media (max-width: 760px) {
-  .partner-banner-inner {
+  .partner-strip-inner {
     padding: 10px 12px;
     align-items: stretch;
     flex-direction: column;
