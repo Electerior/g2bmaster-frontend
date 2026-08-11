@@ -132,6 +132,19 @@ export function NoticeFilterBar({ values, facets, totalCount, onChange }: Notice
     commitAmounts();
   };
 
+  /*
+   * '마감' 단계와 '마감 전 공고만 보기'는 양립하지 않는다.
+   *
+   * 마감 행은 정의상 close_date 가 전부 과거라 서버의 activeOnly 조건
+   * (close_date IS NULL OR close_date >= NOW()) 을 절대 통과하지 못한다 — 둘을 함께 걸면
+   * 결과가 언제나 0건이고, 화면에는 이유가 아무 데도 적히지 않는다.
+   *
+   * 기본값을 꺼짐으로 둔 것(DEFAULT_CRITERIA.activeOnly)이 이 함정을 대부분 막지만,
+   * 사람이 직접 켠 뒤 마감을 고르는 경로는 그대로 남는다. 그래서 마감을 고르는 순간 끄고,
+   * 마감을 보는 동안에는 잠근다. 벗어날 때 되켜지는 않는다 — 이 화면의 기본은 꺼짐이다.
+   */
+  const closedStageSelected = values.category === '마감';
+
   return (
     <div className="notice-filters">
       <ChipRow
@@ -140,7 +153,9 @@ export function NoticeFilterBar({ values, facets, totalCount, onChange }: Notice
         counts={countsOf(facets?.category)}
         active={values.category}
         total={totalCount}
-        onPick={(category) => onChange({ category })}
+        onPick={(category) =>
+          onChange(category === '마감' && values.activeOnly ? { category, activeOnly: false } : { category })
+        }
       />
       <ChipRow
         label="구분"
@@ -227,10 +242,18 @@ export function NoticeFilterBar({ values, facets, totalCount, onChange }: Notice
           마감일시를 직접 본다(분류가 아니라). 스위퍼가 주기적으로 도는 것이라 방금 마감된
           건이 아직 '입찰'로 남아 있을 수 있는데, 이 필터는 그 지연을 물려받지 않는다.
         */}
-        <label className="filter-check">
+        <label
+          className="filter-check"
+          title={
+            closedStageSelected
+              ? "'마감' 단계는 이미 마감된 공고만 모으므로 이 옵션과 함께 쓸 수 없습니다."
+              : '마감일시가 지나지 않은 공고만 보여줍니다.'
+          }
+        >
           <input
             type="checkbox"
-            checked={values.activeOnly}
+            checked={values.activeOnly && !closedStageSelected}
+            disabled={closedStageSelected}
             onChange={(e) => onChange({ activeOnly: e.target.checked })}
           />{' '}
           마감 전 공고만 보기
