@@ -8,17 +8,16 @@ import { SCREENS } from '@/domain/columns';
 
 export const ROUTES = {
   /**
-   * 공고 통합 검색 — 계획·사전규격·입찰·마감을 로컬 색인에서 한 번에.
-   * 다른 탭들이 나라장터를 실시간으로 두드리는 것과 달리 이 화면만 로컬 DB 를 본다.
+   * 공고 통합 검색. 예전 표 셋(bidPlan · preSpec · bidAnnounce)이 여기로 합쳐졌다 —
+   * 단계는 탭이 아니라 필터이므로 주소도 하나다. 옛 주소는 router 가 단계 필터를 붙여
+   * 이리로 넘긴다(공유된 링크가 죽지 않도록).
    */
-  unifiedSearch: '/search',
-  bidPlan: '/notices/bid-plan',
-  preSpec: '/notices/pre-spec',
-  bidAnnounce: '/notices/bid-announce',
+  noticeSearch: '/notices',
   bidResult: '/notices/bid-result',
   dealRadar: '/deal-radar',
   saved: '/saved',
   specSearch: '/spec-search',
+  priceDb: '/price-db',
   trendProduct: '/trends/product',
   trendService: '/trends/service',
   trendConstruction: '/trends/construction',
@@ -26,48 +25,78 @@ export const ROUTES = {
   officers: '/officers',
   analysisLab: '/analysis-lab',
   system: '/system',
+  /**
+   * 베타 모집 랜딩. 탭도 검색도 없는 독립 페이지라 TAB_ITEMS 에 넣지 않는다.
+   * 앱 셸 밖에서 렌더링된다 — router.tsx 참고.
+   */
+  beta: '/beta',
 } as const;
 
 export type RoutePath = (typeof ROUTES)[keyof typeof ROUTES];
 
+/** '/' 로 들어오면 여기로 보낸다. 실사용 진입점은 언제나 공고 검색이다. */
+export const DEFAULT_ROUTE: RoutePath = ROUTES.noticeSearch;
+
 /**
- * '/' 로 들어오면 여기로 보낸다.
+ * 옛 표 주소 → 통합 검색의 단계 필터.
  *
- * 원본의 첫 화면은 발주 계획이었고, 그 다음은 입찰 공고였다. 지금은 통합 검색이다 —
- * 이유는 취향이 아니라 **첫 화면이 비어 보이지 않는 것**이다. 입찰 공고 탭은 요청마다
- * 나라장터를 팬아웃하므로 처음 몇 초 동안 빈 스켈레톤 표만 보이고, 상류가 느리거나 일일
- * 한도에 걸리면 그대로 빈 화면이 된다. 통합 검색은 로컬 색인만 읽어 수십 ms 안에 결과가
- * 차므로 진입점으로 옳다. 팬아웃이 필요한 사람은 탭 하나 옆으로 가면 된다.
+ * 링크를 공유하거나 즐겨찾기에 넣어 둔 사람이 404 를 보지 않게 한다. 입찰 공고는 단계를
+ * 걸지 않는다 — '입찰'만 남기면 이미 마감된 같은 공고가 목록에서 사라져, 예전 탭보다
+ * 좁은 결과를 보게 된다.
  */
-export const DEFAULT_ROUTE: RoutePath = ROUTES.unifiedSearch;
+export const LEGACY_NOTICE_ROUTES: ReadonlyArray<{ path: string; category?: string }> = [
+  { path: '/notices/bid-plan', category: '계획' },
+  { path: '/notices/pre-spec', category: '사전규격' },
+  { path: '/notices/bid-announce' },
+];
+
+/**
+ * 머무르지 않고 곧바로 다른 주소로 넘기는 경유지.
+ *
+ * 셸(App)은 이 경로에서도 렌더되므로 검색창의 효과가 한 번 돈다. 경유지에서 조건을 심으면
+ * 곧이어 일어나는 리다이렉트가 그것을 지우는데, 심었다는 사실(플래그)은 남아 목적지에서
+ * 다시 심지 않는다 — 기본 조회 기간이 통째로 사라진다. 그래서 경유지 목록이 필요하다.
+ */
+const TRANSIT_ROUTES: readonly string[] = ['/', ...LEGACY_NOTICE_ROUTES.map((r) => r.path)];
+
+export function isTransitRoute(pathname: string): boolean {
+  return TRANSIT_ROUTES.includes(pathname);
+}
 
 export interface TabItem {
   path: RoutePath;
   label: string;
-  /**
-   * 컬럼 표(SCREENS)에서 라벨을 가져오는 탭만 갖는다.
-   *
-   * 통합 검색은 SCREENS 에 항목이 없다 — 컬럼이 나라장터 원본 필드가 아니라 색인의
-   * 22개 컬럼이라 그 표의 모양에 맞지 않는다. 억지로 넣으면 columnsFor 가 쓸 수 없는
-   * 컬럼 정의를 들고 있게 된다.
+  kind: ScreenKind;
+  /*
+   * 아이콘 필드는 두지 않는다. 한때 좁은 화면에서 라벨 대신 글리프를 보였는데(🔍 🏁 🤖 …)
+   * 아홉 개가 세로로 늘어서면 '용역 트렌드'와 '공사 트렌드'를 구분할 수 없었다.
+   * 지금은 폭에 상관없이 라벨을 글자 그대로 쓴다 — layout.css @media(max-width:760px) 참고.
    */
-  kind?: ScreenKind;
+  /**
+   * 화면 속은 아직 ScreenPlaceholder('준비 중')다 — 대응 API 는 백엔드에 있으나 화면 구현이
+   * 다음 웨이브다. 탭에서 숨기지 않고 «준비» 배지로 표시한다: 숨기면 로드맵이 안 보이고,
+   * 아무 표시 없이 두면 클릭한 뒤에야 준비 중임을 알게 된다.
+   */
+  notReady?: boolean;
 }
 
 /**
- * 폴더 탭 스트립에 나오는 10개. 순서는 원본 index.html(281~290행) 그대로.
+ * 폴더 탭 스트립. 원본 10개에서 공고 표 셋이 '공고 검색' 하나로 합쳐져 8개다.
  * 라벨은 SCREENS 에서 가져온다 — 탭 이름과 화면 제목이 갈라지면 안 된다.
  */
 export const TAB_ITEMS: readonly TabItem[] = [
-  // 통합 검색을 맨 앞에 둔다 — 생애주기 전체를 훑는 화면이라 나머지 넷의 상위 개념이다.
-  { path: ROUTES.unifiedSearch, label: '통합 검색' },
-  { path: ROUTES.bidPlan, kind: 'bid-plan', label: SCREENS['bid-plan'].label },
-  { path: ROUTES.preSpec, kind: 'pre-spec', label: SCREENS['pre-spec'].label },
-  { path: ROUTES.bidAnnounce, kind: 'bid-announce', label: SCREENS['bid-announce'].label },
+  { path: ROUTES.noticeSearch, kind: 'notice-search', label: SCREENS['notice-search'].label },
   { path: ROUTES.bidResult, kind: 'bid-result', label: SCREENS['bid-result'].label },
+  // AI 수주 데스크는 이제 실제 화면이다 — 준비 배지를 떼었다.
   { path: ROUTES.dealRadar, kind: 'deal-radar', label: SCREENS['deal-radar'].label },
   { path: ROUTES.saved, kind: 'saved-notices', label: SCREENS['saved-notices'].label },
-  { path: ROUTES.specSearch, kind: 'spec-search', label: SCREENS['spec-search'].label },
+  {
+    path: ROUTES.specSearch,
+    kind: 'spec-search',
+    label: SCREENS['spec-search'].label,
+    notReady: true,
+  },
+  { path: ROUTES.priceDb, kind: 'price-db', label: SCREENS['price-db'].label },
   { path: ROUTES.trendProduct, kind: 'product-trend', label: SCREENS['product-trend'].label },
   { path: ROUTES.trendService, kind: 'service-trend', label: SCREENS['service-trend'].label },
   {

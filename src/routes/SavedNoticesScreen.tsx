@@ -7,14 +7,23 @@
  *
  * 검색어는 상단 검색창의 AND/OR 태그를 그대로 쓴다 — 이 화면만의 입력칸을 새로 만들지 않는다.
  */
-import { useEffect } from 'react';
-import { useDeleteSavedNotice, useSavedNotices, type SavedNoticeRow } from '@/api';
+import { useEffect, useState } from 'react';
+import {
+  useDeleteSavedNotice,
+  useSaveNotice,
+  useSavedNoticeDetail,
+  useSavedNotices,
+  type SavedNoticeRow,
+} from '@/api';
 import { FieldSet } from '@/components/common/FieldSet';
 import { Markdown } from '@/components/markdown/Markdown';
 import { PanelNotice } from '@/components/feedback/Spinner';
 import { StatusBar } from '@/components/table/StatusBar';
 import { useSearchCriteria } from '@/features/search/useSearchCriteria';
+import { PriceTable } from '@/features/deal/PriceTable';
+import { priceTotal, type PriceRow } from '@/features/deal/priceRows';
 import '@/components/common/fieldset.css';
+import '@/features/deal/deal.css';
 import '@/features/saved/saved.css';
 
 /** 세 자릿수 콤마. 값이 없으면 '-'. 원본 comma(app.js:3191). */
@@ -46,19 +55,52 @@ function SavedCard({ row, onDelete, deleting }: SavedCardProps) {
       ? Number(row.real_estimate) - Number(row.price_total)
       : null;
 
+  // 저장된 가격표 열기·편집·재저장. 목록엔 합계·행수만 있어 상세를 따로 부른다.
+  const [showTable, setShowTable] = useState(false);
+  const [rows, setRows] = useState<PriceRow[] | null>(null);
+  const detail = useSavedNoticeDetail(row.bid_ntce_no, row.bid_ntce_ord, { enabled: showTable });
+  const save = useSaveNotice();
+  useEffect(() => {
+    if (detail.data && rows === null) {
+      const loaded = Array.isArray(detail.data.price_rows) ? detail.data.price_rows : [];
+      setRows(loaded as unknown as PriceRow[]);
+    }
+  }, [detail.data, rows]);
+  const hasTable = (row.price_row_count || 0) > 0;
+  const onSaveTable = () => {
+    if (!rows) return;
+    save.mutate({
+      bidNtceNo: row.bid_ntce_no,
+      bidNtceOrd: row.bid_ntce_ord,
+      title: row.title ?? '',
+      insttNm: row.instt_nm ?? undefined,
+      amount: row.amount ?? undefined,
+      note: row.note ?? undefined,
+      priceRows: rows as unknown as Array<Record<string, unknown>>,
+      priceTotal: priceTotal(rows),
+    });
+  };
+
   return (
     <div className="saved-card">
       <div className="saved-card-head">
         <strong className="saved-card-title">{row.title || row.bid_ntce_no || '-'}</strong>
-        <button
-          type="button"
-          className="saved-del-btn"
-          title="저장 목록에서 지웁니다"
-          disabled={deleting}
-          onClick={() => onDelete(row)}
-        >
-          {deleting ? '삭제 중…' : '삭제'}
-        </button>
+        <div className="saved-card-actions">
+          {hasTable ? (
+            <button type="button" className="deal-save" onClick={() => setShowTable((v) => !v)}>
+              {showTable ? '표 닫기' : `가격표 ${row.price_row_count}행`}
+            </button>
+          ) : null}
+          <button
+            type="button"
+            className="saved-del-btn"
+            title="저장 목록에서 지웁니다"
+            disabled={deleting}
+            onClick={() => onDelete(row)}
+          >
+            {deleting ? '삭제 중…' : '삭제'}
+          </button>
+        </div>
       </div>
 
       <div className="ds-grid">
@@ -86,6 +128,25 @@ function SavedCard({ row, onDelete, deleting }: SavedCardProps) {
           </span>
         )}
       </div>
+
+      {/* 저장된 가격표 — 열면 상세를 부르고, 편집 후 다시 저장한다. */}
+      {showTable ? (
+        detail.isPending ? (
+          <p className="meta">가격표 불러오는 중…</p>
+        ) : detail.error ? (
+          <p className="meta" role="alert">가격표를 불러오지 못했습니다.</p>
+        ) : (
+          <>
+            <PriceTable rows={rows ?? []} onChange={setRows} />
+            <div className="saved-table-actions">
+              <button type="button" className="btn-primary" onClick={onSaveTable}
+                disabled={save.isPending || !rows}>
+                {save.isPending ? '저장 중…' : save.isSuccess ? '저장됨' : '가격표 저장'}
+              </button>
+            </div>
+          </>
+        )
+      ) : null}
 
       {/* 저장 당시 AI 요약 앞부분. 첨부에서 나온 비신뢰 텍스트라 위생 처리를 거친다. */}
       <div className="saved-summary">

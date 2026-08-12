@@ -20,7 +20,7 @@
   color: var(--accent);
 }
 
-/* 구분 배지(물품·용역·공사) — 원본 formatCell 'type-badge' 의 인라인 스타일 */
+/* 구분 배지(물품·용역·공사·외자) — 원본 formatCell 'type-badge' 의 인라인 스타일을 클래스로. */
 .type-badge {
   display: inline-block;
   padding: 2px 8px;
@@ -28,6 +28,26 @@
   font-size: var(--fs-badge);
   font-weight: 700;
   white-space: nowrap;
+}
+.type-badge.type-goods {
+  color: var(--type-goods-fg);
+  background: var(--type-goods-bg);
+}
+.type-badge.type-service {
+  color: var(--type-service-fg);
+  background: var(--type-service-bg);
+}
+.type-badge.type-works {
+  color: var(--type-works-fg);
+  background: var(--type-works-bg);
+}
+.type-badge.type-foreign {
+  color: var(--type-foreign-fg);
+  background: var(--type-foreign-bg);
+}
+.type-badge.type-etc {
+  color: var(--type-etc-fg);
+  background: var(--type-etc-bg);
 }
 
 .source-badge,

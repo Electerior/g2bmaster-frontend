@@ -1,224 +1,230 @@
 /*
  * 공고 통합 검색 — 계획 · 사전규격 · 입찰 · 마감을 한 목록에서.
  *
- * 화면 구조는 랜딩(입찰 공고)과 같다: 검색창(.search-box) → 결과 패널(.panel) 안에
- * 상태 줄(.result-topbar) · 표(DataTable) · 페이지네이션(Pagination). 같은 컴포넌트와
- * 같은 클래스를 쓰므로 두 화면이 한 제품으로 보인다.
+ * 예전 표 화면 셋(발주 계획 · 사전 규격 · 입찰 공고)을 이 하나로 갈아 끼웠다. 넷은 서로 다른
+ * 종류가 아니라 **같은 조달 건의 단계**라, 탭으로 갈라 두면 "이 사업이 지금 어디까지 왔나"를
+ * 보려고 탭을 세 번 옮겨야 했다. 단계는 이제 탭이 아니라 필터다.
  *
- * **다른 점 하나.** 이 화면은 나라장터를 호출하지 않는다. 백엔드가 주기적으로 쌓아 둔
- * 로컬 색인만 읽는다 — 그래서 응답이 빠르고 일정한 대신, 결과가 항상 '조금 과거'다.
- * 그 사실을 상태 줄에 색인 시각으로 적어 둔다(숨기면 사용자가 버그로 읽는다).
+ * 출처도 다르다. 예전 셋은 요청마다 나라장터를 팬아웃했지만 여기는 백엔드가 주기 적재해 둔
+ * 로컬 색인만 본다. 그래서 부분 실패(`sourceErrors`)도, 캐시 표시(`_cached`)도 없다 —
+ * 대신 **색인이 언제 것인지**를 상태 줄에 적는다. 그것이 이 계통에서 사용자가 알아야 하는
+ * 유일한 신선도 정보다.
  */
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import {
+  useNoticeIndexSearch,
+  useNoticeIndexStatus,
+  type NoticeIndexItem,
+} from '@/api/search';
+import { EmptyState } from '@/components/feedback/EmptyState';
 import { DataTable } from '@/components/table/DataTable';
 import { Pagination } from '@/components/table/Pagination';
+import { INDEX_PER_PAGE_OPTIONS, snapPerPage } from '@/components/table/perPage';
 import { StatusBar } from '@/components/table/StatusBar';
-import { EmptyState } from '@/components/feedback/EmptyState';
-import { TypeBadge } from '@/components/badges/Badge';
-import type { ColumnDef } from '@/domain/columns';
-import { fmtDisplayDate, fmtMoney } from '@/domain/format';
+import { columnsFor, SCREENS, type ColumnDef } from '@/domain/columns';
+import { fmtDisplayDatetime } from '@/domain/format';
+import { IndexCell, type IndexCellActions } from '@/features/notices/IndexCell';
+import { indexRowKey } from '@/features/notices/indexRows';
+import { IndexNoticeDrawer } from '@/features/notices/drawer/IndexNoticeDrawer';
 import {
-  useIndexStatus,
-  useNoticeIndexFacets,
-  useNoticeIndexSearch,
-  type NoticeIndexItem,
-} from '@/api/searchNotices';
-import { IndexSearchHeader } from '@/features/searchIndex/IndexSearchHeader';
-import { IndexNoticeDrawer } from '@/features/searchIndex/IndexNoticeDrawer';
-import { DdayCell, RegionCell, StageBadge } from '@/features/searchIndex/cells';
-import { useIndexCriteria } from '@/features/searchIndex/useIndexCriteria';
-import '@/features/searchIndex/searchIndex.css';
+  NoticeFilterBar,
+  type NoticeFilterValues,
+} from '@/features/search/NoticeFilterBar';
+import { stageTotalOf, useNoticeFacetBars } from '@/features/search/useNoticeFacets';
+import {
+  buildNoticeIndexQuery,
+  effectiveIndexSort,
+  useSearchCriteria,
+  type SearchCriteria,
+} from '@/features/search/useSearchCriteria';
+import '@/features/search/search.css';
+
+const SCREEN = SCREENS['notice-search'];
 
 /**
- * 컬럼.
+ * 처음 누른 정렬의 방향.
  *
- * `key` 는 **서버의 정렬 키**와 같은 문자열이다. DataTable 이 헤더 클릭 시 key 를 그대로
- * 돌려주므로, 같게 맞춰 두면 변환표가 필요 없다. 정렬을 지원하지 않는 컬럼은
- * {@link SORTABLE} 에 없으며 클릭해도 아무 일도 일어나지 않는다.
+ * 서버 규칙과 맞춰 둔다: 마감 임박은 '가까운 것부터'가 자연스러워 오름차순이고, 이름은
+ * 가나다순이 자연스럽다. 나머지(최신·금액·관련도)는 큰 값이 위로 와야 한다.
  */
-const COLUMNS: readonly ColumnDef[] = [
-  { label: '단계', key: 'stage' },
-  { label: '구분', key: 'division' },
-  { label: '공고명', key: 'name' },
-  { label: '발주기관', key: 'institution' },
-  { label: '지역', key: 'region' },
-  { label: '추정가격', key: 'amount' },
-  { label: '공고일', key: 'created' },
-  { label: '마감일', key: 'close' },
-  { label: 'D-DAY', key: 'dday' },
-];
+function initialDirFor(key: string): 'asc' | 'desc' {
+  return key === 'close' || key === 'name' ? 'asc' : 'desc';
+}
 
-/** 서버가 실제로 정렬할 수 있는 키. 나머지 헤더는 눌러도 조용히 무시한다. */
-const SORTABLE = new Set(['name', 'amount', 'created', 'close']);
-
-/**
- * 발주기관 칸.
- *
- * <p>공고기관과 수요기관이 <b>다른 경우가 실제로 많다</b> — 조달청이 대행 공고하는 건이
- * 그렇다(공고기관 '조달청 강원지방조달청', 수요기관 '강원대학교'). 하나만 보여주면
- * 둘 중 어느 쪽이든 오해를 부른다: 공고기관만 쓰면 목록이 온통 '조달청'이 되어 누가
- * 실제로 사는지 알 수 없고, 수요기관만 쓰면 문의처를 잃는다. 그래서 다를 때만 둘 다 쓴다.
- *
- * <p>이름이 없으면 코드라도 보여준다 — 빈칸은 '기관 없음'으로 읽히지만 실제로는
- * '이름을 아직 못 받았음'이다.
- */
-function InstitutionCell({ row }: { row: NoticeIndexItem }) {
-  const notice = row.noticeInstitutionName ?? row.noticeInstitutionCode;
-  const demand = row.demandInstitutionName ?? row.demandInstitutionCode;
-
-  if (!notice && !demand) return <span className="muted">—</span>;
-  if (!notice || !demand || notice === demand) {
-    return <>{notice ?? demand}</>;
-  }
-  return (
-    <>
-      {notice}
-      <div className="index-body-preview">수요 {demand}</div>
-    </>
-  );
+/** 색인이 마지막으로 갱신된 시각 — 분류별 값 중 가장 최근 것. */
+function lastIndexedAt(rows: ReadonlyArray<{ last_indexed_at?: string | null }> | undefined) {
+  const stamps = (rows ?? [])
+    .map((row) => String(row.last_indexed_at ?? ''))
+    .filter(Boolean)
+    .sort();
+  return stamps.length ? stamps[stamps.length - 1] : '';
 }
 
 export function NoticeSearchScreen() {
-  const { criteria, setCriteria, query } = useIndexCriteria();
+  const { criteria, setCriteria, setPage } = useSearchCriteria();
   const [selected, setSelected] = useState<NoticeIndexItem | null>(null);
+  const columns = columnsFor('notice-search');
 
-  const search = useNoticeIndexSearch(query);
-  const facets = useNoticeIndexFacets(query);
-  const status = useIndexStatus();
+  useEffect(() => {
+    document.title = `${SCREEN.label} — G2B Masters`;
+  }, []);
 
-  const rows = search.data?.items ?? [];
-  const total = search.data?.totalCount ?? 0;
-  const perPage = search.data?.numOfRows || criteria.perPage;
-  const totalPages = Math.max(1, Math.ceil(total / (perPage || 20)));
-
-  // 정렬 표시. URL 에 없으면 서버 기본값을 그대로 비춘다 —
-  // 검색어가 있으면 관련도, 없으면 최신순이다.
-  const sort = useMemo(
-    () => ({
-      key: criteria.sort || (criteria.q ? 'relevance' : 'created'),
-      dir: (criteria.dir || (criteria.sort === 'close' ? 'asc' : 'desc')) as 'asc' | 'desc',
-    }),
-    [criteria.sort, criteria.dir, criteria.q],
+  /*
+   * 선택지에 없는 페이지 크기가 URL 로 들어올 수 있다(옛 '전체'=99999 링크, 입찰 결과 탭에서
+   * '전체'를 고른 뒤 넘어오는 경우). 질의와 선택 상자가 같은 값을 쓰도록 여기서 한 번 맞춘다.
+   */
+  const perPageChoice = snapPerPage(criteria.perPage);
+  const query = useMemo(
+    () => buildNoticeIndexQuery(criteria, { perPage: perPageChoice }),
+    [criteria, perPageChoice],
   );
+  const search = useNoticeIndexSearch(query);
+  // 축마다 자기 필터를 뺀 건수 — 이유는 useNoticeFacets 주석 참고.
+  const facets = useNoticeFacetBars(criteria);
+  const status = useNoticeIndexStatus();
 
-  /** 색인이 마지막으로 갱신된 시각 — 분류별 최댓값 중 가장 최근. */
-  const lastIndexedAt = useMemo(() => {
-    const times = (status.data?.summary ?? [])
-      .map((row) => row.last_indexed_at)
-      .filter((value): value is string => Boolean(value));
-    return times.length ? times.reduce((a, b) => (a > b ? a : b)) : null;
-  }, [status.data]);
+  const data = search.data;
+  const items = data?.items ?? [];
+  const sort = effectiveIndexSort(criteria);
+  const perPage = data?.numOfRows || perPageChoice;
+  const totalPages = Math.max(1, Math.ceil((data?.totalCount ?? 0) / (perPage || 20)));
 
-  const renderCell = (row: NoticeIndexItem, column: ColumnDef): ReactNode => {
-    switch (column.key) {
-      case 'stage':
-        return <StageBadge category={row.category} state={row.state} />;
-      case 'division':
-        return <TypeBadge value={row.businessDivision} />;
-      case 'name':
-        return (
-          <>
-            <button type="button" className="bid-link" onClick={() => setSelected(row)}>
-              {row.noticeName || row.id}
-            </button>
-            {row.bodyPreview && row.bodyPreview !== row.noticeName ? (
-              <div className="index-body-preview">{row.bodyPreview.slice(0, 110)}</div>
-            ) : null}
-          </>
-        );
-      case 'institution':
-        return <InstitutionCell row={row} />;
-      case 'region':
-        return <RegionCell region={row.region} />;
-      case 'amount':
-        return row.estimatedPrice ? `${fmtMoney(row.estimatedPrice)}원` : <span className="muted">—</span>;
-      case 'created':
-        return fmtDisplayDate(row.createdDate ?? '');
-      case 'close':
-        return row.closeDate ? fmtDisplayDate(row.closeDate) : <span className="muted">—</span>;
-      case 'dday':
-        return <DdayCell dday={row.dday} />;
-      default:
-        return null;
-    }
+  const actions: IndexCellActions = {
+    openDetail: setSelected,
+    // 같은 화면 안에서 조건만 좁힌다 — 사전규격에서 이어진 공고를 보려고 화면을 옮길 이유가 없다.
+    crossToSpec: (beforeSpecRgstNo) => setCriteria({ beforeSpecRgstNo, category: '' }),
   };
 
-  const renderStatusBar = (): ReactNode => {
-    if (search.error) {
-      return <StatusBar error message={`오류: ${search.error.message}`} />;
-    }
-    const notes: string[] = [];
-    if (criteria.activeOnly) notes.push('마감 전만');
-    if (criteria.q) notes.push(`관련도 순 · "${criteria.q}"`);
+  const renderCell = (item: NoticeIndexItem, column: ColumnDef): ReactNode => (
+    <IndexCell item={item} column={column} actions={actions} />
+  );
 
+  const onSort = (key: string) => {
+    const sameKey = sort.key === key;
+    setCriteria({
+      sortKey: key,
+      // 같은 컬럼을 다시 누르면 방향만 뒤집는다 — 기존 표와 같은 손맛.
+      sortDir: sameKey ? (sort.dir === 'asc' ? 'desc' : 'asc') : initialDirFor(key),
+    });
+  };
+
+  const period =
+    criteria.fromDate && criteria.toDate
+      ? { from: criteria.fromDate, to: criteria.toDate }
+      : undefined;
+
+  const notes: string[] = [];
+  const indexedAt = lastIndexedAt(status.data?.summary);
+  if (indexedAt) notes.push(`색인 ${fmtDisplayDatetime(indexedAt)} 기준`);
+  if (criteria.beforeSpecRgstNo) notes.push(`사전규격 ${criteria.beforeSpecRgstNo} 연결 건`);
+  if (criteria.detailProductCode) notes.push(`품명번호 ${criteria.detailProductCode}*`);
+
+  const renderStatusBar = (): ReactNode => {
+    if (search.error) return <StatusBar error message={`오류: ${search.error.message}`} />;
+    if (!data) return null;
     return (
       <StatusBar
-        total={total}
-        page={{ current: criteria.page, total: totalPages }}
-        period={
-          criteria.fromDate && criteria.toDate
-            ? { from: criteria.fromDate, to: criteria.toDate }
-            : undefined
-        }
-        bidType={criteria.division || undefined}
+        total={data.totalCount}
+        period={period}
+        page={{ current: criteria.pageNo, total: totalPages }}
         notes={notes}
-        message={
-          lastIndexedAt ? (
-            <span className="index-freshness">
-              로컬 색인 조회 · 마지막 갱신 <strong>{fmtDisplayDate(lastIndexedAt)}</strong>
-            </span>
-          ) : null
-        }
       />
     );
   };
 
+  const filterValues: NoticeFilterValues = {
+    category: criteria.category,
+    // 조건 쪽에서는 기존 4탭과 같은 bidType 자리를 쓴다 — 값 집합만 '외자'까지 넓혔다.
+    division: criteria.bidType,
+    noticeState: criteria.noticeState,
+    region: criteria.region,
+    closeFrom: criteria.closeFrom,
+    closeTo: criteria.closeTo,
+    minAmount: criteria.minAmount,
+    maxAmount: criteria.maxAmount,
+    activeOnly: criteria.activeOnly,
+  };
+
   return (
-    <>
-      <IndexSearchHeader criteria={criteria} setCriteria={setCriteria} facets={facets.data} />
-
-      <section className="panel" aria-label="공고 통합 검색">
-        <div className="result-topbar">
-          <div className="topbar-left">{renderStatusBar()}</div>
-        </div>
-
-        <DataTable<NoticeIndexItem>
-          columns={COLUMNS}
-          rows={rows}
-          rowKey={(row) => `${row.id}-${row.noticeOrder}`}
-          sort={sort}
-          onSort={(key) => {
-            if (!SORTABLE.has(key)) return;
-            setCriteria({
-              sort: key,
-              // 같은 컬럼을 다시 누르면 방향만 뒤집는다 — 랜딩의 표와 같은 동작.
-              dir: sort.key === key && sort.dir === 'asc' ? 'desc' : 'asc',
-            });
-          }}
-          renderCell={renderCell}
-          loading={search.isPending}
-          empty={
-            rows.length === 0 && !search.isPending ? (
-              <EmptyState>조건에 맞는 공고가 없습니다. 기간을 넓히거나 필터를 줄여보세요.</EmptyState>
-            ) : null
-          }
-        />
-
-        {rows.length > 0 ? (
-          <Pagination
-            page={criteria.page}
-            totalPages={totalPages}
-            perPage={criteria.perPage}
-            onPage={(page) => {
-              setCriteria({ page });
-              window.scrollTo({ top: 0, behavior: 'smooth' });
+    <section className="panel" aria-label={SCREEN.label}>
+      <div className="result-topbar">
+        <div className="topbar-left">
+          {renderStatusBar()}
+          <NoticeFilterBar
+            values={filterValues}
+            facets={facets}
+            totalCount={stageTotalOf(facets, data?.totalCount ?? 0)}
+            onChange={(patch) => {
+              // division 만 이름이 다르다 — 나머지는 조건 필드와 이름이 같다.
+              const { division, ...rest } = patch;
+              const next: Partial<SearchCriteria> = { ...rest };
+              if (division !== undefined) next.bidType = division;
+              setCriteria(next);
             }}
-            onPerPage={(next) => setCriteria({ perPage: next })}
           />
-        ) : null}
-      </section>
+        </div>
+      </div>
 
-      <IndexNoticeDrawer selected={selected} onClose={() => setSelected(null)} />
-    </>
+      <DataTable<NoticeIndexItem>
+        // 핵심 열만 두고 상세는 서랍으로 — 표 하한이 레거시 4탭(1580px)이 아니라 940px 이 된다.
+        compact
+        columns={columns}
+        rows={items}
+        rowKey={indexRowKey}
+        sort={sort}
+        onSort={onSort}
+        renderCell={renderCell}
+        rowClassName={(item) => (item.state === '취소' ? 'cancelled-row' : undefined)}
+        loading={search.isPending}
+        /*
+          결과 집합을 바꾸는 조건(단계·구분·상태·지역·기간·금액·검색어)만 전환 키에 넣는다.
+          정렬·페이지는 같은 결과의 순서/조각이라 넣지 않는다 — 넣으면 페이지를 넘길 때마다
+          표가 깜빡인다. 이 키가 바뀌면 tbody 가 부드럽게 페이드-인 된다.
+        */
+        transitionKey={[
+          criteria.category,
+          criteria.bidType,
+          criteria.noticeState,
+          criteria.region,
+          criteria.fromDate,
+          criteria.toDate,
+          criteria.closeFrom,
+          criteria.closeTo,
+          criteria.minAmount,
+          criteria.maxAmount,
+          criteria.andTerms.join(','),
+          criteria.orTerms.join(','),
+          criteria.notTerms.join(','),
+        ].join('|')}
+        empty={
+          items.length === 0 && !search.isPending ? (
+            <EmptyState>
+              {/* 색인이 비어 있는 것과 조건이 좁은 것은 다른 문제다 — 구분해서 알린다. */}
+              {indexedAt
+                ? '검색 결과가 없습니다. 조건을 넓히거나 단계 필터를 풀어 보세요.'
+                : '색인이 아직 비어 있습니다. 백엔드 적재가 한 번 돌아야 결과가 보입니다.'}
+            </EmptyState>
+          ) : null
+        }
+      />
+
+      {items.length > 0 ? (
+        <Pagination
+          page={criteria.pageNo}
+          totalPages={totalPages}
+          perPage={perPageChoice}
+          options={INDEX_PER_PAGE_OPTIONS}
+          onPage={(next) => {
+            setPage(next);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          onPerPage={(next) => setCriteria({ perPage: next })}
+        />
+      ) : null}
+
+      {selected ? (
+        <IndexNoticeDrawer seed={selected} onClose={() => setSelected(null)} />
+      ) : null}
+    </section>
   );
 }
