@@ -33,11 +33,16 @@ export function pick(...values: unknown[]): string {
 /**
  * 값이 있는 줄만 남긴다 — 원본 `.filter(([, v]) => v && v !== '-')`.
  * G2B 는 오퍼레이션마다 필드가 절반쯤 비어 오므로, 빈 줄을 그리면 격자가 구멍투성이가 된다.
+ *
+ * 세 번째 원소(`wide`)는 값이 긴 항목(기관명·품명 등)에 준다 — 카드 격자에서 두 칸을 써
+ * 줄바꿈 없이 읽히게 한다.
  */
-export function buildMetaRows(entries: ReadonlyArray<[string, ReactNode]>): MetaRow[] {
+type MetaEntry = readonly [string, ReactNode] | readonly [string, ReactNode, boolean];
+
+export function buildMetaRows(entries: ReadonlyArray<MetaEntry>): MetaRow[] {
   return entries
     .filter(([, value]) => value != null && value !== '' && value !== '-')
-    .map(([label, value]) => ({ label, value }));
+    .map(([label, value, wide]) => ({ label, value, wide: Boolean(wide) }));
 }
 
 export function telLink(value: unknown): ReactNode {

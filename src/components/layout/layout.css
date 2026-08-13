@@ -66,141 +66,70 @@
   }
 }
 
-/* ─── 파트너 배너 ─────────────────────────────────────────────────────────── */
-.partner-strip {
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-}
-.partner-strip-inner {
-  min-height: 58px;
-  padding: 8px 24px;
-  display: flex;
-  align-items: center;
-  gap: 18px;
-}
-.partner-logo {
-  display: inline-flex;
-  align-items: center;
-  flex-shrink: 0;
-}
-.partner-logo img {
-  display: block;
-  width: 192px;
-  height: 42px;
-}
-.partner-message {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  min-width: 0;
-  flex: 1;
-  line-height: 1.35;
-}
-.partner-message strong {
-  color: var(--ink);
-  font-size: 14px;
-  letter-spacing: 0;
-}
-.partner-message span {
-  color: var(--muted);
-  font-size: var(--fs-meta);
-}
-.partner-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-}
-
-/* ─── 연락처 알약 ─────────────────────────────────────────────────────────── */
+/* ─── 연락처 알약 (기본) ──────────────────────────────────────────────────────
+ * ContactPill 컴포넌트가 늘 붙이는 베이스. 지금은 통합 헤더의 --header 변종만 쓰지만,
+ * 컴포넌트가 재사용될 수 있으므로 형태 기본값만 남기고 색은 변종이 정한다. */
 .contact-pill {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 34px;
-  padding: 0 14px;
-  border-radius: var(--radius);
-  background: var(--ink);
-  border: 1px solid var(--ink);
-  color: #fff;
-  font-size: var(--fs-table);
-  font-weight: 800;
-  text-decoration: none;
-  white-space: nowrap;
-  cursor: pointer;
   font-family: inherit;
-}
-.contact-pill:hover {
-  background: var(--ink-hover);
-  border-color: var(--ink-hover);
+  cursor: pointer;
+  white-space: nowrap;
   text-decoration: none;
-}
-.contact-pill--kakao {
-  background: var(--kakao);
-  border-color: var(--kakao);
-  color: var(--kakao-text);
-}
-.contact-pill--kakao:hover {
-  background: var(--kakao-hover);
-  border-color: var(--kakao-hover);
-  color: var(--kakao-text);
-}
-.contact-pill--download {
-  background: var(--surface);
-  border-color: var(--pill-outline);
-  color: var(--ink);
-}
-.contact-pill--download:hover {
-  background: #f4f7fb;
-  border-color: var(--pill-outline-hover);
-  color: var(--ink);
-}
-.contact-pill--home {
-  background: var(--primary);
-  border-color: var(--primary);
-  color: #fff;
-}
-.contact-pill--home:hover {
-  background: var(--primary-dark);
-  border-color: var(--primary-dark);
-}
-.contact-pill--service {
-  min-width: 176px;
-  padding: 4px 12px;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 1px;
-  background: var(--teal);
-  border-color: var(--teal);
-  color: #fff;
-  box-shadow: 0 6px 16px rgba(15, 118, 110, 0.18);
-}
-.contact-pill--service:hover {
-  background: var(--teal-dark);
-  border-color: var(--teal-dark);
-}
-.contact-pill--service span {
-  font-size: 12.5px;
-  line-height: 1.1;
-  font-weight: 900;
-}
-.contact-pill--service small {
-  font-size: var(--fs-badge-sm);
-  line-height: 1.1;
-  font-weight: 700;
-  color: rgba(255, 255, 255, 0.78);
 }
 
-/* ─── 헤더 ────────────────────────────────────────────────────────────────── */
+/* ─── 통합 헤더 (파트너 배너 + 앱 헤더 합침) ───────────────────────────────── */
 .app-header {
-  background: var(--primary);
-  padding: 0 24px;
-  height: var(--header-height);
+  /* 은은한 파랑 그라데이션 — 단색보다 깊이가 있고, 유리 패널과도 톤이 맞는다. */
+  background: linear-gradient(100deg, var(--primary-dark) 0%, var(--primary) 55%, #2360b8 100%);
+  padding: 10px 24px;
+  min-height: var(--header-height);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  gap: 16px 20px;
+  flex-wrap: wrap;
+  box-shadow: 0 2px 12px rgba(9, 30, 66, 0.22);
+}
+/* 왼쪽 정체성 묶음: ELECTERIOR · G2B Masters */
+.app-header-brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+.brand-partner {
+  display: flex;
+  flex-direction: column;
+  line-height: 1;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+.brand-partner-name {
+  color: #fff;
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+.brand-partner-sub {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.55em;
+  margin-top: 2px;
+}
+.brand-partner:hover .brand-partner-name {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+/* 두 정체성 사이 세로 구분선. 액션 묶음 안(연락처↔앱메뉴)에서도 재사용. */
+.brand-divider {
+  width: 1px;
+  align-self: stretch;
+  min-height: 26px;
+  background: rgba(255, 255, 255, 0.28);
+  flex-shrink: 0;
 }
 .app-header-inner {
   display: flex;
@@ -229,146 +158,205 @@
 .app-header-actions {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
   margin-left: auto;
-  flex-shrink: 0;
 }
+/* 파란 헤더 위 연락처 칩 — 반투명 흰 유리. 앱 액션 버튼과 톤을 맞춘다. */
+.contact-pill--header {
+  min-height: 32px;
+  padding: 6px 13px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-size: var(--fs-table);
+  font-weight: 700;
+  white-space: nowrap;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  transition:
+    background 0.16s ease,
+    border-color 0.16s ease,
+    transform 0.16s ease;
+}
+.contact-pill--header:hover {
+  background: rgba(255, 255, 255, 0.22);
+  border-color: rgba(255, 255, 255, 0.4);
+  transform: translateY(-1px);
+  text-decoration: none;
+}
+/* 처음 화면 — 주 CTA. 흰 알약에 옅은 그림자로 헤더 위에서 도드라진다. */
 .btn-home {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   min-height: 32px;
-  padding: 6px 14px;
-  border-radius: var(--radius);
-  border: 1px solid rgba(255, 255, 255, 0.46);
-  background: var(--surface);
+  padding: 6px 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  background: #fff;
   color: var(--primary);
   font-size: var(--fs-table);
   font-weight: 800;
   text-decoration: none;
   white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(9, 30, 66, 0.18);
   transition:
     background 0.15s,
     color 0.15s,
-    border-color 0.15s;
+    transform 0.15s,
+    box-shadow 0.15s;
 }
 .btn-home:hover {
   background: #eaf2ff;
-  border-color: #eaf2ff;
   color: var(--primary-dark);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(9, 30, 66, 0.24);
   text-decoration: none;
 }
-.btn-full-reset {
+/* 전체 리셋 · ⚙ 우리 회사 — 헤더 칩과 같은 반투명 유리 알약. */
+.btn-full-reset,
+.btn-settings {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   min-height: 32px;
-  padding: 6px 12px;
-  border-radius: var(--radius);
-  border: 1px solid rgba(255, 255, 255, 0.42);
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff7ed;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
   font-size: var(--fs-table);
-  font-weight: 800;
+  font-weight: 700;
   white-space: nowrap;
   transition:
-    background 0.15s,
-    border-color 0.15s,
-    color 0.15s;
+    background 0.16s ease,
+    border-color 0.16s ease,
+    color 0.16s ease,
+    transform 0.16s ease;
 }
+.btn-full-reset:hover,
+.btn-settings:hover {
+  background: rgba(255, 255, 255, 0.22);
+  border-color: rgba(255, 255, 255, 0.4);
+  transform: translateY(-1px);
+}
+/* 전체 리셋은 파괴적 동작이라 hover 에서만 붉은 톤으로 경고. */
 .btn-full-reset:hover {
   background: #fff1f2;
   border-color: #fff1f2;
   color: #be123c;
 }
-.btn-settings {
-  background: rgba(255, 255, 255, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  color: #fff;
-  padding: 6px 14px;
-  border-radius: var(--radius);
-  font-size: var(--fs-table);
-  white-space: nowrap;
-  transition: background 0.15s;
-}
-.btn-settings:hover {
-  background: rgba(255, 255, 255, 0.28);
+
+/* ─── 탭 (책 인덱스 · 세로 레일) ──────────────────────────────────────────── */
+
+/*
+ * 검색창 아래 본문 — 탭 레일과 결과 패널을 가로로 나란히 놓는다.
+ *
+ * 예전에는 탭이 패널 위에 얹힌 가로 스트립이었다. 탭 9개가 뷰포트 ~1150px 아래에서
+ * 넘쳤는데 overflow-x:auto 에 스크롤바까지 숨긴 탓에 **넘쳤다는 신호가 어디에도 없었다** —
+ * 뒤 두 탭(용역·공사 트렌드)은 존재 자체를 알 수 없었다. 세로로 세우면 탭 수가 폭을
+ * 먹지 않으므로 그 문제가 구조적으로 사라진다.
+ */
+/* 이름이 .app-body 가 아닌 것은 베타 랜딩의 목업이 그 이름을 이미 쓰기 때문이다
+   (landing.css `.beta-landing .app-body` — 제품 스크린샷 흉내). 랜딩은 셸 밖에서
+   렌더돼 실제로 겹치지는 않지만, 같은 이름을 두 뜻으로 쓰면 다음 사람이 반드시 헷갈린다. */
+.app-shell-body {
+  display: flex;
+  /* 패널이 짧아도 레일 높이(탭 9개 ≈ 440px)까지 늘어난다 — 안 그러면 짧은 화면
+     (404 · 자리표시자)에서 탭이 패널 아래로 삐져나온다. */
+  align-items: stretch;
 }
 
-/* ─── 탭 (고전 폴더 탭) ───────────────────────────────────────────────────── */
+/*
+ * 레일 자체에는 배경도 테두리도 없다. 탭 하나하나가 페이지에 꽂힌 책갈피이고 활성 탭만
+ * 패널과 이어붙는다. 레일에 배경·테두리를 주면 마지막 탭 아래로 빈 기둥이 남는다.
+ */
 .app-tabs {
   display: flex;
+  flex-direction: column;
+  /* 늘지도 줄지도 않는다. 폭은 최장 라벨이 두 줄로 접히는 값(tokens.css). */
+  flex: 0 0 calc(var(--tab-rail-width) + var(--tab-protrude));
   gap: 4px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-bottom: none;
-  border-radius: var(--radius) var(--radius) 0 0;
-  padding: 8px 8px 0;
-  overflow-x: auto;
+  /* 왼쪽 여백은 활성 탭이 돌출할 자리다 — 탭의 음수 margin 이 이 안으로 들어온다.
+     .app-shell-body 에 주면 탭이 없는 라우트(/system · /analysis-lab)까지 들여쓰기된다. */
+  padding: 8px 0 8px var(--tab-protrude);
 }
 .app-tab {
-  padding: 10px 22px;
+  padding: 10px 14px;
   border: 1px solid transparent;
-  border-bottom: none;
-  border-radius: 6px 6px 0 0;
+  border-right: none;
+  border-radius: 6px 0 0 6px;
   background: none;
   font-size: var(--fs-base);
   font-weight: 500;
+  /* 세로 레일은 두 줄이 자연스럽다. 가로 스트립의 white-space:nowrap 을 버린 이유 —
+     한 줄로 고정하면 «준비» 배지까지 190px 이 되어 본문을 그만큼 깎는다. */
+  line-height: 1.35;
+  /* 한글은 기본 줄바꿈이 음절 단위라 '하드웨어 스펙 검색'이 '…스펙 검 / 색'으로 쪼개진다.
+     keep-all 이면 띄어쓰기에서만 접혀 '하드웨어 스펙 / 검색'이 된다. */
+  word-break: keep-all;
   color: var(--muted);
   text-decoration: none;
-  white-space: nowrap;
   transition:
     color 0.15s,
     background 0.15s;
-  /* 활성 탭의 아래 테두리가 결과 영역의 테두리를 덮어 "한 장의 종이"처럼 보이게 하는 트릭. */
+  /* 활성 탭의 배경이 패널 왼쪽 테두리를 덮어 "한 장의 종이"처럼 보이게 하는 트릭.
+     가로 스트립 시절의 bottom:-1px 을 90도 돌린 것이다. */
   position: relative;
-  bottom: -1px;
+  right: -1px;
 }
 .app-tab:hover {
   color: var(--primary);
-  background: var(--bg);
+  /* 레일이 투명해 뒤가 캔버스 그라데이션이다 — var(--bg) 로는 hover 가 보이지 않는다. */
+  background: rgba(255, 255, 255, 0.6);
   text-decoration: none;
 }
 .app-tab.active {
   background: var(--surface);
   border-color: var(--border);
-  border-bottom-color: var(--surface);
+  border-right-color: var(--surface);
   color: var(--primary);
   font-weight: 700;
+  /* 책갈피 — 활성 탭만 왼쪽으로 튀어나온다. 레일의 padding-left 가 그 자리다. */
+  margin-left: calc(var(--tab-protrude) * -1);
+  padding-left: calc(14px + var(--tab-protrude));
+}
+/* 준비 중 화면의 탭 — 라벨은 흐리게, 옆에 «준비» 배지. 클릭 전에 미완임을 알린다. */
+.app-tab.not-ready {
+  color: var(--table-empty-fg);
+}
+.app-tab.not-ready.active {
+  color: var(--muted);
+}
+.tab-ready-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: #fdf3e2;
+  color: #8a5b0c;
+  font-size: var(--fs-badge-sm);
+  font-weight: 700;
+  vertical-align: middle;
 }
 
 @media (max-width: 760px) {
-  .partner-strip-inner {
-    padding: 10px 12px;
-    align-items: stretch;
-    flex-direction: column;
-    gap: 8px;
-  }
-  .partner-logo img {
-    width: 156px;
-    height: auto;
-  }
-  .partner-actions {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  .contact-pill {
-    width: 100%;
-  }
-  .contact-pill--service {
-    min-width: 0;
-    align-items: center;
-  }
   .app-header {
-    height: auto;
-    min-height: var(--header-height);
     padding: 10px 14px;
     align-items: flex-start;
     flex-direction: column;
+    gap: 10px;
+  }
+  .app-header-brand {
+    gap: 10px;
   }
   .app-header-inner {
     flex-wrap: wrap;
-    row-gap: 6px;
+    row-gap: 4px;
   }
   .app-header-sub {
     flex-basis: 100%;
@@ -377,10 +365,39 @@
     width: 100%;
     margin-left: 0;
   }
+  /* 좁은 화면에선 연락처 칩·앱 버튼이 한 줄에 흐르도록 폭을 자유롭게 둔다. */
+  .contact-pill--header,
   .btn-home,
   .btn-full-reset,
   .btn-settings {
-    flex: 1;
-    justify-content: center;
+    flex: 1 1 auto;
+  }
+  /* 세로 구분선은 좁은 화면에서 숨긴다 — 줄바꿈되면 의미가 없다. */
+  .app-header-actions .brand-divider {
+    display: none;
+  }
+
+  /*
+   * 좁은 화면 — 레일도 라벨도 그대로 두고 폭과 글자만 줄인다.
+   *
+   * 한때 여기서 라벨을 이모지로 갈음했는데(🔍 🏁 🤖 …) 실물이 알아볼 수 없었다.
+   * 아이콘 아홉 개가 세로로 늘어서면 어느 것이 '용역 트렌드'이고 어느 것이 '공사 트렌드'인지
+   * 글리프만으로는 구분이 안 되고, 그렇다고 하나씩 눌러 확인하게 만들 수는 없다.
+   * 폭을 24px 아끼자고 탭의 이름을 지우는 것은 남는 장사가 아니다 — 이름을 남긴다.
+   *
+   * 가로 스트립으로 되돌리는 선택지는 여전히 없다: 탭 9개는 390px 폭에 들어가지 않는다.
+   */
+  .app-tabs {
+    flex-basis: calc(var(--tab-rail-width-sm) + var(--tab-protrude));
+    padding: 6px 0 6px var(--tab-protrude);
+    gap: 2px;
+  }
+  .app-tab {
+    padding: 8px 10px;
+    font-size: var(--fs-base-sm);
+  }
+  /* 책갈피 돌출은 좁은 화면에서도 유지한다 — 활성 탭을 알아보는 주된 단서다. */
+  .app-tab.active {
+    padding-left: calc(10px + var(--tab-protrude));
   }
 }

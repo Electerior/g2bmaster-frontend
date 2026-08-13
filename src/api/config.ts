@@ -8,6 +8,22 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { get, post } from '@/lib/apiClient';
 
+/**
+ * AI 요약·분석 계열(POST /api/bid-summary · item-summary · scan-attachments 등)이
+ * 백엔드에 붙어 있는가.
+ *
+ * 이 경로들은 AI 저장소(g2bmaster-AI) + 첨부 파싱에 의존하는데, 이식이 아직 안 끝났다
+ * (백엔드 docs/porting-status.md: "첨부 파싱·deal-analysis 미착수"). 그 상태에서 호출하면
+ * 500 이 나므로, 화면은 이 플래그가 켜졌을 때만 요약을 부른다. 백엔드 `g2b.ai.enabled` 와
+ * 짝을 이루는 프론트 스위치다 — 백엔드가 준비되면 `.env` 에서 켠다.
+ *
+ * 런타임(GET /api/ai-config)으로 묻지 않는 이유: 그 엔드포인트 자체도 아직 백엔드에 없다.
+ * 그래서 빌드타임 환경변수로 둔다. 기본값은 꺼짐 — 켜져 있다고 잘못 알리면 매번 500 이 뜬다.
+ */
+export function isAiEnabled(): boolean {
+  return import.meta.env.VITE_AI_ENABLED === 'true';
+}
+
 export interface MaskedAiConfig {
   llmBase: string;
   llmModel: string;

@@ -49,11 +49,11 @@ export function SearchModeTabs({ mode, onModeChange }: SearchModeTabsProps) {
       return;
     }
     if (onDedicatedRoute) {
-      // 전용 라우트에서 키워드 계열로 돌아올 때는 갈 곳이 필요하다 — 입찰 공고로 보낸다.
+      // 전용 라우트에서 키워드 계열로 돌아올 때는 갈 곳이 필요하다 — 공고 검색으로 보낸다.
       const params = new URLSearchParams(location.search);
       if (tab.mode === 'keyword') params.delete('mode');
       else params.set('mode', tab.mode);
-      navigate({ pathname: ROUTES.bidAnnounce, search: params.toString() });
+      navigate({ pathname: ROUTES.noticeSearch, search: params.toString() });
       return;
     }
     onModeChange(tab.mode);

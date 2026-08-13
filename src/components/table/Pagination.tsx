@@ -2,17 +2,8 @@
  * 페이지네이션 — 원본 renderPagination(app.js:5410).
  * 10페이지 블록 창(현재 페이지가 속한 10개 묶음)과 페이지당 행 수 선택이 한 줄에 온다.
  */
+import { PER_PAGE_OPTIONS, type PerPageOption } from './perPage';
 import './table.css';
-
-/** '전체' 는 서버가 문자열 'all' 로 받는다(server.js:1015). 화면에서는 이 상수로 표현한다. */
-export const PER_PAGE_ALL = 99999;
-
-const PER_PAGE_OPTIONS = [
-  { value: 20, label: '20개' },
-  { value: 50, label: '50개' },
-  { value: 100, label: '100개' },
-  { value: PER_PAGE_ALL, label: '전체' },
-] as const;
 
 const BLOCK_SIZE = 10;
 
@@ -22,9 +13,18 @@ interface PaginationProps {
   perPage: number;
   onPage: (page: number) => void;
   onPerPage: (perPage: number) => void;
+  /** 생략하면 기존 4탭의 선택지(20·50·100·전체). */
+  options?: readonly PerPageOption[];
 }
 
-export function Pagination({ page, totalPages, perPage, onPage, onPerPage }: PaginationProps) {
+export function Pagination({
+  page,
+  totalPages,
+  perPage,
+  onPage,
+  onPerPage,
+  options = PER_PAGE_OPTIONS,
+}: PaginationProps) {
   const block = Math.floor((page - 1) / BLOCK_SIZE);
   const start = block * BLOCK_SIZE + 1;
   const end = Math.min(start + BLOCK_SIZE - 1, totalPages);
@@ -70,7 +70,7 @@ export function Pagination({ page, totalPages, perPage, onPage, onPerPage }: Pag
         value={String(perPage)}
         onChange={(e) => onPerPage(Number(e.target.value))}
       >
-        {PER_PAGE_OPTIONS.map((option) => (
+        {options.map((option) => (
           <option key={option.value} value={option.value}>
             {option.label}
           </option>

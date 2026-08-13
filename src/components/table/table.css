@@ -10,20 +10,46 @@
 
 .data-table {
   width: 100%;
-  /* 컬럼이 17개까지 늘어나므로 좁히면 글자가 세로로 접힌다 — 원본과 같은 하한. */
+  /* 컬럼이 17개까지 늘어나는 레거시 4탭 기준 하한. 좁히면 글자가 세로로 접힌다. */
   min-width: var(--table-min-width);
   border-collapse: collapse;
   font-size: var(--fs-table);
 }
+/*
+ * 핵심 열만 두고 상세를 서랍으로 보낸 표 — 공고 통합 검색(9열)과 입찰 결과(7열).
+ * 레거시 하한(1580px)을 그대로 쓰면 패널보다 넓어 가로 스크롤이 늘 생긴다.
+ * 이 표들은 패널 폭에 맞춰 접히지 않을 만큼만 넓힌다.
+ *
+ * 예전에는 `:has(.col-noticeName)` 으로 컬럼 키를 보고 짐작했다. 그래서 같은 모양으로
+ * 만든 입찰 결과 표(키가 bidNtceNm)는 이 규칙에 걸리지 않아 1580px 을 그대로 썼고,
+ * 컬럼을 줄여도 가로 스크롤이 사라지지 않았다. 이제는 화면이 compact 로 직접 말한다.
+ */
+.data-table.compact {
+  min-width: 940px;
+}
+/*
+ * 공고명은 레거시 표에서 480px 을 썼다(17열 표에서는 그만큼 줘야 제목이 세로로 접히지 않았다).
+ * 열이 일곱뿐인 표에서 그대로 두면 표 하한을 낮춘 효과가 이 한 컬럼에 그대로 먹힌다.
+ */
+.data-table.compact .col-bidNtceNm {
+  min-width: 300px;
+  width: 30%;
+}
 
 .data-table th {
   background: var(--table-head-bg);
-  padding: 10px 12px;
+  padding: 11px 12px;
   text-align: left;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--primary);
   border-bottom: 2px solid var(--border);
   white-space: nowrap;
+  /* 헤더 고정 — 긴 목록을 훑을 때 어느 컬럼인지 잃지 않는다. 패널 안 스크롤 기준. */
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  /* 스크롤로 본문이 헤더 밑을 지날 때 경계가 뜨도록 옅은 그림자. */
+  box-shadow: 0 1px 0 var(--border);
 }
 
 .th-sortable {
@@ -51,17 +77,46 @@
   font-size: var(--fs-badge-sm);
 }
 
+/*
+ * 단계·구분 필터 전환 — 결과가 갈릴 때 tbody 가 부드럽게 나타난다(툭 바뀌지 않게).
+ * transform 은 <tbody>(table-row-group)에서 브라우저별로 불안정해 opacity 만 쓴다.
+ */
+.table-body-fade {
+  animation: table-body-fade-in 0.3s ease-out both;
+}
+@keyframes table-body-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .table-body-fade {
+    animation: none;
+  }
+}
+
 .data-table td {
-  padding: 10px;
-  border-bottom: 1px solid var(--border);
+  padding: 11px 10px;
+  border-bottom: 1px solid var(--table-row-line);
   vertical-align: top;
   line-height: 1.5;
 }
 .data-table tbody tr:last-child td {
   border-bottom: none;
 }
-.data-table tbody tr:hover {
+/* 얼룩무늬(zebra) — 행이 많을 때 시선이 옆으로 흐르지 않게 한 줄씩 옅게 깐다. */
+.data-table tbody tr:nth-child(even) td {
+  background: var(--table-row-alt);
+}
+/* hover 는 zebra 위에서도 확실히 뜨도록 왼쪽에 파란 레일 + 배경 강조. */
+.data-table tbody tr:hover td {
   background: var(--table-row-hover);
+}
+.data-table tbody tr:hover td:first-child {
+  box-shadow: inset 3px 0 0 var(--primary);
 }
 .data-table a {
   color: var(--primary);
@@ -110,6 +165,35 @@
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
+/* ── 입찰 결과 표 ──────────────────────────────────────────────────────────
+   컬럼을 일곱으로 줄이면서 폭이 없던 것들에 하한을 준다. 하한이 없으면 브라우저가
+   내용 길이로 나누는데, 낙찰업체명 하나가 길면 그 행 때문에 표 전체가 밀린다. */
+.col-_type {
+  min-width: 64px;
+}
+.col-bidwinnrNm {
+  min-width: 120px;
+  width: 12%;
+}
+/* 낙찰금액은 자릿수 비교가 목적이라 오른쪽 정렬 + 고정폭 숫자(추정가격과 같은 규칙). */
+.col-sucsfbidAmt {
+  min-width: 104px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.data-table th.col-sucsfbidAmt .th-sortable {
+  text-align: right;
+  width: 100%;
+  justify-content: flex-end;
+  display: inline-flex;
+}
+.col-sucsfbidRate {
+  min-width: 76px;
+}
+.col-rlOpengDt {
+  min-width: 92px;
+}
+
 .col-bidNtceNm .bid-link {
   display: inline;
   word-break: keep-all;
@@ -133,6 +217,184 @@
 }
 .bid-link:hover {
   border-bottom-style: solid;
+}
+
+/* ── 공고 통합 검색(로컬 색인) 표 ──────────────────────────────────────── */
+.col-noticeName {
+  min-width: 420px;
+  width: 32%;
+}
+.col-noticeInstitutionName {
+  min-width: 140px;
+  width: 10%;
+}
+.col-id,
+.col-beforeSpecRgstNo {
+  min-width: 104px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.col-createdDate,
+.col-closeDate,
+.col-updatedAt {
+  min-width: 92px;
+}
+/* 추정가격은 자릿수 비교가 목적이라 오른쪽 정렬 + 고정폭 숫자. */
+.col-estimatedPrice {
+  min-width: 110px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.data-table th.col-estimatedPrice .th-sortable {
+  text-align: right;
+  width: 100%;
+  justify-content: flex-end;
+  display: inline-flex;
+}
+.col-region,
+.col-category,
+.col-state,
+.col-businessDivision {
+  min-width: 68px;
+}
+.col-_opportunityPending {
+  min-width: 78px;
+}
+
+/* 조달 생애주기 단계 배지 — 계획 → 사전규격 → 입찰 → 마감 */
+.stage-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: var(--fs-badge);
+  font-weight: 700;
+  white-space: nowrap;
+}
+.stage-plan {
+  background: var(--type-goods-bg);
+  color: var(--type-goods-fg);
+}
+.stage-spec {
+  background: var(--type-service-bg);
+  color: var(--type-service-fg);
+}
+.stage-open {
+  background: var(--type-works-bg);
+  color: var(--type-works-fg);
+}
+.stage-closed {
+  background: var(--type-etc-bg);
+  color: var(--type-etc-fg);
+}
+
+/* 지역 제한이 없는 공고. '전국'이라고 적지 않으면 필터 오작동으로 읽힌다. */
+.region-any {
+  color: var(--muted);
+}
+
+.instt-pair {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+/* 수요기관은 공고기관과 다를 때만 붙는다(조달청 대행 공고). */
+.instt-pair em {
+  font-style: normal;
+  font-size: var(--fs-badge);
+  color: var(--muted);
+}
+
+.notice-name-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+/* 공고명은 이 표에서 가장 먼저 읽히는 값 — 약간 굵게 해서 스캔의 닻으로 삼는다. */
+.notice-name-cell .bid-link {
+  font-weight: 600;
+  border-bottom-color: transparent;
+}
+.notice-name-cell .bid-link:hover {
+  border-bottom-color: var(--primary);
+}
+/* 공고번호 — 공고명 아래 옅은 한 줄(별도 컬럼 대신). */
+.notice-no {
+  font-size: var(--fs-badge);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+/* 마감일시 + D-DAY 한 칸. 배지는 날짜 아래 작게. */
+.close-dday-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  align-items: flex-start;
+}
+.dday-badge {
+  display: inline-block;
+  padding: 1px 7px;
+  border: 1px solid currentColor;
+  border-radius: 10px;
+  font-size: var(--fs-badge-sm);
+  font-weight: 700;
+  line-height: 1.4;
+}
+.dday-badge.dday-expired {
+  color: var(--muted);
+  border-color: var(--border);
+}
+.body-preview {
+  margin: 0;
+  font-size: var(--fs-badge);
+  color: var(--muted);
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* 수주기회 점수는 백엔드 작업 중 — 칸은 남기고 누르면 알린다. */
+.opp-pending {
+  padding: 2px 8px;
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  background: none;
+  color: var(--muted);
+  font-size: var(--fs-badge);
+  font-family: inherit;
+  white-space: nowrap;
+}
+
+/*
+ * 취소 공고는 검색 결과에서 지우지 않는다 — 발주가 접혔다는 사실 자체가 정보다.
+ * 대신 눈에 띄게 표시한다.
+ */
+.cancelled-row td {
+  background: var(--status-cancelled-bg);
+}
+.cancelled-row td:first-child {
+  box-shadow: inset 3px 0 0 var(--status-cancelled-border);
+}
+.cancelled-row .bid-link {
+  text-decoration: line-through;
+}
+
+.attachment-list {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  font-size: var(--fs-table);
+  line-height: 1.8;
+}
+/* 색인 본문은 줄바꿈이 의미를 갖는 이어붙인 텍스트다 — 그대로 접어서 보여준다. */
+.notice-body {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: inherit;
+  font-size: var(--fs-table);
+  line-height: 1.7;
 }
 
 /* 다른 탭으로 질의를 넘기는 버튼 — 원본 .cross-tab-btn 의 인라인 스타일 */
@@ -249,7 +511,18 @@ details.blocking-info[open] > summary {
 }
 
 /* ── 로딩 스켈레톤 ─────────────────────────────────────────────────────── */
+/*
+ * 셀 전체를 칠하지 않고 콘텐츠 자리에 옅은 막대 하나만 둔다. 예전엔 td 배경을 통째로
+ * 애니메이션해 표가 "고장난 격자"처럼 보였다 — 특히 빈 칸이 많은 계획 단계에서.
+ */
 .loading-row td {
+  height: 44px;
+}
+.skeleton-bar {
+  display: block;
+  height: 12px;
+  width: 72%;
+  border-radius: 6px;
   background: linear-gradient(
     90deg,
     var(--skeleton-a) 25%,
@@ -257,10 +530,20 @@ details.blocking-info[open] > summary {
     var(--skeleton-a) 75%
   );
   background-size: 200% 100%;
-  animation: shimmer 1.2s infinite;
-  color: transparent;
-  border-radius: 4px;
-  height: 36px;
+  animation: shimmer 1.3s ease-in-out infinite;
+}
+/* 컬럼마다 콘텐츠 폭이 달라 막대 길이를 흩뜨린다 — 균일한 막대는 오히려 인공적으로 보인다. */
+.loading-row td.col-noticeName .skeleton-bar {
+  width: 88%;
+}
+.loading-row td.col-category .skeleton-bar,
+.loading-row td.col-businessDivision .skeleton-bar,
+.loading-row td.col-region .skeleton-bar {
+  width: 40%;
+}
+.loading-row td.col-estimatedPrice .skeleton-bar {
+  width: 60%;
+  margin-left: auto;
 }
 @keyframes shimmer {
   0% {
@@ -271,7 +554,7 @@ details.blocking-info[open] > summary {
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .loading-row td {
+  .skeleton-bar {
     animation: none;
   }
 }

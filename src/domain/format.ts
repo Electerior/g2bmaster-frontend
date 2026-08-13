@@ -135,5 +135,6 @@ export function typeBadgeColors(type: string): { fg: string; bg: string } {
   if (type === '물품') return { fg: 'var(--type-goods-fg)', bg: 'var(--type-goods-bg)' };
   if (type === '용역') return { fg: 'var(--type-service-fg)', bg: 'var(--type-service-bg)' };
   if (type === '공사') return { fg: 'var(--type-works-fg)', bg: 'var(--type-works-bg)' };
+  if (type === '외자') return { fg: 'var(--type-foreign-fg)', bg: 'var(--type-foreign-bg)' };
   return { fg: 'var(--type-etc-fg)', bg: 'var(--type-etc-bg)' };
 }
