@@ -10,8 +10,8 @@
   border-radius: 12px;
   font-size: var(--fs-badge);
   font-weight: 600;
-  background: var(--blue-soft);
-  color: var(--primary);
+  background: var(--theme-almond-silk);
+  color: var(--theme-on-light);
 }
 
 /* 금액 — 원본 .amt */
@@ -117,7 +117,7 @@
 .opp-cell em {
   font-size: var(--fs-badge-sm);
   font-style: normal;
-  color: var(--opp-note-fg);
+  color: inherit;
   white-space: nowrap;
 }
 .opp-s {
@@ -229,12 +229,12 @@
 .price-status.tone-ok {
   color: var(--won-badge-fg);
   background: var(--ofc-service-bg);
-  border-color: var(--corp-won-hover);
+  border-color: var(--won-badge-border);
 }
 .price-status.tone-bad {
-  color: var(--gap-over-fg);
+  color: var(--status-cancelled-fg);
   background: var(--status-cancelled-bg);
-  border-color: var(--blocking-pop-border);
+  border-color: var(--status-cancelled-border);
 }
 
 /* 값 없음 표식 — 원본은 <span style="color:#bbb">-</span> 였다. */

@@ -151,7 +151,8 @@ export function NoticeFilterBar({ values, facets, totalCount, onChange }: Notice
       />
       {/*
         상태 넷은 전부 '예외' 상태다. 정상적으로 처음 올라온 공고는 값이 없으므로 네 건수의
-        합이 총 건수와 맞지 않는 것이 정상이다 — 그래서 여기 '전체' 는 '상태 무관'을 뜻한다.
+        합이 총 건수와 맞지 않는 것이 정상이다. 여기 '전체' 는 검토 목록(취소 제외)을 뜻하고,
+        취소 공고는 '취소'를 선택했을 때만 모아서 보여준다.
       */}
       <ChipRow
         label="상태"

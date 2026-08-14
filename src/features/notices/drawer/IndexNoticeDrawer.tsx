@@ -8,7 +8,7 @@
  * 첨부 본문이 없고(`notice_body` 는 목록 응답의 서술형 필드를 이어 붙인 검색용 텍스트다),
  * `aiSummary` 칸은 적재기가 절대 덮어쓰지 않는 자리라 값이 있으면 그것을 그대로 보여준다.
  */
-import { Fragment } from 'react';
+import { Fragment, useState, type KeyboardEvent } from 'react';
 import type { NoticeIndexItem } from '@/api/search';
 import { useNoticeDetail } from '@/api/search';
 import { TypeBadge } from '@/components/badges/Badge';
@@ -24,6 +24,7 @@ import {
   regionLabel,
 } from '../indexRows';
 import { SaveNoticeButton } from '../SaveNoticeButton';
+import { MockPriceAnalysisPanel } from './MockPriceAnalysisPanel';
 
 interface IndexNoticeDrawerProps {
   /** 목록 행. 상세가 도착하기 전까지 이 값으로 먼저 그린다 — 서랍이 빈 채로 뜨지 않도록. */
@@ -39,7 +40,11 @@ function datetimeRow(value: string | null | undefined): string {
   return value ? fmtDisplayDatetime(String(value)) : '';
 }
 
+const DRAWER_TABS = ['price', 'overview'] as const;
+type DrawerTab = (typeof DRAWER_TABS)[number];
+
 export function IndexNoticeDrawer({ seed, onClose }: IndexNoticeDrawerProps) {
+  const [activeTab, setActiveTab] = useState<DrawerTab>('price');
   const detail = useNoticeDetail(seed.id);
   // 상세가 오면 그것을 쓰고, 오는 동안에는 목록 행으로 버틴다.
   const item: NoticeIndexItem = detail.data ?? seed;
@@ -84,6 +89,22 @@ export function IndexNoticeDrawer({ seed, onClose }: IndexNoticeDrawerProps) {
 
   const body = String(item.noticeBody ?? item.bodyPreview ?? '').trim();
 
+  const selectAdjacentTab = (event: KeyboardEvent<HTMLButtonElement>, current: DrawerTab) => {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+    event.preventDefault();
+    const currentIndex = DRAWER_TABS.indexOf(current);
+    const nextIndex =
+      event.key === 'Home'
+        ? 0
+        : event.key === 'End'
+          ? DRAWER_TABS.length - 1
+          : (currentIndex + (event.key === 'ArrowRight' ? 1 : -1) + DRAWER_TABS.length) %
+            DRAWER_TABS.length;
+    const next = DRAWER_TABS[nextIndex];
+    setActiveTab(next);
+    document.getElementById(`notice-${next}-tab`)?.focus();
+  };
+
   return (
     <Drawer open onClose={onClose} label={title}>
       <DrawerHeader
@@ -102,11 +123,47 @@ export function IndexNoticeDrawer({ seed, onClose }: IndexNoticeDrawerProps) {
         <SaveNoticeButton item={item} variant="button" />
       </div>
 
+      <div className="notice-drawer-tabs" role="tablist" aria-label="공고 상세 보기">
+        <button
+          type="button"
+          className="notice-drawer-tab"
+          role="tab"
+          id="notice-price-tab"
+          aria-controls="notice-price-panel"
+          aria-selected={activeTab === 'price'}
+          tabIndex={activeTab === 'price' ? 0 : -1}
+          onClick={() => setActiveTab('price')}
+          onKeyDown={(event) => selectAdjacentTab(event, 'price')}
+        >
+          가격 분석 <span className="notice-drawer-tab-badge">Mock</span>
+        </button>
+        <button
+          type="button"
+          className="notice-drawer-tab"
+          role="tab"
+          id="notice-overview-tab"
+          aria-controls="notice-overview-panel"
+          aria-selected={activeTab === 'overview'}
+          tabIndex={activeTab === 'overview' ? 0 : -1}
+          onClick={() => setActiveTab('overview')}
+          onKeyDown={(event) => selectAdjacentTab(event, 'overview')}
+        >
+          공고 정보
+        </button>
+      </div>
+
       {/*
         패널 본문은 하나의 스크롤 흐름이다 — 예전엔 메타·본문·첨부가 각자 스크롤돼 공고 내용이
         좁은 칸에 갇혀 잘렸다. 헤더·저장·푸터만 고정하고 이 안을 통째로 스크롤한다.
       */}
-      <div className="drawer-body">
+      {activeTab === 'overview' ? (
+      <div
+        className="drawer-body"
+        role="tabpanel"
+        id="notice-overview-panel"
+        aria-labelledby="notice-overview-tab"
+        tabIndex={0}
+      >
         <DrawerMeta rows={rows}>
           {/*
             물품목록은 토글 없이 항상 펼쳐 보인다(넓은 패널의 빈 공간 활용). 품명은 위 메타 카드가
@@ -169,6 +226,9 @@ export function IndexNoticeDrawer({ seed, onClose }: IndexNoticeDrawerProps) {
           </div>
         ) : null}
       </div>
+      ) : (
+        <MockPriceAnalysisPanel />
+      )}
 
       {item.sourceUrl ? (
         <div className="drawer-footer">

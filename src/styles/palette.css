@@ -8,161 +8,164 @@
  */
 :root {
   /* ── 출처 배지 (style.css:2021) ─────────────────────────────────────────── */
-  --source-g2b-fg: #174ea6;
-  --source-g2b-bg: #e8f0fe;
-  --source-g2b-border: #c7d8f7;
-  --source-d2b-fg: #7c2d12;
-  --source-d2b-bg: #fff7ed;
-  --source-d2b-border: #fed7aa;
-  --source-private-fg: #7c3aed;
-  --source-private-bg: #f3e8ff;
+  --source-g2b-fg: var(--theme-on-dark);
+  --source-g2b-bg: var(--theme-gunmetal);
+  --source-g2b-border: var(--theme-gunmetal);
+  --source-d2b-fg: var(--theme-on-light);
+  --source-d2b-bg: var(--theme-honey-bronze);
+  --source-d2b-border: var(--theme-gunmetal);
+  --source-private-fg: var(--theme-on-dark);
+  --source-private-bg: var(--theme-iron-grey);
 
   /* ── 공고 상태 배지 (style.css:2035) ────────────────────────────────────── */
-  --status-active-fg: #047857;
-  --status-active-bg: #ecfdf5;
-  --status-active-border: #a7f3d0;
-  --status-completed-fg: #475569;
-  --status-completed-bg: #f1f5f9;
-  --status-completed-border: #cbd5e1;
-  --status-cancelled-fg: #b42318;
-  --status-cancelled-bg: #fff1f2;
-  --status-cancelled-border: #fda4af;
+  --status-active-fg: var(--theme-on-dark);
+  --status-active-bg: var(--theme-iron-grey);
+  --status-active-border: var(--theme-iron-grey);
+  --status-completed-fg: var(--theme-on-light);
+  --status-completed-bg: var(--theme-almond-silk);
+  --status-completed-border: var(--theme-iron-grey);
+  --status-cancelled-fg: var(--theme-on-dark);
+  --status-cancelled-bg: var(--theme-blushed-brick);
+  --status-cancelled-border: var(--theme-blushed-brick);
 
   /* ── 수주기회 배지 (style.css:1172) ─────────────────────────────────────── */
-  --opp-fg: #334155;
-  --opp-bg: #f8fafc;
-  --opp-border: #d8e1ef;
-  --opp-note-fg: #5b6b84;
-  --opp-s-fg: #c2410c;
-  --opp-s-bg: #fff7ed;
-  --opp-s-border: #fdba74;
-  --opp-a-fg: #047857;
-  --opp-a-bg: #ecfdf5;
-  --opp-a-border: #86efac;
-  --opp-b-fg: #1d4ed8;
-  --opp-b-bg: #eff6ff;
-  --opp-b-border: #bfdbfe;
-  --opp-c-fg: #475569;
-  --opp-c-bg: #f8fafc;
-  --opp-c-border: #cbd5e1;
-  --opp-d-fg: #6b7280;
-  --opp-d-bg: #f3f4f6;
-  --opp-d-border: #d1d5db;
-  --speclock-fg: #9f1239;
-  --speclock-bg: #fff1f2;
-  --speclock-border: #fb7185;
+  --opp-fg: var(--theme-on-light);
+  --opp-bg: var(--theme-almond-silk);
+  --opp-border: var(--theme-iron-grey);
+  --opp-note-fg: var(--theme-on-light);
+  --opp-s-fg: var(--theme-on-dark);
+  --opp-s-bg: var(--theme-blushed-brick);
+  --opp-s-border: var(--theme-blushed-brick);
+  --opp-a-fg: var(--theme-on-light);
+  --opp-a-bg: var(--theme-honey-bronze);
+  --opp-a-border: var(--theme-gunmetal);
+  --opp-b-fg: var(--theme-on-light);
+  --opp-b-bg: var(--theme-almond-silk);
+  --opp-b-border: var(--theme-iron-grey);
+  --opp-c-fg: var(--theme-on-dark);
+  --opp-c-bg: var(--theme-iron-grey);
+  --opp-c-border: var(--theme-iron-grey);
+  --opp-d-fg: var(--theme-on-dark);
+  --opp-d-bg: var(--theme-gunmetal);
+  --opp-d-border: var(--theme-gunmetal);
+  --speclock-fg: var(--theme-on-dark);
+  --speclock-bg: var(--theme-blushed-brick);
+  --speclock-border: var(--theme-blushed-brick);
 
   /* ── 제한/자격 태그 · 마감 배지 ────────────────────────────────────────── */
-  --reqtag-fg: #0f6b45;
-  --reqtag-bg: #eef6f1;
-  --reqtag-border: #cbe8d5;
-  --dday-expired-fg: #999999;
-  --dday-expired-bg: #f0f0f0;
+  --reqtag-fg: var(--theme-on-light);
+  --reqtag-bg: var(--theme-almond-silk);
+  --reqtag-border: var(--theme-iron-grey);
+  --dday-expired-fg: var(--theme-on-dark);
+  --dday-expired-bg: var(--theme-iron-grey);
 
   /* ── 첨부 전수조사 결과 행 (style.css:1233) ─────────────────────────────── */
-  --file-match-rail: #a855f7;
-  --file-excerpt-bg: #fdf4ff;
-  --file-excerpt-fg: #4b5563;
-  --file-mark-bg: #e9d5ff;
-  --file-mark-fg: #5b21b6;
+  --file-match-rail: var(--theme-iron-grey);
+  --file-excerpt-bg: #f8f4f2;
+  --file-excerpt-fg: var(--theme-gunmetal);
+  --file-mark-bg: var(--theme-honey-bronze);
+  --file-mark-fg: var(--theme-on-light);
 
   /* ── 입찰 불가 조항 '?' 표식 (style.css:1256) ───────────────────────────── */
-  --blocking-row-bg: #fff7ed;
-  --blocking-dot-bg: #c2410c;
-  --blocking-dot-open: #9a3412;
-  --blocking-pop-border: #fed7aa;
-  --blocking-pop-fg: #1f2937;
-  --blocking-excerpt-bg: #f8fafc;
-  --blocking-excerpt-fg: #475569;
-  --blocking-note-fg: #94a3b8;
+  --blocking-row-bg: rgba(244, 214, 204, 0.42);
+  --blocking-dot-bg: var(--theme-blushed-brick);
+  --blocking-dot-open: var(--theme-gunmetal);
+  --blocking-pop-border: var(--theme-blushed-brick);
+  --blocking-pop-fg: var(--theme-gunmetal);
+  --blocking-excerpt-bg: #f8f4f2;
+  --blocking-excerpt-fg: var(--theme-gunmetal);
+  --blocking-note-fg: var(--theme-iron-grey);
 
   /* ── 로딩 스켈레톤 ─────────────────────────────────────────────────────── */
-  --skeleton-a: #f0f3f8;
-  --skeleton-b: #e4e8f0;
+  --skeleton-a: #f8f4f2;
+  --skeleton-b: var(--theme-almond-silk);
 
   /* ── 검색창 ────────────────────────────────────────────────────────────── */
-  --mode-tabs-bg: #f8fafc;
-  --mode-tab-hover: #eef4ff;
-  --quick-date-hover: #f7faff;
-  --bool-and-bg: #e8f0fe;
-  --bool-or-bg: #fff3e8;
-  --bool-not-bg: #fde8e8;
-  --bool-not-fg: #c0392b;
-  --bool-instt-bg: #e6f7f2;
-  --bool-instt-fg: #0d7b6a;
-  --bool-corp-bg: #f0eeff;
-  --bool-corp-fg: #5b21b6;
-  --bool-brn-bg: #fff7ed;
-  --bool-brn-fg: #92400e;
-  --bool-file-bg: #fdf4ff;
-  --bool-file-fg: #7c3aed;
-  --bool-officer-bg: #f0fdf4;
-  --bool-officer-fg: #15803d;
-  --bool-officer-border: #86efac;
-  --qtag-and-bg: #dce8fd;
-  --qtag-or-bg: #ffe8d6;
-  --qtag-not-bg: #ffdddd;
-  --qtag-file-bg: #f3e8ff;
-  --preset-chip-bg: #e8f0fe;
-  --preset-chip-border: #c5d8fb;
-  --preset-chip-hover: #d0e4fd;
+  --mode-tabs-bg: #f7f7f7;
+  --mode-tab-hover: var(--theme-almond-silk);
+  --mode-tab-active: var(--theme-gunmetal);
+  --quick-date-hover: var(--theme-almond-silk);
+  --bool-and-bg: var(--theme-almond-silk);
+  --bool-and-fg: var(--theme-on-light);
+  --bool-or-bg: var(--theme-honey-bronze);
+  --bool-or-fg: var(--theme-on-light);
+  --bool-not-bg: var(--theme-blushed-brick);
+  --bool-not-fg: var(--theme-on-dark);
+  --bool-instt-bg: var(--theme-almond-silk);
+  --bool-instt-fg: var(--theme-on-light);
+  --bool-corp-bg: var(--theme-honey-bronze);
+  --bool-corp-fg: var(--theme-on-light);
+  --bool-brn-bg: var(--theme-blushed-brick);
+  --bool-brn-fg: var(--theme-on-dark);
+  --bool-file-bg: var(--theme-iron-grey);
+  --bool-file-fg: var(--theme-on-dark);
+  --bool-officer-bg: var(--theme-iron-grey);
+  --bool-officer-fg: var(--theme-on-dark);
+  --bool-officer-border: var(--theme-gunmetal);
+  --qtag-and-bg: var(--theme-almond-silk);
+  --qtag-or-bg: var(--theme-honey-bronze);
+  --qtag-not-bg: var(--theme-blushed-brick);
+  --qtag-file-bg: var(--theme-iron-grey);
+  --preset-chip-bg: var(--theme-almond-silk);
+  --preset-chip-border: var(--theme-iron-grey);
+  --preset-chip-hover: var(--theme-honey-bronze);
 
   /* ── 트렌드 ────────────────────────────────────────────────────────────── */
-  --trend-hairline: #edf2f8;
-  --trend-toolbar-bg: #f8fbff;
-  --trend-toolbar-border: #dbe7f6;
-  --trend-control-border: #bfd2ef;
-  --trend-control-focus: #b7cff9;
-  --trend-th-bg: #f8fafd;
-  --trend-th-fg: #51617a;
-  --trend-detail-bg: #fbfdff;
-  --trend-dup-bg: #fff4e8;
-  --trend-dup-fg: #c95d00;
+  --trend-hairline: rgba(74, 88, 89, 0.18);
+  --trend-toolbar-bg: #f8f4f2;
+  --trend-toolbar-border: rgba(74, 88, 89, 0.3);
+  --trend-control-border: var(--theme-iron-grey);
+  --trend-control-focus: var(--theme-honey-bronze);
+  --trend-th-bg: rgba(244, 214, 204, 0.42);
+  --trend-th-fg: var(--theme-iron-grey);
+  --trend-detail-bg: #fcfaf9;
+  --trend-dup-bg: var(--theme-honey-bronze);
+  --trend-dup-fg: var(--theme-on-light);
 
   /* ── 낙찰자 조회 (업체 프로파일) ───────────────────────────────────────── */
-  --corp-border: #e2e8f0;
-  --corp-head-from: #f0eeff;
-  --corp-head-to: #eff6ff;
-  --corp-name-fg: #1e1b4b;
-  --corp-stat-border: #c7d2fe;
-  --corp-stat-label: #5b21b6;
-  --corp-stat-val: #312e81;
-  --corp-th-bg: #f8f9fc;
-  --corp-td-border: #f1f5f9;
-  --corp-row-hover: #fafbff;
-  --corp-won-bg: #f0fdf4;
-  --corp-won-hover: #dcfce7;
-  --corp-line: #3b82f6;
-  --corp-dot-won: #22c55e;
-  --corp-dot-lost: #60a5fa;
-  --won-badge-fg: #15803d;
-  --won-badge-bg: #dcfce7;
-  --won-badge-border: #86efac;
+  --corp-border: rgba(74, 88, 89, 0.3);
+  --corp-head-from: var(--theme-almond-silk);
+  --corp-head-to: var(--theme-honey-bronze);
+  --corp-name-fg: var(--theme-gunmetal);
+  --corp-stat-border: var(--theme-iron-grey);
+  --corp-stat-label: var(--theme-blushed-brick);
+  --corp-stat-val: var(--theme-gunmetal);
+  --corp-th-bg: #f8f4f2;
+  --corp-td-border: rgba(74, 88, 89, 0.16);
+  --corp-row-hover: rgba(244, 214, 204, 0.32);
+  --corp-won-bg: rgba(244, 184, 96, 0.22);
+  --corp-won-hover: rgba(244, 184, 96, 0.34);
+  --corp-line: var(--theme-blushed-brick);
+  --corp-dot-won: var(--theme-honey-bronze);
+  --corp-dot-lost: var(--theme-iron-grey);
+  --won-badge-fg: var(--theme-on-light);
+  --won-badge-bg: var(--theme-honey-bronze);
+  --won-badge-border: var(--theme-gunmetal);
 
   /* ── 담당자 조회 ───────────────────────────────────────────────────────── */
-  --ofc-tel-fg: #1d4ed8;
-  --ofc-tel-bg: #eff6ff;
-  --ofc-tel-border: #bfdbfe;
-  --ofc-email-fg: #7c3aed;
-  --ofc-email-bg: #f5f3ff;
-  --ofc-email-border: #ddd6fe;
-  --ofc-goods-fg: #1d4ed8;
-  --ofc-goods-bg: #eff6ff;
-  --ofc-service-fg: #15803d;
-  --ofc-service-bg: #f0fdf4;
-  --ofc-works-fg: #c2410c;
-  --ofc-works-bg: #fff7ed;
+  --ofc-tel-fg: var(--theme-on-light);
+  --ofc-tel-bg: var(--theme-almond-silk);
+  --ofc-tel-border: var(--theme-iron-grey);
+  --ofc-email-fg: var(--theme-on-light);
+  --ofc-email-bg: var(--theme-honey-bronze);
+  --ofc-email-border: var(--theme-gunmetal);
+  --ofc-goods-fg: var(--theme-on-light);
+  --ofc-goods-bg: var(--theme-almond-silk);
+  --ofc-service-fg: var(--theme-on-light);
+  --ofc-service-bg: var(--theme-honey-bronze);
+  --ofc-works-fg: var(--theme-on-dark);
+  --ofc-works-bg: var(--theme-iron-grey);
 
   /* ── 저장 공고 · 필드 세트 ─────────────────────────────────────────────── */
   --ds-hero-bg: rgba(0, 0, 0, 0.02);
-  --ds-pending-fg: #b45309;
-  --gap-under-fg: #0f766e;
-  --gap-over-fg: #b91c1c;
+  --ds-pending-fg: var(--theme-blushed-brick);
+  --gap-under-fg: var(--theme-iron-grey);
+  --gap-over-fg: var(--theme-blushed-brick);
 
   /* ── 서랍 ──────────────────────────────────────────────────────────────── */
-  --drawer-raw-bg: #f8fafc;
+  --drawer-raw-bg: #f7f7f7;
   --drawer-scrim: rgba(0, 0, 0, 0.4);
-  --coverage-note-fg: #8a5a00;
-  --spec-badge-fg: #92400e;
-  --spec-badge-bg: #fef3c7;
+  --coverage-note-fg: var(--theme-gunmetal);
+  --spec-badge-fg: var(--theme-on-light);
+  --spec-badge-bg: var(--theme-honey-bronze);
 }

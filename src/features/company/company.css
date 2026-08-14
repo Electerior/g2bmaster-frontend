@@ -13,7 +13,7 @@
 .corp-profile-header {
   padding: 20px 24px 16px;
   border-bottom: 1px solid var(--corp-border);
-  background: linear-gradient(135deg, var(--corp-head-from) 0%, var(--corp-head-to) 100%);
+  background: var(--corp-head-from);
 }
 .corp-profile-name {
   font-size: 20px;
@@ -117,11 +117,11 @@
     border-color 0.15s;
 }
 .corp-tab:hover {
-  color: var(--primary);
+  color: var(--theme-gunmetal);
 }
 .corp-tab.active {
-  color: var(--corp-stat-label);
-  border-bottom-color: var(--corp-stat-label);
+  color: var(--theme-gunmetal);
+  border-bottom-color: var(--theme-gunmetal);
 }
 .corp-tab-panel {
   overflow-x: auto;

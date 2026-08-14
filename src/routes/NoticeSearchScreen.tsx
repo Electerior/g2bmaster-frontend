@@ -174,7 +174,6 @@ export function NoticeSearchScreen() {
         sort={sort}
         onSort={onSort}
         renderCell={renderCell}
-        rowClassName={(item) => (item.state === '취소' ? 'cancelled-row' : undefined)}
         loading={search.isPending}
         /*
           결과 집합을 바꾸는 조건(단계·구분·상태·지역·기간·금액·검색어)만 전환 키에 넣는다.

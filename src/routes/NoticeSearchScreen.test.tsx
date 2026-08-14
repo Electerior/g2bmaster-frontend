@@ -5,7 +5,7 @@
  * ApiError)까지 흉내 내야 하는데, 그건 이 테스트가 확인하려는 것이 아니다.
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { NoticeIndexItem } from '@/api/search';
@@ -52,7 +52,7 @@ const PLAN: NoticeIndexItem = {
   estimatedPrice: 1200000000,
 };
 
-/** 취소 공고 — 결과에 남기되 눈에 띄어야 한다. */
+/** 취소 공고 — 기본 목록에서는 빠지고 상태 '취소'를 고른 경우에만 나온다. */
 const CANCELLED: NoticeIndexItem = {
   id: 'R26BK01600001',
   noticeName: '청사 냉난방기 교체공사',
@@ -68,7 +68,15 @@ const CANCELLED: NoticeIndexItem = {
   estimatedPrice: 88000000,
 };
 
-const ITEMS = [DELEGATED, PLAN, CANCELLED];
+/** 일반 마감 공고 — 취소 제외가 지난 공고까지 빼지 않는지와 D-DAY 표시에 쓴다. */
+const CLOSED: NoticeIndexItem = {
+  ...CANCELLED,
+  id: 'R26BK01600002',
+  noticeName: '청사 승강기 유지보수 용역',
+  state: undefined,
+};
+
+const ITEMS = [DELEGATED, PLAN, CLOSED, CANCELLED];
 
 function respond(url: string) {
   if (url.startsWith('/api/search/notices/status')) {
@@ -84,6 +92,7 @@ function respond(url: string) {
     const params = new URLSearchParams(url.split('?')[1] ?? '');
     const pickedCategory = params.get('category');
     const pickedRegion = params.get('region');
+    const excludedState = params.get('excludeState');
     return Promise.resolve({
       category: [
         { value: '입찰', count: 604 },
@@ -96,10 +105,18 @@ function respond(url: string) {
         { value: '강원특별자치도', count: 12 },
         { value: '경기도,인천광역시', count: 5 },
       ].filter((bucket) => !pickedRegion || bucket.value.includes(pickedRegion)),
-      state: [{ value: '취소', count: 3 }],
+      state: excludedState ? [] : [{ value: '취소', count: 3 }],
     });
   }
-  return Promise.resolve({ items: ITEMS, totalCount: 3, pageNo: 1, numOfRows: 20 });
+  const params = new URLSearchParams(url.split('?')[1] ?? '');
+  const state = params.get('state');
+  const excludeState = params.get('excludeState');
+  const items = state === '취소'
+    ? ITEMS.filter((item) => item.state === '취소')
+    : excludeState === '취소'
+      ? ITEMS.filter((item) => item.state !== '취소')
+      : ITEMS;
+  return Promise.resolve({ items, totalCount: items.length, pageNo: 1, numOfRows: 20 });
 }
 
 function renderScreen(search = '') {
@@ -156,10 +173,31 @@ describe('NoticeSearchScreen', () => {
     ).toHaveLength(1);
   });
 
-  it('취소 공고를 지우지 않고 표시만 한다', async () => {
+  it('기본 목록에서는 취소를 제외하고 취소 뱃지를 누르면 그 공고만 정상 행으로 보여준다', async () => {
     const { container } = renderScreen();
+    await screen.findByText('청사 승강기 유지보수 용역');
+    expect(screen.queryByText('청사 냉난방기 교체공사')).not.toBeInTheDocument();
+
+    const initialListUrl = get.mock.calls
+      .map(([url]) => url as string)
+      .find((url) => url.startsWith('/api/search/notices?'))!;
+    expect(new URLSearchParams(initialListUrl.split('?')[1]).get('excludeState')).toBe('취소');
+
+    const stateFilter = await screen.findByLabelText('상태 필터');
+    fireEvent.click(within(stateFilter).getByRole('button', { name: /취소/ }));
+
     await screen.findByText('청사 냉난방기 교체공사');
-    expect(container.querySelectorAll('.cancelled-row')).toHaveLength(1);
+    await waitFor(() =>
+      expect(screen.queryByText('청사 승강기 유지보수 용역')).not.toBeInTheDocument(),
+    );
+    expect(container.querySelectorAll('.cancelled-row')).toHaveLength(0);
+
+    const listUrls = get.mock.calls
+      .map(([url]) => url as string)
+      .filter((url) => url.startsWith('/api/search/notices?'));
+    const selectedParams = new URLSearchParams(listUrls.at(-1)!.split('?')[1]);
+    expect(selectedParams.get('state')).toBe('취소');
+    expect(selectedParams.get('excludeState')).toBeNull();
   });
 
   it('패싯 건수를 필터 칩에 붙인다', async () => {
@@ -195,14 +233,16 @@ describe('NoticeSearchScreen', () => {
     expect(await screen.findByRole('option', { name: /경기도,인천광역시/ })).toBeInTheDocument();
   });
 
-  it('필터가 없으면 패싯을 한 번만 부른다', async () => {
+  it('필터가 없어도 기본 패싯과 취소 진입 건수용 상태 패싯을 각각 부른다', async () => {
     renderScreen();
     await screen.findByText('2026년 노트북 및 모니터 구매');
     await waitFor(() => expect(screen.getByLabelText('단계 필터')).toBeInTheDocument());
     const facetUrls = get.mock.calls
       .map(([url]) => url as string)
       .filter((u) => u.startsWith('/api/search/notices/facets'));
-    expect(new Set(facetUrls).size).toBe(1);
+    expect(new Set(facetUrls).size).toBe(2);
+    expect(facetUrls.some((url) => url.includes('excludeState='))).toBe(true);
+    expect(facetUrls.some((url) => !url.includes('excludeState='))).toBe(true);
   });
 
   it('URL 조건을 질의로 옮긴다 — 날짜는 YYYY-MM-DD 그대로', async () => {

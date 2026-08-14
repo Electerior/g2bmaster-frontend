@@ -10,7 +10,7 @@
  * 원본이 `onclick="removeTag('and','…')"` 로 문자열 안에 값을 끼워 넣던 부분이 사라졌다.
  * 그 자리는 따옴표가 든 키워드에서 조용히 깨지던 곳이다.
  */
-import { useState, type KeyboardEvent } from 'react';
+import { useEffect, useRef, useState, type CompositionEvent, type KeyboardEvent } from 'react';
 import './search.css';
 
 export type TagKind = 'and' | 'or' | 'not' | 'file';
@@ -63,6 +63,12 @@ export function TagInput({
   notReady,
 }: TagInputProps) {
   const [draft, setDraft] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+  const composingRef = useRef(false);
+  const submitAfterCompositionRef = useRef(false);
+  const compositionEndedAtRef = useRef(Number.NEGATIVE_INFINITY);
+  const suppressEnterUntilRef = useRef(Number.NEGATIVE_INFINITY);
+  const submitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   /** 원본 addTag: 앞뒤 공백과 콤마를 떼고, 이미 있으면 넣지 않는다. */
   const commit = (raw: string): string[] | null => {
@@ -71,33 +77,94 @@ export function TagInput({
     return [...values, value];
   };
 
+  const submitRaw = (raw: string) => {
+    if (!raw.trim()) {
+      onSubmit(null);
+      return;
+    }
+    const next = commit(raw);
+    setDraft('');
+    onSubmit(next);
+  };
+
+  /**
+   * 한글 IME 의 마지막 input/change 는 compositionend 뒤에 도착할 수 있다. 같은 이벤트 안에서
+   * draft 를 비우면 마지막 음절이 새 입력으로 되살아나므로, 다음 태스크에서 DOM 최종값을 읽어
+   * 딱 한 번 확정한다. Safari 는 compositionend 뒤에 같은 Enter keydown 을 보내기도 하므로
+   * 짧은 억제 구간으로 그 후속 이벤트까지 삼킨다.
+   */
+  const submitAfterComposition = () => {
+    if (submitTimerRef.current !== null) return;
+    suppressEnterUntilRef.current = Date.now() + 100;
+    submitTimerRef.current = setTimeout(() => {
+      submitTimerRef.current = null;
+      submitRaw(inputRef.current?.value ?? draft);
+    }, 0);
+  };
+
+  useEffect(
+    () => () => {
+      if (submitTimerRef.current !== null) clearTimeout(submitTimerRef.current);
+    },
+    [],
+  );
+
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    const hasDraft = draft.trim().length > 0;
+    const raw = e.currentTarget.value;
+    const hasDraft = raw.trim().length > 0;
+    const isComposing =
+      composingRef.current || e.nativeEvent.isComposing || e.nativeEvent.keyCode === 229;
 
     if (e.key === 'Enter') {
+      if (isComposing) {
+        // 이 Enter 는 검색 제출이 아니라 IME 조합 확정이다. compositionend 에서 한 번만 제출한다.
+        submitAfterCompositionRef.current = true;
+        return;
+      }
       e.preventDefault();
+      const now = Date.now();
+      if (now < suppressEnterUntilRef.current) return;
+      if (now - compositionEndedAtRef.current < 100) {
+        // Safari/WebKit: compositionend 가 Enter keydown 보다 먼저 오는 순서도 지원한다.
+        submitAfterComposition();
+        return;
+      }
       if (!hasDraft) {
         onSubmit(null);
         return;
       }
-      const next = commit(draft);
-      setDraft('');
-      onSubmit(next);
+      submitRaw(raw);
       return;
     }
+    if (isComposing) return;
     if (e.key === ',' && hasDraft) {
       e.preventDefault();
-      const next = commit(draft);
+      const next = commit(raw);
       setDraft('');
       if (next) onChange(next);
       return;
     }
-    if (e.key === 'Backspace' && !draft && values.length > 0) {
+    if (e.key === 'Backspace' && !raw && values.length > 0) {
       onChange(values.slice(0, -1));
     }
   };
 
+  const handleCompositionStart = () => {
+    composingRef.current = true;
+    submitAfterCompositionRef.current = false;
+  };
+
+  const handleCompositionEnd = (_e: CompositionEvent<HTMLInputElement>) => {
+    composingRef.current = false;
+    compositionEndedAtRef.current = Date.now();
+    if (!submitAfterCompositionRef.current) return;
+    submitAfterCompositionRef.current = false;
+    submitAfterComposition();
+  };
+
   const handleBlur = () => {
+    // 조합 Enter 로 예약된 제출이 있거나 방금 끝났다면 blur 가 같은 값을 다시 확정하면 안 된다.
+    if (submitTimerRef.current !== null || Date.now() < suppressEnterUntilRef.current) return;
     if (!draft.trim()) return;
     const next = commit(draft);
     setDraft('');
@@ -144,6 +211,7 @@ export function TagInput({
           </span>
         ))}
         <input
+          ref={inputRef}
           className="tag-text"
           value={draft}
           placeholder={placeholder}
@@ -151,6 +219,8 @@ export function TagInput({
           enterKeyHint="search"
           inputMode="search"
           onChange={(e) => setDraft(e.target.value)}
+          onCompositionStart={handleCompositionStart}
+          onCompositionEnd={handleCompositionEnd}
           onKeyDown={handleKeyDown}
           onBlur={handleBlur}
         />

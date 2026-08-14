@@ -70,6 +70,8 @@ export interface NoticeIndexQuery {
   notTerms?: string;
   category?: NoticeCategory;
   state?: NoticeState;
+  /** 해당 예외 상태만 제외한다. 상태가 없는 일반 공고는 유지된다. */
+  excludeState?: NoticeState;
   division?: BusinessDivision;
   /** 포함 검색. 지역 제한 없는 공고(전국)가 **함께** 나온다 — 계약 §4.3. */
   region?: string;
