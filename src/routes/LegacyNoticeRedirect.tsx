@@ -13,9 +13,26 @@ interface LegacyNoticeRedirectProps {
   category?: string;
 }
 
+const LEGACY_PARAM_ALIASES: ReadonlyArray<readonly [from: string, to: string]> = [
+  ['q', 'and'],
+  ['category', 'cat'],
+  ['division', 'type'],
+  ['insttNm', 'instt'],
+  ['minAmount', 'min'],
+  ['maxAmount', 'max'],
+];
+
 export function LegacyNoticeRedirect({ category }: LegacyNoticeRedirectProps) {
   const location = useLocation();
   const params = new URLSearchParams(location.search);
+
+  // 지금 이름이 이미 있으면 사용자가 새 화면에서 고른 값을 우선한다.
+  for (const [from, to] of LEGACY_PARAM_ALIASES) {
+    const value = params.get(from);
+    params.delete(from);
+    if (value && !params.get(to)) params.set(to, value);
+  }
+
   // 이미 단계가 걸려 있으면 사용자가 고른 것이 우선이다.
   if (category && !params.get('cat')) params.set('cat', category);
   /*
