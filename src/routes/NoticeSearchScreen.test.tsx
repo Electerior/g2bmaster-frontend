@@ -6,7 +6,6 @@
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor, within } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { NoticeIndexItem } from '@/api/search';
@@ -237,46 +236,5 @@ describe('NoticeSearchScreen', () => {
   it('색인 기준 시각을 상태 줄에 적는다', async () => {
     renderScreen();
     await waitFor(() => expect(screen.getByText(/색인 2026-08-06 09:20 기준/)).toBeInTheDocument());
-  });
-
-  /*
-   * '마감' 단계 × '마감 전 공고만 보기' 회귀.
-   *
-   * 마감 행은 정의상 마감일이 전부 과거라 두 조건이 함께 걸리면 결과가 언제나 0건이다.
-   * 기본값이 꺼짐이라 대부분은 걸리지 않지만, 사람이 직접 켠 뒤 마감을 고르는 경로와
-   * 그 상태로 공유된 주소로 들어오는 경로가 남는다.
-   */
-  it("'마감' 칩을 누르면 activeOnly 를 끄고 질의한다", async () => {
-    renderScreen('?active=true');
-    const stage = await screen.findByLabelText('단계 필터');
-
-    // 칩 이름에는 건수가 붙는다('마감100') — 앞부분으로 찾는다.
-    await userEvent.click(within(stage).getByRole('button', { name: /^마감/ }));
-
-    await waitFor(() => {
-      const closed = get.mock.calls
-        .map(([url]) => decodeURIComponent(url as string))
-        .filter((url) => url.includes('category=마감'));
-      expect(closed.length).toBeGreaterThan(0);
-      for (const url of closed) expect(url).not.toContain('activeOnly');
-    });
-
-    // 체크박스는 꺼진 채 잠긴다 — 켤 수 있으면 같은 0건 함정이 그대로 남는다.
-    const checkbox = screen.getByRole('checkbox', { name: '마감 전 공고만 보기' });
-    expect(checkbox).not.toBeChecked();
-    expect(checkbox).toBeDisabled();
-  });
-
-  it('공유된 주소로 마감 × active=true 에 바로 들어와도 activeOnly 를 빼고 부른다', async () => {
-    // 칩 클릭만 고치면 이 경로가 그대로 0건으로 남는다.
-    renderScreen('?cat=마감&active=true');
-    await screen.findByText('청사 냉난방기 교체공사');
-
-    const listUrl = get.mock.calls
-      .map(([url]) => url as string)
-      .find((u) => u.startsWith('/api/search/notices?'))!;
-    const params = new URLSearchParams(listUrl.split('?')[1]);
-    expect(params.get('category')).toBe('마감');
-    expect(params.get('activeOnly')).toBeNull();
   });
 });

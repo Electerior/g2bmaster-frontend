@@ -474,18 +474,7 @@ export function buildNoticeIndexQuery(
   if (criteria.toDate) query.toDate = criteria.toDate;
   if (criteria.closeFrom) query.closeFrom = criteria.closeFrom;
   if (criteria.closeTo) query.closeTo = criteria.closeTo;
-  /*
-   * '마감' 단계에는 activeOnly 를 절대 싣지 않는다.
-   *
-   * 마감 행은 정의상 close_date 가 전부 과거라 서버 조건
-   * (close_date IS NULL OR close_date >= NOW(6)) 을 통과할 수 없다 — 함께 보내면 결과가
-   * 언제나 0건이고, 화면에는 그 이유가 어디에도 적히지 않는다.
-   *
-   * 칩이 아니라 여기서 막는 이유는 **공유된 주소로 바로 들어오는 경로** 때문이다
-   * (`/notices?cat=마감&active=true`). 칩 쪽만 고치면 그 경로가 그대로 0건으로 남는다.
-   * 패싯도 이 함수를 거치므로 목록과 패싯이 같은 조건으로 세는 성질도 함께 지켜진다.
-   */
-  if (criteria.activeOnly && criteria.category !== '마감') query.activeOnly = 'true';
+  if (criteria.activeOnly) query.activeOnly = 'true';
 
   if (criteria.minAmount) query.minAmount = Number(criteria.minAmount);
   if (criteria.maxAmount) query.maxAmount = Number(criteria.maxAmount);

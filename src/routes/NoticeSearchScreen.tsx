@@ -166,6 +166,8 @@ export function NoticeSearchScreen() {
       </div>
 
       <DataTable<NoticeIndexItem>
+        // 핵심 열만 두고 상세는 서랍으로 — 표 하한이 레거시 4탭(1580px)이 아니라 940px 이 된다.
+        compact
         columns={columns}
         rows={items}
         rowKey={indexRowKey}

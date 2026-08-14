@@ -16,11 +16,24 @@
   font-size: var(--fs-table);
 }
 /*
- * 공고 통합 검색 표는 컬럼을 9개로 줄였다(SVG 목업). 레거시 하한(1580px)을 그대로 쓰면
- * 패널보다 넓어 가로 스크롤이 늘 생긴다 — 이 표는 패널 폭에 맞춰 접히지 않을 만큼만 넓힌다.
+ * 핵심 열만 두고 상세를 서랍으로 보낸 표 — 공고 통합 검색(9열)과 입찰 결과(7열).
+ * 레거시 하한(1580px)을 그대로 쓰면 패널보다 넓어 가로 스크롤이 늘 생긴다.
+ * 이 표들은 패널 폭에 맞춰 접히지 않을 만큼만 넓힌다.
+ *
+ * 예전에는 `:has(.col-noticeName)` 으로 컬럼 키를 보고 짐작했다. 그래서 같은 모양으로
+ * 만든 입찰 결과 표(키가 bidNtceNm)는 이 규칙에 걸리지 않아 1580px 을 그대로 썼고,
+ * 컬럼을 줄여도 가로 스크롤이 사라지지 않았다. 이제는 화면이 compact 로 직접 말한다.
  */
-.data-table:has(.col-noticeName) {
+.data-table.compact {
   min-width: 940px;
+}
+/*
+ * 공고명은 레거시 표에서 480px 을 썼다(17열 표에서는 그만큼 줘야 제목이 세로로 접히지 않았다).
+ * 열이 일곱뿐인 표에서 그대로 두면 표 하한을 낮춘 효과가 이 한 컬럼에 그대로 먹힌다.
+ */
+.data-table.compact .col-bidNtceNm {
+  min-width: 300px;
+  width: 30%;
 }
 
 .data-table th {
@@ -152,6 +165,35 @@
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
+/* ── 입찰 결과 표 ──────────────────────────────────────────────────────────
+   컬럼을 일곱으로 줄이면서 폭이 없던 것들에 하한을 준다. 하한이 없으면 브라우저가
+   내용 길이로 나누는데, 낙찰업체명 하나가 길면 그 행 때문에 표 전체가 밀린다. */
+.col-_type {
+  min-width: 64px;
+}
+.col-bidwinnrNm {
+  min-width: 120px;
+  width: 12%;
+}
+/* 낙찰금액은 자릿수 비교가 목적이라 오른쪽 정렬 + 고정폭 숫자(추정가격과 같은 규칙). */
+.col-sucsfbidAmt {
+  min-width: 104px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.data-table th.col-sucsfbidAmt .th-sortable {
+  text-align: right;
+  width: 100%;
+  justify-content: flex-end;
+  display: inline-flex;
+}
+.col-sucsfbidRate {
+  min-width: 76px;
+}
+.col-rlOpengDt {
+  min-width: 92px;
+}
+
 .col-bidNtceNm .bid-link {
   display: inline;
   word-break: keep-all;

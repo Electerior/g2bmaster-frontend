@@ -33,6 +33,15 @@ export interface DataTableProps<T> {
    * 정렬·페이지처럼 "같은 결과의 순서/조각"만 바뀔 때는 넘기지 않아야 깜빡이지 않는다.
    */
   transitionKey?: string;
+  /**
+   * 핵심 열만 두고 상세는 서랍으로 보낸 표(공고 검색 · 입찰 결과).
+   *
+   * 표 하한을 레거시 4탭 기준(--table-min-width, 1580px)에서 낮춰 패널 폭 안에 들어가게
+   * 한다 — table.css `.data-table.compact` 참고. 예전에는 이 구분을 CSS 가
+   * `:has(.col-noticeName)` 으로 **컬럼 키를 보고** 짐작했는데, 그러면 컬럼 이름을 바꾸는
+   * 것만으로 표 폭이 조용히 두 배가 된다. 화면이 직접 말하게 한다.
+   */
+  compact?: boolean;
 }
 
 const SKELETON_ROWS = 5;
@@ -49,10 +58,11 @@ export function DataTable<T>({
   loading = false,
   empty,
   transitionKey,
+  compact = false,
 }: DataTableProps<T>) {
   return (
     <div className="table-wrap">
-      <table className="data-table">
+      <table className={compact ? 'data-table compact' : 'data-table'}>
         <thead>
           <tr>
             {columns.map((column, i) => {

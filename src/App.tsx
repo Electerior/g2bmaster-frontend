@@ -37,8 +37,18 @@ export function App() {
       <AppHeader />
       <main>
         {showsSearch ? <SearchHeader /> : null}
-        <AppTabs />
-        <Outlet />
+        {/*
+          탭 레일과 결과 패널은 가로로 나란히 놓인다(책 인덱스). 예전에는 둘이 세로 형제였고
+          탭이 패널 위의 가로 스트립이었는데, 탭 9개가 ~1150px 아래에서 넘치는데도 스크롤바를
+          숨긴 탓에 넘쳤다는 신호가 어디에도 없었다 — layout.css .app-shell-body 참고.
+
+          TABLESS_ROUTES(/system · /analysis-lab)에서는 AppTabs 가 null 을 내므로 패널이
+          유일한 flex 항목이 되어 자동으로 전폭을 쓴다. 분기를 따로 두지 않는 이유다.
+        */}
+        <div className="app-shell-body">
+          <AppTabs />
+          <Outlet />
+        </div>
       </main>
     </NotReadyProvider>
   );

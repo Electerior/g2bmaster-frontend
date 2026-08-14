@@ -8,19 +8,12 @@
  * 개찰 조회는 이 컴포넌트에만 있으므로 대상이 없을 수가 없다.
  */
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
-import {
-  fetchBidOpeningResults,
-  isAiEnabled,
-  summarizeBid,
-  type BidAnnounceItem,
-  type BidOpeningParticipant,
-} from '@/api';
+import { isAiEnabled, summarizeBid, type BidAnnounceItem } from '@/api';
 import { TypeBadge } from '@/components/badges/Badge';
 import { Drawer, DrawerHeader, DrawerMeta } from '@/components/overlay/Drawer';
-import { Spinner } from '@/components/feedback/Spinner';
 import { loadCompanyProfile } from '@/domain/storage';
 import { collectFileEntries, firstPageUrl } from '../rows';
+import { OpeningPanel } from './OpeningPanel';
 import {
   buildMetaRows,
   datetimeText,
@@ -40,100 +33,6 @@ const SOURCE_LABEL: Readonly<Record<string, string>> = {
   manual: '📂 업로드 파일 분석',
   meta: '⚠️ 공고 기본정보 기반 분석 (문서 없음)',
 };
-
-function fmtBidAmount(value: unknown): string {
-  const n = Number(String(value ?? '').replace(/,/g, ''));
-  return Number.isNaN(n) || !n ? '-' : `${n.toLocaleString()}원`;
-}
-
-function fmtBidRate(value: unknown): string {
-  const n = parseFloat(String(value ?? ''));
-  return Number.isNaN(n) ? '-' : `${n.toFixed(3)}%`;
-}
-
-interface OpeningPanelProps {
-  item: BidAnnounceItem;
-}
-
-/**
- * 개찰 경쟁 현황. 버튼을 눌러야 조회한다 — 원본과 같다.
- * 서랍을 열 때마다 자동으로 부르면 아직 개찰 전인 공고에서 매번 헛품을 판다.
- */
-function OpeningPanel({ item }: OpeningPanelProps) {
-  const [requested, setRequested] = useState(false);
-  const query = useQuery({
-    queryKey: ['bid-opening', item.bidNtceNo ?? '', item.bidNtceSqNo ?? '000'],
-    queryFn: () =>
-      fetchBidOpeningResults({
-        bidNtceNo: String(item.bidNtceNo ?? ''),
-        bidNtceSqNo: String(item.bidNtceSqNo ?? '000'),
-        type: pick(item._type, item.bsnsDivNm) || '물품',
-      }),
-    enabled: requested,
-  });
-
-  const participants: BidOpeningParticipant[] = query.data?.participants ?? [];
-  const sorted = [...participants].sort((a, b) => Number(a.rank ?? 99) - Number(b.rank ?? 99));
-
-  return (
-    <div className="drawer-section tight">
-      <div className="drawer-section-label">
-        개찰 경쟁 현황
-        <button
-          type="button"
-          className="btn-opening-fetch"
-          onClick={() => (requested ? void query.refetch() : setRequested(true))}
-        >
-          조회
-        </button>
-      </div>
-      <div className="meta">
-        {!requested ? (
-          '버튼을 누르면 참여업체별 투찰금액을 조회합니다.'
-        ) : query.isPending || query.isFetching ? (
-          <>
-            <Spinner small /> 조회 중...
-          </>
-        ) : query.error ? (
-          <span style={{ color: 'var(--error)' }}>조회 실패: {query.error.message}</span>
-        ) : !sorted.length ? (
-          '개찰결과 미공개 또는 아직 집계 전입니다.'
-        ) : (
-          <>
-            <div className="opening-table-wrap">
-              <table className="opening-table">
-                <thead>
-                  <tr>
-                    <th>순위</th>
-                    <th style={{ textAlign: 'left' }}>업체명</th>
-                    <th className="num">투찰금액</th>
-                    <th className="num">투찰율</th>
-                    <th>낙찰</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sorted.map((p, i) => {
-                    const won = String(p.sucsfbidYn ?? '').toUpperCase() === 'Y';
-                    return (
-                      <tr key={`${p.bdrNm ?? ''}-${i}`} className={won ? 'win' : undefined}>
-                        <td className="mid">{p.rank ?? '-'}</td>
-                        <td>{p.bdrNm ?? '-'}</td>
-                        <td className="num">{fmtBidAmount(p.bidAmt)}</td>
-                        <td className="num">{fmtBidRate(p.bidprcRt)}</td>
-                        <td className="mid">{won ? '✅ 낙찰' : '-'}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-            <div className="opening-note">총 {participants.length}개사 참여</div>
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
 
 interface BidNoticeDrawerProps {
   item: BidAnnounceItem;

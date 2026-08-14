@@ -8,7 +8,13 @@
  */
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import type { BidAnnounceItem, BidPlanItem, NoticeSearchQuery, PreSpecItem } from '@/api';
+import type {
+  BidAnnounceItem,
+  BidPlanItem,
+  BidResultItem,
+  NoticeSearchQuery,
+  PreSpecItem,
+} from '@/api';
 import { Cell, type CellActions } from '@/components/table/Cell';
 import { DataTable } from '@/components/table/DataTable';
 import { Pagination } from '@/components/table/Pagination';
@@ -188,7 +194,15 @@ export function NoticeTableScreen({ kind }: NoticeTableScreenProps) {
 
   /* ─── 셀 동작 ──────────────────────────────────────────────────────────── */
   const actions: CellActions = {
-    openNotice: (row) => setSelection({ variant: 'notice', item: row as BidAnnounceItem }),
+    /*
+     * 같은 '공고명 클릭'이라도 입찰 결과 행은 결과 서랍을 연다. 두 응답은 필드 집합이 절반쯤
+     * 달라서, 결과 행을 공고 서랍으로 열면 품목번호·추정가격·계약방법·마감일시·담당자가
+     * 전부 비어 격자가 반쯤 사라지고, 첨부가 없는데도 AI 요약을 부른다.
+     */
+    openNotice: (row) =>
+      kind === 'bid-result'
+        ? setSelection({ variant: 'result', item: row as BidResultItem })
+        : setSelection({ variant: 'notice', item: row as BidAnnounceItem }),
     openPlan: (row) => setSelection({ variant: 'plan', item: row as BidPlanItem }),
     openSpec: (row) => setSelection({ variant: 'spec', item: row as PreSpecItem }),
     crossSearch: (target, seed) => navigate(crossSearchTo(target, seed, location.search)),
@@ -357,6 +371,11 @@ export function NoticeTableScreen({ kind }: NoticeTableScreenProps) {
       ) : (
         <>
           <DataTable<ScannedRow>
+            /*
+              입찰 결과만 핵심 열로 줄였다(domain/columns). 나머지 셋은 라우팅되지 않는
+              레거시 정의라 컬럼이 열일곱까지 있어 1580px 하한이 여전히 맞다.
+            */
+            compact={kind === 'bid-result'}
             columns={columns}
             rows={rows}
             rowKey={(row, index) => rowKeyForItem(row, index, kind)}

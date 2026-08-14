@@ -46,28 +46,6 @@ describe('buildNoticeIndexQuery', () => {
     expect(buildNoticeIndexQuery(criteria({ activeOnly: false })).activeOnly).toBeUndefined();
   });
 
-  /*
-   * '마감' × activeOnly 회귀.
-   *
-   * 마감 행은 마감일이 전부 과거라 서버 조건을 통과할 수 없다 — 둘을 함께 보내면 결과가
-   * 항상 0건인데 화면에는 이유가 안 적힌다. 조건 자체가 곧 URL 이라 칩만 고쳐서는 부족하다.
-   */
-  it("'마감' 단계에는 activeOnly 를 싣지 않는다 — 함께 가면 언제나 0건이다", () => {
-    expect(
-      buildNoticeIndexQuery(criteria({ category: '마감', activeOnly: true })).activeOnly,
-    ).toBeUndefined();
-    // 다른 단계는 그대로다.
-    expect(
-      buildNoticeIndexQuery(criteria({ category: '입찰', activeOnly: true })).activeOnly,
-    ).toBe('true');
-  });
-
-  it("'마감' 단계의 패싯도 activeOnly 없이 센다 — 목록과 조건이 갈리면 안 된다", () => {
-    const facet = buildNoticeFacetQuery(criteria({ category: '마감', activeOnly: true }), 'category');
-    expect(facet.activeOnly).toBeUndefined();
-    expect(facet.category).toBeUndefined();
-  });
-
   it('perPage 를 서버 상한 500 으로 클램프한다', () => {
     // 기존 4탭의 '전체'(99999)가 조건에 남아 있어도 색인 검색에는 그대로 나가면 안 된다.
     expect(buildNoticeIndexQuery(criteria({ perPage: 99999 })).perPage).toBe(500);

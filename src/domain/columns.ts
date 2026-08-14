@@ -37,6 +37,11 @@ export type CellFmt =
   | 'ntce-cross'
   | 'result-cross'
   | 'announce-cross'
+  /*
+   * 입찰 결과의 공고명 — 공고번호를 아래 옅은 한 줄로 함께 그리고, 누르면 결과 서랍을 연다.
+   * 'ntce-link' 와 나눈 이유: 저쪽은 공고명만 그리므로 공고번호 컬럼이 따로 있어야 한다.
+   */
+  | 'result-name'
   /* ── 공고 통합 검색 전용 ─────────────────────────────────────────────── */
   | 'category-badge'
   | 'state-badge'
@@ -205,21 +210,28 @@ export const SCREENS: Readonly<Record<ScreenKind, ScreenConfig>> = {
     label: '입찰 결과',
     endpoint: '/api/bid-result',
     /*
-     * 공고명을 누르면 바로 오른쪽 슬라이딩 패널(BidNoticeDrawer)이 뜬다 — 예전의 '공고보기 →'
-     * 별도 컬럼을 없앴다. 행 어디를 눌러야 상세가 뜨는지 한 곳(공고명)으로 모으면, 오른쪽
-     * 끝까지 눈을 옮겨 버튼을 찾을 필요가 없다. 링크는 'ntce-link' 가 openNotice 를 호출한다.
+     * 공고 검색 표와 같은 방식으로 나눈다: **훑어보며 판단하는 값만 표에 두고 나머지는
+     * 공고명을 눌러 여는 서랍**(BidResultDrawer)으로 보낸다.
+     *
+     * 예전에는 열 개를 모두 표에 두었다. 그런데 표 하한이 레거시 4탭 기준(--table-min-width,
+     * 1580px)이라 패널보다 늘 넓어, 오른쪽 끝(낙찰확정일)을 보려면 매번 가로 스크롤을
+     * 끝까지 밀어야 했다. 컬럼을 일곱으로 줄이면 실제 폭이 900px 아래로 내려와, 웬만한
+     * 창에서는 스크롤 자체가 생기지 않는다(표에는 compact 하한을 따로 준다 — table.css).
+     *
+     * 서랍으로 간 것: 공고차수 · 재입찰번호 · 참여업체수 · 낙찰확정일 · 등록일시 · 출처 ·
+     * 상태, 그리고 표에는 아예 없던 낙찰업체 사업자번호 · 대표자 · 전화 · 주소.
+     * 참여업체수를 표에서 뺀 것은 서랍의 개찰 경쟁 현황이 참여업체를 전부 나열하기 때문이다 —
+     * 숫자 하나보다 그 목록이 알고 싶은 것에 가깝다.
      */
     columns: [
       { label: '구분', key: '_type', fmt: 'type-badge' },
-      { label: '공고번호', key: 'bidNtceNo' },
-      { label: '공고명', key: 'bidNtceNm', fmt: 'ntce-link' },
+      // 공고번호는 별도 컬럼 대신 공고명 아래 옅은 한 줄로 들어간다(fmt 'result-name').
+      { label: '공고명 · 공고번호', key: 'bidNtceNm', fmt: 'result-name' },
       { label: '수요기관', key: 'dminsttNm' },
       { label: '낙찰업체', key: 'bidwinnrNm' },
       { label: '낙찰금액', key: 'sucsfbidAmt', fmt: 'money' },
       { label: '낙찰률', key: 'sucsfbidRate', fmt: 'rate' },
-      { label: '참여업체수', key: 'prtcptCnum' },
       { label: '개찰일시', key: 'rlOpengDt', fmt: 'datetime' },
-      { label: '낙찰확정일', key: 'fnlSucsfDate', fmt: 'date' },
     ],
   },
   // 공고 소스를 재사용한다 — 점수 게이트를 통과한 건만 딜 분석으로 넘긴다.

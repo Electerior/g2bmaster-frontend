@@ -23,7 +23,11 @@ describe('AppTabs 활성 표시', () => {
         <AppTabs />
       </MemoryRouter>,
     );
-    return [...container.querySelectorAll('.app-tab.active')].map((el) => el.textContent ?? '');
+    // 탭의 textContent 를 통째로 읽지 않고 라벨 span 만 읽는다 — 탭 안에 라벨 말고 다른 것을
+    // (예전엔 아이콘 글리프였다) 넣을 때마다 이 테스트가 같이 깨지지 않도록.
+    return [...container.querySelectorAll('.app-tab.active')].map(
+      (el) => el.querySelector('.app-tab-label')?.textContent ?? '',
+    );
   }
 
   it('입찰 결과 화면에서 공고 검색 탭이 함께 켜지지 않는다', () => {
@@ -76,6 +80,78 @@ describe('LegacyNoticeRedirect', () => {
     const landed = landOn('/notices/bid-plan?cat=마감', '/notices/bid-plan', '계획');
     expect(new URL(landed, 'http://x').searchParams.get('cat')).toBe('마감');
   });
+
+  /*
+   * '/search' 는 통합 검색 자신의 옛 주소이자 이 앱의 옛 DEFAULT_ROUTE 였다 —
+   * '/' 로 들어온 요청이 전부 여기로 리다이렉트됐으므로 축적된 링크가 가장 많다.
+   * 그 화면은 삭제된 useIndexCriteria 를 썼고 파라미터 이름이 지금과 다르다.
+   */
+  describe('옛 통합 검색 주소(/search)', () => {
+    function landOnSearch(entry: string): URLSearchParams {
+      return new URL(landOn(entry, '/search'), 'http://x').searchParams;
+    }
+
+    it('404 가 아니라 통합 검색으로 넘어간다', () => {
+      expect(landOn('/search', '/search')).toContain(ROUTES.noticeSearch);
+    });
+
+    it('옛 파라미터 이름을 지금 이름으로 옮긴다', () => {
+      const params = landOnSearch(
+        '/search?q=노트북&category=입찰&division=물품&insttNm=조달청&minAmount=1000000&maxAmount=5000000',
+      );
+      expect(params.get('and')).toBe('노트북');
+      expect(params.get('cat')).toBe('입찰');
+      expect(params.get('type')).toBe('물품');
+      expect(params.get('instt')).toBe('조달청');
+      expect(params.get('min')).toBe('1000000');
+      expect(params.get('max')).toBe('5000000');
+      // 옛 이름은 남기지 않는다 — 지금 화면이 읽지 않으므로 URL 만 길어진다.
+      for (const stale of ['q', 'category', 'division', 'insttNm', 'minAmount', 'maxAmount']) {
+        expect(params.get(stale)).toBeNull();
+      }
+    });
+
+    it('이름이 같은 조건은 건드리지 않는다', () => {
+      const params = landOnSearch('/search?region=강원&state=정정&prdct=4711&from=2026-08-01&page=3');
+      expect(params.get('region')).toBe('강원');
+      expect(params.get('state')).toBe('정정');
+      expect(params.get('prdct')).toBe('4711');
+      expect(params.get('from')).toBe('2026-08-01');
+      expect(params.get('page')).toBe('3');
+    });
+
+    it('지금 이름이 이미 있으면 옛 이름이 덮지 않는다', () => {
+      expect(landOnSearch('/search?q=옛것&and=지금것').get('and')).toBe('지금것');
+    });
+  });
+
+  /*
+   * 옛 주소는 두 화면 모두 '파라미터 없음 = 진행 중만'이었고 지금은 '없음 = 마감 포함'이다.
+   * 심어 주지 않으면 같은 링크가 예전보다 넓은 결과를 낸다.
+   */
+  describe('진행 중 여부 보존', () => {
+    it('파라미터가 없던 옛 링크는 진행 중만으로 유지한다', () => {
+      const params = new URL(landOn('/search', '/search'), 'http://x').searchParams;
+      expect(params.get('active')).toBe('true');
+    });
+
+    it('옛 /search 에서 꺼 둔 링크(activeOnly=0)는 켜지 않는다', () => {
+      const params = new URL(landOn('/search?activeOnly=0', '/search'), 'http://x').searchParams;
+      expect(params.get('active')).toBeNull();
+      expect(params.get('activeOnly')).toBeNull();
+    });
+
+    it('옛 표 주소에서 꺼 둔 링크(active=false)는 켜지 않는다', () => {
+      const landed = landOn('/notices/bid-plan?active=false', '/notices/bid-plan', '계획');
+      expect(new URL(landed, 'http://x').searchParams.get('active')).toBeNull();
+    });
+
+    it("'마감' 단계에서는 켜지 않는다 — 켜면 어떤 링크로 들어와도 0건이다", () => {
+      const params = new URL(landOn('/search?category=마감', '/search'), 'http://x').searchParams;
+      expect(params.get('cat')).toBe('마감');
+      expect(params.get('active')).toBeNull();
+    });
+  });
 });
 
 describe('경유지 판정', () => {
@@ -83,6 +159,7 @@ describe('경유지 판정', () => {
     // 경유지에서 기본 조회 기간을 심으면 곧이어 오는 리다이렉트가 그것을 지우고,
     // '심었다'는 표시만 남아 목적지에서는 다시 심지 않는다 — 기간 없이 색인 전체를 훑게 된다.
     expect(isTransitRoute('/')).toBe(true);
+    expect(isTransitRoute('/search')).toBe(true);
     expect(isTransitRoute('/notices/bid-plan')).toBe(true);
     expect(isTransitRoute('/notices/pre-spec')).toBe(true);
     expect(isTransitRoute('/notices/bid-announce')).toBe(true);
