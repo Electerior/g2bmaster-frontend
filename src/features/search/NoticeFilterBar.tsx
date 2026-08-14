@@ -195,14 +195,23 @@ export function NoticeFilterBar({ values, facets, totalCount, onChange }: Notice
           />
         </label>
 
-        <label className="filter-field">
-          <span>추정가격</span>
+        {/*
+          '추정가격'이 아니라 '금액'이다. 이 조건이 보는 값은 공고마다 종류가 다르다 —
+          나라장터 입찰은 추정가격, 사전규격은 배정예산, 누리장터는 기준금액, D2B 는
+          기초예비가격이다(표의 금액 칸이 행마다 어느 것인지 적는다). '추정가격'이라고 써 두면
+          추정가격이 없는 공고가 왜 걸리는지/왜 빠지는지 둘 다 설명되지 않는다.
+        */}
+        <label
+          className="filter-field"
+          title="공고마다 추정가격·배정예산·기준금액·기초예비가격 중 하나로 거릅니다(표의 금액 칸에 종류가 적혀 있습니다). 금액이 공개되지 않은 공고는 이 조건을 걸면 결과에서 빠집니다."
+        >
+          <span>금액</span>
           <input
             type="text"
             inputMode="numeric"
             className="amount-input"
             placeholder="최소"
-            aria-label="추정가격 최소"
+            aria-label="금액 최소"
             value={minDraft}
             onChange={(e) => setMinDraft(e.target.value.replace(/[^0-9]/g, ''))}
             onKeyDown={onAmountKeyDown}
@@ -214,7 +223,7 @@ export function NoticeFilterBar({ values, facets, totalCount, onChange }: Notice
             inputMode="numeric"
             className="amount-input"
             placeholder="최대"
-            aria-label="추정가격 최대"
+            aria-label="금액 최대"
             value={maxDraft}
             onChange={(e) => setMaxDraft(e.target.value.replace(/[^0-9]/g, ''))}
             onKeyDown={onAmountKeyDown}

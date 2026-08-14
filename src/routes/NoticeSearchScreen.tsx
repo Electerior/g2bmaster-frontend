@@ -118,6 +118,13 @@ export function NoticeSearchScreen() {
   if (indexedAt) notes.push(`색인 ${fmtDisplayDatetime(indexedAt)} 기준`);
   if (criteria.beforeSpecRgstNo) notes.push(`사전규격 ${criteria.beforeSpecRgstNo} 연결 건`);
   if (criteria.detailProductCode) notes.push(`품명번호 ${criteria.detailProductCode}*`);
+  /*
+   * 금액 조건은 **금액이 적힌 공고만** 볼 수 있다. 원본에 금액이 없는 공고(실측 2,180건,
+   * 대부분 계획 단계와 예산을 공개하지 않는 누리장터 민간공고)는 조건을 거는 순간 통째로 빠진다.
+   * 적지 않으면 화면에서는 "그 금액대 공고가 없다"와 구분되지 않는다 — 첨부 검색의 색인 범위를
+   * 화면에 적는 것과 같은 이유다. 줄일 수 있는 손실이 아니므로 숨기지 않고 말한다.
+   */
+  if (criteria.minAmount || criteria.maxAmount) notes.push('금액 미공개 공고 제외');
 
   const renderStatusBar = (): ReactNode => {
     if (search.error) return <StatusBar error message={`오류: ${search.error.message}`} />;

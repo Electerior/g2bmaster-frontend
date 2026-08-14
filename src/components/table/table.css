@@ -304,6 +304,24 @@
   color: var(--muted);
 }
 
+/*
+ * 금액과 그 종류. 기관 칸과 같은 모양(값 + 옅은 한 줄)을 쓴다 — 두 칸 다 "이 값이 무엇인지"를
+ * 덧붙이는 자리라 표기가 같아야 사용자가 규칙을 한 번만 익힌다.
+ *
+ * 종류를 늘 적는 이유는 이 칸에 추정가격·배정예산·기준금액·기초예비가격이 섞이기 때문이다.
+ * 대부분이 추정가격이라고 그때만 생략하면, 라벨이 붙은 행이 예외처럼 보여 오히려 오해를 부른다.
+ */
+.amt-pair {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.amt-pair em {
+  font-style: normal;
+  font-size: var(--fs-badge);
+  color: var(--muted);
+}
+
 .notice-name-cell {
   display: flex;
   flex-direction: column;

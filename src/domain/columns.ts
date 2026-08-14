@@ -52,6 +52,12 @@ export type CellFmt =
   | 'spec-cross'
   | 'save-star'
   | 'close-dday'
+  /*
+   * 금액 + 그 금액의 종류. 'money' 와 나눈 이유는 이 칸에 성격이 다른 금액이 섞이기 때문이다 —
+   * 추정가격·배정예산(예산이라 추정가격보다 크다)·기준금액(투찰 상한)·기초예비가격.
+   * 종류를 적지 않으면 사용자가 비교할 수 없는 값을 비교하게 되고, 화면만 보고는 알 방법이 없다.
+   */
+  | 'amount-kind'
   | 'opportunity-pending';
 
 export interface ColumnDef {
@@ -137,7 +143,10 @@ export const SCREENS: Readonly<Record<ScreenKind, ScreenConfig>> = {
       // 공고기관과 수요기관이 다른 건이 흔하다(조달청 대행) — 다를 때 둘 다 보여준다.
       { label: '기관', key: 'noticeInstitutionName', fmt: 'institutions', sortKey: null },
       { label: '지역', key: 'region', fmt: 'region', sortKey: null },
-      { label: '추정가격', key: 'estimatedPrice', fmt: 'money', sortKey: 'amount' },
+      // '추정가격'이 아니라 '금액'이다 — 추정가격 키는 나라장터 입찰·마감·계획에만 있고,
+      // 사전규격·누리장터·D2B 는 배정예산·기준금액·기초예비가격으로 온다. 서버가 고른 하나를
+      // 그리고(`amount`), 그것이 어느 금액인지를 셀이 함께 적는다('amount-kind').
+      { label: '금액', key: 'amount', fmt: 'amount-kind', sortKey: 'amount' },
       { label: '공고일', key: 'createdDate', fmt: 'datetime', sortKey: 'created' },
       // 마감일시 셀 안에 D-DAY 배지를 함께 그린다 — 별도 컬럼을 두면 계획 단계에서 둘 다 빈다.
       { label: '마감일시', key: 'closeDate', fmt: 'close-dday', sortKey: 'close' },

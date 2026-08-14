@@ -64,6 +64,13 @@ export function IndexNoticeDrawer({ seed, onClose }: IndexNoticeDrawerProps) {
     ['세부품명번호', item.detailProductCode ?? ''],
     ['배정예산', moneyRow(price.assignedBudget)],
     ['추정가격', moneyRow(price.estimatedPrice ?? item.estimatedPrice)],
+    /*
+     * 누리장터·D2B 의 금액. 개념이 달라 적재기가 별도 키에 담는 값들이라(기준금액은 투찰 상한,
+     * 기초예비가격은 예가 산정 기준) 추정가격 줄에 섞지 않고 자기 이름으로 적는다.
+     * 이 두 줄이 없으면 목록에는 금액이 보이는데 서랍을 열면 아무 금액도 없는 상태가 된다.
+     */
+    ['기준금액', moneyRow(price.referenceAmount)],
+    ['기초예비가격', moneyRow(price.basicExpectedPrice)],
     ['단가', moneyRow(price.unitPrice)],
     [
       '수량',

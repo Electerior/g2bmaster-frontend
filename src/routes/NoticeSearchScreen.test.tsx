@@ -36,7 +36,29 @@ const DELEGATED: NoticeIndexItem = {
   officerContact: '033-249-1234',
   dday: 37,
   estimatedPrice: 45000000,
+  amount: 45000000,
+  amountKind: 'estimatedPrice',
   bodyPreview: '노트북컴퓨터 모니터 일반경쟁 적격심사',
+};
+
+/**
+ * 사전규격 — **추정가격 키가 아예 없다.** 원본이 배정예산만 주기 때문이고, 이 계통이 색인의
+ * 12,000건이 넘는다(전체의 24%). 서버가 배정예산을 골라 `amount`/`amountKind` 로 내려준다.
+ *
+ * 이 행이 표에서 '-' 로 보이던 것이 금액 필터가 전체의 28%를 조용히 버리던 버그의 얼굴이다 —
+ * 금액을 아는 공고인데 화면에는 금액이 없는 것처럼 보이고, 금액 조건을 걸면 통째로 사라졌다.
+ */
+const SPEC: NoticeIndexItem = {
+  id: '20260801234-00',
+  noticeName: '초등학교 급식기구 구매 사전규격',
+  category: '사전규격',
+  businessDivision: '물품',
+  region: '부산광역시',
+  noticeInstitutionName: '부산광역시교육청',
+  createdDate: '2026-08-01T09:00:00',
+  priceDetail: { assignedBudget: 29920000 },
+  amount: 29920000,
+  amountKind: 'assignedBudget',
 };
 
 /** 계획 단계 — 마감이 없어 dday·closeDate 필드가 아예 오지 않는다. 지역은 빈 문자열(전국). */
@@ -50,6 +72,8 @@ const PLAN: NoticeIndexItem = {
   demandInstitutionName: '한국전자통신연구원',
   createdDate: '2026-07-15T09:00:00',
   estimatedPrice: 1200000000,
+  amount: 1200000000,
+  amountKind: 'estimatedPrice',
 };
 
 /** 취소 공고 — 결과에 남기되 눈에 띄어야 한다. */
@@ -66,9 +90,11 @@ const CANCELLED: NoticeIndexItem = {
   closeDate: '2026-07-01T11:00:00',
   dday: -36,
   estimatedPrice: 88000000,
+  amount: 88000000,
+  amountKind: 'estimatedPrice',
 };
 
-const ITEMS = [DELEGATED, PLAN, CANCELLED];
+const ITEMS = [DELEGATED, PLAN, CANCELLED, SPEC];
 
 function respond(url: string) {
   if (url.startsWith('/api/search/notices/status')) {
@@ -99,7 +125,7 @@ function respond(url: string) {
       state: [{ value: '취소', count: 3 }],
     });
   }
-  return Promise.resolve({ items: ITEMS, totalCount: 3, pageNo: 1, numOfRows: 20 });
+  return Promise.resolve({ items: ITEMS, totalCount: 4, pageNo: 1, numOfRows: 20 });
 }
 
 function renderScreen(search = '') {
@@ -154,6 +180,52 @@ describe('NoticeSearchScreen', () => {
     expect(
       container.querySelectorAll('.dday-badge:not(.dday-expired)'),
     ).toHaveLength(1);
+  });
+
+  /*
+   * 금액 칸은 `estimatedPrice` 가 아니라 `amount` 를 그린다.
+   *
+   * 추정가격 키를 가진 공고는 나라장터 입찰·마감·계획뿐이다. 추정가격만 그리면 사전규격
+   * 12,000여 건과 누리장터·D2B 가 **금액을 아는데도** '-' 로 보이고, 같은 이유로 금액 조건이
+   * 그 행들을 통째로 버리던 것이 원래 버그였다. 화면과 필터가 같은 값을 봐야 설명이 성립한다.
+   */
+  it('추정가격이 없는 사전규격도 금액을 보여준다', async () => {
+    renderScreen();
+    await screen.findByText('초등학교 급식기구 구매 사전규격');
+    expect(screen.getByText('29,920,000원')).toBeInTheDocument();
+  });
+
+  /*
+   * 값만 주면 배정예산(예산이라 추정가격보다 크다)과 추정가격이 한 칸에서 같은 것처럼 보인다.
+   * 비교할 수 없는 숫자를 나란히 세우는 셈이고, 화면만 보고는 알아챌 방법이 없다.
+   */
+  it('그 금액이 어느 금액인지 행마다 적는다', async () => {
+    const { container } = renderScreen();
+    await screen.findByText('초등학교 급식기구 구매 사전규격');
+
+    const kinds = [...container.querySelectorAll('.amt-pair em')].map((el) => el.textContent);
+    expect(kinds).toContain('배정예산');
+    expect(kinds).toContain('추정가격');
+    // 값과 종류는 같은 셀 안에 함께 있어야 한다 — 떨어져 있으면 어느 행의 설명인지 알 수 없다.
+    const specAmount = screen.getByText('29,920,000원').closest('.amt-pair');
+    expect(within(specAmount as HTMLElement).getByText('배정예산')).toBeInTheDocument();
+  });
+
+  /*
+   * 금액 조건은 금액이 적힌 공고만 볼 수 있다 — 원본에 금액이 없는 2,180건은 조건을 거는 순간
+   * 빠진다. 적지 않으면 "그 금액대 공고가 없다"와 구분되지 않는다(첨부 색인 범위를 화면에
+   * 적는 것과 같은 이유다). 줄일 수 있는 손실이 아니므로 숨기지 않고 말한다.
+   */
+  it('금액 조건을 걸면 금액 미공개 공고가 빠진다고 알린다', async () => {
+    renderScreen('?min=1000000');
+    await screen.findByText('2026년 노트북 및 모니터 구매');
+    expect(screen.getByText(/금액 미공개 공고 제외/)).toBeInTheDocument();
+  });
+
+  it('금액 조건이 없으면 그 안내를 띄우지 않는다', async () => {
+    renderScreen();
+    await screen.findByText('2026년 노트북 및 모니터 구매');
+    expect(screen.queryByText(/금액 미공개 공고 제외/)).not.toBeInTheDocument();
   });
 
   it('취소 공고를 지우지 않고 표시만 한다', async () => {

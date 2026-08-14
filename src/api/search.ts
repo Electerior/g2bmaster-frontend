@@ -112,15 +112,39 @@ export interface NoticeProduct {
   name?: string;
 }
 
-/** 세부 가격 표. 값이 없는 칸은 아예 오지 않는다. */
+/**
+ * 세부 가격 표. 값이 없는 칸은 아예 오지 않는다.
+ *
+ * **소스마다 담기는 칸이 다르다.** 적재기가 일부러 나눠 담기 때문이다 — 누리장터엔 예가·추정가격
+ * 개념이 없고 기준금액(`referenceAmount`, 투찰 상한)이, D2B 목록에는 기초예비가격
+ * (`basicExpectedPrice`)이 온다. 개념이 다른 금액을 한 칸에 합치면 비교할 수 없는 숫자가 같은
+ * 이름으로 보인다. 그래서 "얼마짜리 공고인가"를 하나로 물어야 하는 자리(목록의 금액 칸,
+ * 금액 필터·정렬)는 이 표가 아니라 {@link NoticeIndexItem.amount} 를 쓴다.
+ */
 export interface NoticePriceDetail {
   assignedBudget?: number;
   estimatedPrice?: number;
+  /** 누리장터 기준금액(투찰 상한). 추정가격과 개념이 다르다. */
+  referenceAmount?: number;
+  /** D2B 기초예비가격. 추정가격이 아니다. */
+  basicExpectedPrice?: number;
   unitPrice?: number;
   quantity?: number;
   unit?: string;
   vat?: number;
 }
+
+/**
+ * 목록의 금액 칸이 보여 주는 금액의 종류.
+ *
+ * 서버가 추정가격 → 배정예산 → 기준금액 → 기초예비가격 순으로 하나를 고른다(생성 컬럼
+ * `filter_amount` 의 COALESCE 와 같은 순서 — **금액 필터·정렬이 본 값이 곧 그 값이다**).
+ */
+export type NoticeAmountKind =
+  | 'estimatedPrice'
+  | 'assignedBudget'
+  | 'referenceAmount'
+  | 'basicExpectedPrice';
 
 /** 첨부파일. **문자열이 아니라 값**으로 온다 — 화면이 JSON.parse 를 부를 일이 없다. */
 export interface NoticeAttachment {
@@ -181,8 +205,20 @@ export interface NoticeIndexItem {
 
   /** 남은 **일수**(시각이 아니라). 마감이 없는 계획 단계는 오지 않는다. */
   dday?: number | null;
-  /** `priceDetail.estimatedPrice` 를 꺼내 둔 것(정렬·표시용). */
+  /** `priceDetail.estimatedPrice` 를 꺼내 둔 것. **나라장터 입찰·마감·계획에만 있다.** */
   estimatedPrice?: number | null;
+
+  /**
+   * 금액 필터·정렬이 실제로 본 금액. 어느 후보도 없으면 오지 않는다.
+   *
+   * `estimatedPrice` 와 다르다 — 추정가격이 없는 공고(사전규격·누리장터·D2B)는 배정예산이나
+   * 기준금액·기초예비가격으로 내려가 채워진다. **목록의 금액 칸은 이것을 그린다.**
+   * 추정가격만 그리면 금액을 아는 공고 12,000여 건이 '-' 로 보이고, 금액 조건을 걸었을 때
+   * 그 공고들이 왜 사라졌는지도 화면에서 설명되지 않는다.
+   */
+  amount?: number | null;
+  /** 위 `amount` 가 어느 금액인가. 화면은 값과 이 라벨을 **함께** 적는다. */
+  amountKind?: NoticeAmountKind | null;
 }
 
 export type NoticeSearchResponse = PageEnvelope<NoticeIndexItem>;
