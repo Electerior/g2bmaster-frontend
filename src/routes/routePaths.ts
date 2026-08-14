@@ -17,6 +17,7 @@ export const ROUTES = {
   dealRadar: '/deal-radar',
   saved: '/saved',
   specSearch: '/spec-search',
+  priceDb: '/price-db',
   trendProduct: '/trends/product',
   trendService: '/trends/service',
   trendConstruction: '/trends/construction',
@@ -24,6 +25,11 @@ export const ROUTES = {
   officers: '/officers',
   analysisLab: '/analysis-lab',
   system: '/system',
+  /**
+   * 베타 모집 랜딩. 탭도 검색도 없는 독립 페이지라 TAB_ITEMS 에 넣지 않는다.
+   * 앱 셸 밖에서 렌더링된다 — router.tsx 참고.
+   */
+  beta: '/beta',
 } as const;
 
 export type RoutePath = (typeof ROUTES)[keyof typeof ROUTES];
@@ -89,6 +95,7 @@ export const TAB_ITEMS: readonly TabItem[] = [
   // AI 수주 데스크는 이제 실제 화면이다 — 준비 배지를 떼었다.
   { path: ROUTES.dealRadar, kind: 'deal-radar', label: SCREENS['deal-radar'].label },
   { path: ROUTES.saved, kind: 'saved-notices', label: SCREENS['saved-notices'].label },
+  { path: ROUTES.priceDb, kind: 'price-db', label: SCREENS['price-db'].label },
   {
     path: ROUTES.specSearch,
     kind: 'spec-search',

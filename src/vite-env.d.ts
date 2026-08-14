@@ -15,6 +15,11 @@ interface ImportMetaEnv {
    * 기본(미설정)은 꺼짐이다. 백엔드 g2b.ai.enabled 와 짝. 자세한 건 api/config.ts 참고.
    */
   readonly VITE_AI_ENABLED?: string;
+  /**
+   * 베타 접수를 받는 구글 Apps Script 웹앱 주소(docs/beta-signup.gs).
+   * 있으면 /beta 랜딩이 Spring 대신 여기로 붙는다. 비우면 /api/beta/* 로 돌아간다.
+   */
+  readonly VITE_BETA_SHEET_URL?: string;
 }
 
 interface ImportMeta {
