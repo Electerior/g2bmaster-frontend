@@ -173,6 +173,12 @@ export interface NoticeAttachment {
 export interface NoticeIndexItem {
   /** 공고번호. 계획은 조달요청번호, 사전규격은 사전규격등록번호다. */
   id: string;
+  /**
+   * 공고 출처(`G2B`/`NURI`/`D2B`). **공고번호만으로는 행이 특정되지 않는다** — 누리장터가
+   * 나라장터와 같은 발번 형식을 쓰는 것이 실측으로 확인돼 색인 PK 가 `(id, source)` 다.
+   * 그래서 서버로 되돌려 보내는 요청(딜 분석 등)에는 이 값을 함께 싣는다.
+   */
+  source?: string | null;
   noticeOrder?: string | null;
   noticeName?: string | null;
   category?: NoticeCategory | null;

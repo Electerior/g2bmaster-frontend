@@ -24,7 +24,7 @@ import {
   regionLabel,
 } from '../indexRows';
 import { SaveNoticeButton } from '../SaveNoticeButton';
-import { MockPriceAnalysisPanel } from './MockPriceAnalysisPanel';
+import { PriceAnalysisPanel } from './PriceAnalysisPanel';
 
 interface IndexNoticeDrawerProps {
   /** 목록 행. 상세가 도착하기 전까지 이 값으로 먼저 그린다 — 서랍이 빈 채로 뜨지 않도록. */
@@ -142,7 +142,7 @@ export function IndexNoticeDrawer({ seed, onClose }: IndexNoticeDrawerProps) {
           onClick={() => setActiveTab('price')}
           onKeyDown={(event) => selectAdjacentTab(event, 'price')}
         >
-          가격 분석 <span className="notice-drawer-tab-badge">Mock</span>
+          가격 분석
         </button>
         <button
           type="button"
@@ -234,7 +234,7 @@ export function IndexNoticeDrawer({ seed, onClose }: IndexNoticeDrawerProps) {
         ) : null}
       </div>
       ) : (
-        <MockPriceAnalysisPanel />
+        <PriceAnalysisPanel item={item} />
       )}
 
       {item.sourceUrl ? (
