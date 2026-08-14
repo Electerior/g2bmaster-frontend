@@ -58,6 +58,12 @@ export type CellFmt =
    * 종류를 적지 않으면 사용자가 비교할 수 없는 값을 비교하게 되고, 화면만 보고는 알 방법이 없다.
    */
   | 'amount-kind'
+  /*
+   * 마진율 + 원가 출처. 'money' 나 숫자 칸으로 두면 안 되는 이유가 둘이다:
+   * 값이 없는 것이 '마진 0'이 아니라 '원가 미상'이고, 같은 숫자라도 사람이 확정한 원가와
+   * AI 추정 원가는 믿을 만한 정도가 다르다. 둘 다 셀이 적지 않으면 화면만 보고 알 수 없다.
+   */
+  | 'margin'
   | 'opportunity-pending';
 
 export interface ColumnDef {
@@ -147,6 +153,9 @@ export const SCREENS: Readonly<Record<ScreenKind, ScreenConfig>> = {
       // 사전규격·누리장터·D2B 는 배정예산·기준금액·기초예비가격으로 온다. 서버가 고른 하나를
       // 그리고(`amount`), 그것이 어느 금액인지를 셀이 함께 적는다('amount-kind').
       { label: '금액', key: 'amount', fmt: 'amount-kind', sortKey: 'amount' },
+      // 마진율은 원가를 아는 공고에만 있다(딜 분석·저장 가격표). 대부분의 행은 비어 있지만
+      // 칸을 두는 것이 요점이다 — 이 열의 헤더가 곧 '마진순으로 보기'의 손잡이다.
+      { label: '마진율', key: 'marginRate', fmt: 'margin', sortKey: 'margin' },
       { label: '공고일', key: 'createdDate', fmt: 'datetime', sortKey: 'created' },
       // 마감일시 셀 안에 D-DAY 배지를 함께 그린다 — 별도 컬럼을 두면 계획 단계에서 둘 다 빈다.
       { label: '마감일시', key: 'closeDate', fmt: 'close-dday', sortKey: 'close' },

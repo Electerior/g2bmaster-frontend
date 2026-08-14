@@ -39,6 +39,12 @@ const DELEGATED: NoticeIndexItem = {
   amount: 45000000,
   amountKind: 'estimatedPrice',
   bodyPreview: '노트북컴퓨터 모니터 일반경쟁 적격심사',
+  // 사람이 가격표를 저장해 원가가 확정된 공고. 실추정가 49,500,000 − 원가 35,000,000 → 29.29%
+  marginRate: 29.29,
+  marginCost: 35000000,
+  marginBase: 49500000,
+  marginSource: 'confirmed',
+  marginUpdatedAt: '2026-08-14T13:40:00',
 };
 
 /**
@@ -59,6 +65,12 @@ const SPEC: NoticeIndexItem = {
   priceDetail: { assignedBudget: 29920000 },
   amount: 29920000,
   amountKind: 'assignedBudget',
+  // 딜 분석이 추정한 원가가 예산을 넘은 역마진 건 — 이 열이 찾아내려는 행이다.
+  marginRate: -21.6,
+  marginCost: 40000000,
+  marginBase: 32912000,
+  marginSource: 'estimated',
+  marginUpdatedAt: '2026-08-14T13:41:00',
 };
 
 /** 계획 단계 — 마감이 없어 dday·closeDate 필드가 아예 오지 않는다. 지역은 빈 문자열(전국). */
@@ -334,6 +346,55 @@ describe('NoticeSearchScreen', () => {
     expect(params.get('activeOnly')).toBe('true');
     // 고르지 않은 정렬은 보내지 않는다 — 서버가 관련도/최신을 정한다.
     expect(params.get('sort')).toBeNull();
+  });
+
+  /*
+   * 마진율 칸.
+   *
+   * 이 열의 값은 세 상태가 있고 화면에서 서로 달라야 한다: 확정 원가로 낸 마진, 추정 원가로
+   * 낸 마진, 그리고 **원가를 아직 모름**. 셋을 같은 모양으로 그리면 분석하지 않은 공고가
+   * '남는 게 없는 공고'로 보이고, 추정을 확정처럼 믿게 된다.
+   */
+  describe('마진율', () => {
+    it('부호와 원가 출처를 함께 적는다', async () => {
+      const { container } = renderScreen();
+      await screen.findByText('2026년 노트북 및 모니터 구매');
+
+      // 양수에도 부호를 붙인다 — 이 표에서 음수가 흔해 부호 없는 수와 나란히 두면 잘못 읽힌다.
+      const confirmed = screen.getByText('+29.3%').closest('.margin-pair')!;
+      expect(within(confirmed as HTMLElement).getByText('확정')).toBeInTheDocument();
+
+      const estimated = screen.getByText('-21.6%').closest('.margin-pair')!;
+      expect(within(estimated as HTMLElement).getByText('추정')).toBeInTheDocument();
+      // 역마진만 색을 준다 — 이 열에서 눈에 걸려야 하는 행이다.
+      expect(estimated).toHaveClass('margin-neg');
+      expect(confirmed).not.toHaveClass('margin-neg');
+      expect(container.querySelectorAll('.margin-neg')).toHaveLength(1);
+    });
+
+    it("원가를 모르는 공고는 '0%' 가 아니라 '미분석' 이다", async () => {
+      renderScreen();
+      await screen.findByText('스마트캠퍼스 통합관제 시스템 구축 발주계획');
+      // PLAN·CLOSED 에는 마진 필드가 없다.
+      expect(screen.getAllByText('미분석').length).toBeGreaterThan(0);
+      expect(screen.queryByText('+0.0%')).not.toBeInTheDocument();
+    });
+
+    it('머리글을 누르면 마진순으로 다시 조회한다', async () => {
+      renderScreen();
+      await screen.findByText('2026년 노트북 및 모니터 구매');
+      get.mockClear();
+
+      fireEvent.click(screen.getByLabelText('마진율 정렬'));
+
+      const listUrl = get.mock.calls
+        .map(([url]) => url as string)
+        .find((u) => u.startsWith('/api/search/notices?'))!;
+      const params = new URLSearchParams(listUrl.split('?')[1]);
+      expect(params.get('sort')).toBe('margin');
+      // 마진은 '높은 순'부터 보는 것이 기본이다 — 낮은 순이 먼저 나오면 역마진만 보인다.
+      expect(params.get('dir')).toBe('desc');
+    });
   });
 
   it('정렬할 수 없는 컬럼은 머리글을 버튼으로 그리지 않는다', async () => {

@@ -52,6 +52,12 @@ export const NOTICE_SORT_KEYS = [
   'name',
   'amount',
   'updated',
+  /*
+   * 마진율순. 원가를 아는 공고(딜 분석을 돌렸거나 가격표를 저장한 건)만 값이 있고 나머지는
+   * 뒤에 붙는다 — **결과 집합은 줄지 않는다**. 정렬을 바꿨다고 공고가 사라지면 안 되므로
+   * 서버가 미분석 건을 빼지 않고 뒤로 민다.
+   */
+  'margin',
 ] as const;
 export type NoticeSortKey = (typeof NOTICE_SORT_KEYS)[number];
 
@@ -221,6 +227,28 @@ export interface NoticeIndexItem {
   amount?: number | null;
   /** 위 `amount` 가 어느 금액인가. 화면은 값과 이 라벨을 **함께** 적는다. */
   amountKind?: NoticeAmountKind | null;
+
+  /**
+   * 마진율(%). **원가를 아는 공고에만 온다.**
+   *
+   * 칸이 없는 것은 '마진 0'이 아니라 '아직 원가를 모른다'는 뜻이다 — 그 둘을 같은 모양으로
+   * 그리면 분석하지 않은 공고가 '남는 게 없는 공고'로 보인다. 화면은 반드시 갈라 적는다.
+   *
+   * `(실추정가 − 원가) / 실추정가`, 실추정가 `= amount × 1.1`. 대표 금액은 부가세 별도이고
+   * 원가는 부가세 포함이라 분모에서 맞춘다(백엔드 `V20260814132535`).
+   */
+  marginRate?: number | null;
+  /** 마진율의 분자에서 뺀 원가(원, 부가세 포함). */
+  marginCost?: number | null;
+  /** 마진율의 분모 — 실추정가. 서버가 계산해 내려준다(화면이 1.1 을 곱하지 않는다). */
+  marginBase?: number | null;
+  /**
+   * 원가의 출처. `confirmed` 는 사람이 가격표를 저장한 것, `estimated` 는 딜 분석의 추정이다.
+   * **확정이 추정을 이긴다**(서버 규칙). 화면이 둘을 구분해야 추정값을 확정처럼 믿지 않는다.
+   */
+  marginSource?: 'confirmed' | 'estimated' | null;
+  /** 원가를 마지막으로 반영한 시각(ISO). 시세는 움직이므로 언제 것인지가 값의 일부다. */
+  marginUpdatedAt?: string | null;
 }
 
 export type NoticeSearchResponse = PageEnvelope<NoticeIndexItem>;

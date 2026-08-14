@@ -322,6 +322,32 @@
   color: var(--muted);
 }
 
+/*
+ * 마진율 칸. 금액 칸(.amt-pair)과 같은 2단 구성이다.
+ *
+ * **역마진만 색을 준다.** 이 팔레트에는 '긍정' 색이 없다 — --success 는 초록이 아니라
+ * 잉크색(#4a5859)이고, 없는 색을 새로 들이면 이 표에서만 쓰는 규칙이 하나 늘어난다.
+ * 어차피 이 열에서 눈에 걸려야 하는 것은 원가가 예산을 넘은 행이므로, 양수는 본문색으로 두고
+ * 음수만 --danger 로 띄운다. 부호(+/−)는 셀이 글자로도 적으므로 색맹 접근성도 유지된다.
+ */
+.margin-pair {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.margin-rate {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+.margin-neg .margin-rate {
+  color: var(--danger);
+}
+.margin-pair em {
+  font-style: normal;
+  font-size: var(--fs-badge);
+  color: var(--muted);
+}
+
 .notice-name-cell {
   display: flex;
   flex-direction: column;
