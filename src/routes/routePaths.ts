@@ -38,13 +38,18 @@ export type RoutePath = (typeof ROUTES)[keyof typeof ROUTES];
 export const DEFAULT_ROUTE: RoutePath = ROUTES.noticeSearch;
 
 /**
- * 옛 표 주소 → 통합 검색의 단계 필터.
+ * 옛 주소 → 통합 검색.
  *
- * 링크를 공유하거나 즐겨찾기에 넣어 둔 사람이 404 를 보지 않게 한다. 입찰 공고는 단계를
- * 걸지 않는다 — '입찰'만 남기면 이미 마감된 같은 공고가 목록에서 사라져, 예전 탭보다
- * 좁은 결과를 보게 된다.
+ * 공유되거나 즐겨찾기에 등록된 링크가 404 가 되지 않게 한다.
+ *
+ * - `/search` 는 통합 검색 자신의 옛 주소이면서 이 앱의 옛 DEFAULT_ROUTE 였다.
+ *   `/` 로 진입한 모든 요청이 여기로 리다이렉트됐으므로 축적된 링크가 가장 많다.
+ *   전 단계를 대상으로 하던 화면이므로 단계를 걸지 않는다.
+ * - 입찰 공고에도 단계를 걸지 않는다. '입찰'로 고정하면 '마감'으로 분류된 같은 공고가
+ *   결과에서 제외되어 예전 탭보다 좁은 결과가 반환된다.
  */
 export const LEGACY_NOTICE_ROUTES: ReadonlyArray<{ path: string; category?: string }> = [
+  { path: '/search' },
   { path: '/notices/bid-plan', category: '계획' },
   { path: '/notices/pre-spec', category: '사전규격' },
   { path: '/notices/bid-announce' },
