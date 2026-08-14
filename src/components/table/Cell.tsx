@@ -129,6 +129,23 @@ export function Cell({ value, fmt, row, actions }: CellProps): ReactNode {
         </button>
       );
 
+    case 'result-name': {
+      /*
+       * 공고명 + 공고번호를 한 칸에. 공고번호 컬럼을 없앤 자리라, 번호는 공고명 아래
+       * 옅은 한 줄로 붙는다(공고 검색 표의 'notice-name' 과 같은 모양 — IndexCell).
+       * 클릭 지점을 공고명 하나로 모으면 상세를 열려고 오른쪽 끝을 찾을 필요가 없다.
+       */
+      const no = String(row.bidNtceNo ?? '').trim();
+      return (
+        <div className="notice-name-cell">
+          <button type="button" className="bid-link" onClick={() => actions?.openNotice?.(row)}>
+            {text}
+          </button>
+          {no ? <span className="notice-no">{no}</span> : null}
+        </div>
+      );
+    }
+
     case 'plan-link':
       return (
         <button type="button" className="bid-link" onClick={() => actions?.openPlan?.(row)}>

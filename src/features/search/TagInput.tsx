@@ -30,8 +30,26 @@ interface TagInputProps {
    * 갱신으로 합치게 한다.
    */
   onSubmit: (committed: string[] | null) => void;
-  /** 유사도 토글이 붙는 행(하나 이상 · 파일 내)만 준다. */
-  similarity?: { checked: boolean; onChange: (checked: boolean) => void; title: string };
+  /**
+   * 유사도 토글이 붙는 행(하나 이상 · 파일 내)만 준다.
+   * `notReady` 가 붙으면 토글은 그려지되 조건을 바꾸지 않고 알림만 띄운다.
+   */
+  similarity?: {
+    checked: boolean;
+    onChange: (checked: boolean) => void;
+    title: string;
+    notReady?: NotReadyMark;
+  };
+  /**
+   * 백엔드가 아직 이 조건을 받지 못할 때. 입력은 화면에 **남기되** 조건으로는 나가지 않고,
+   * 손대는 순간 준비 중임을 알린다. 지워 버리면 다음 웨이브에서 되살릴 자리를 잃는다.
+   */
+  notReady?: NotReadyMark;
+}
+
+export interface NotReadyMark {
+  label: string;
+  notify: (label: string) => void;
 }
 
 export function TagInput({
@@ -42,6 +60,7 @@ export function TagInput({
   onChange,
   onSubmit,
   similarity,
+  notReady,
 }: TagInputProps) {
   const [draft, setDraft] = useState('');
 
@@ -85,6 +104,27 @@ export function TagInput({
     if (next) onChange(next);
   };
 
+  if (notReady) {
+    return (
+      <div className="bool-row">
+        <span className={`bool-badge badge-${kind}`}>{badgeLabel}</span>
+        <button
+          type="button"
+          className="tag-wrap not-ready-control"
+          onClick={() => notReady.notify(notReady.label)}
+          title={`${notReady.label}: 백엔드에서 작업 중입니다`}
+        >
+          <span className="tag-text-disabled">{placeholder}</span>
+        </button>
+        {similarity ? (
+          <span className="sim-toggle not-ready-control" title={similarity.title}>
+            <input type="checkbox" checked={false} readOnly tabIndex={-1} aria-hidden="true" /> 유사도
+          </span>
+        ) : null}
+      </div>
+    );
+  }
+
   return (
     <div className="bool-row">
       <span className={`bool-badge badge-${kind}`}>{badgeLabel}</span>
@@ -116,11 +156,27 @@ export function TagInput({
         />
       </label>
       {similarity ? (
-        <label className="sim-toggle" title={similarity.title}>
+        <label
+          className={similarity.notReady ? 'sim-toggle not-ready-control' : 'sim-toggle'}
+          title={
+            similarity.notReady
+              ? `${similarity.notReady.label}: 백엔드에서 작업 중입니다`
+              : similarity.title
+          }
+        >
           <input
             type="checkbox"
-            checked={similarity.checked}
-            onChange={(e) => similarity.onChange(e.target.checked)}
+            // 준비 중일 때는 상태를 바꾸지 않는다 — 켜 두면 다음 검색이 조용히 달라진 것처럼
+            // 보이는데 실제로는 아무것도 달라지지 않는다.
+            checked={similarity.notReady ? false : similarity.checked}
+            readOnly={Boolean(similarity.notReady)}
+            onChange={(e) => {
+              if (similarity.notReady) {
+                similarity.notReady.notify(similarity.notReady.label);
+                return;
+              }
+              similarity.onChange(e.target.checked);
+            }}
           />{' '}
           유사도
         </label>

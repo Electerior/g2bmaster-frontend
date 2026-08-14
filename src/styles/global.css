@@ -22,7 +22,9 @@ html {
 
 body {
   font-family: var(--font-sans);
-  background: var(--bg);
+  /* Soft Glass 캔버스 — 유리 표면(검색바·드로어)이 그 위에 떠 보이게 하는 옅은 그라데이션.
+   * 스크롤해도 배경이 같이 흐르지 않도록 fixed. 표·패널은 여전히 불투명 흰색이다. */
+  background: var(--app-canvas) fixed;
   color: var(--text);
   font-size: var(--fs-base);
   line-height: 1.5;
@@ -79,11 +81,18 @@ main {
   padding: 16px 20px;
 }
 
-/* 탭 아래에 붙는 결과 영역 — 위 모서리는 탭과 이어지므로 각지게 둔다. */
+/* 탭 레일 오른쪽에 붙는 결과 영역 — 왼쪽 모서리는 레일과 이어지므로 각지게 둔다. */
 .panel {
+  /*
+   * 세로 탭 레일 옆의 flex 항목(.app-shell-body). min-width:0 이 없으면 표
+   * (--table-min-width: 1580px)가 flex 기본값 min-width:auto 때문에 줄어들지 못해
+   * 레일을 밀어내고 .table-wrap 의 가로 스크롤이 죽는다.
+   */
+  flex: 1 1 auto;
+  min-width: 0;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 0 0 var(--radius) var(--radius);
+  border-radius: 0 var(--radius) var(--radius) 0;
   min-height: 200px;
   padding: 16px;
 }

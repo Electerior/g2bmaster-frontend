@@ -5,7 +5,7 @@
  *  달고 있었다. 옛 렌더러가 통째로 남아 있던 것이라 이식하지 않는다.)
  */
 import { useQuery } from '@tanstack/react-query';
-import { summarizeItem, type BidPlanItem } from '@/api';
+import { isAiEnabled, summarizeItem, type BidPlanItem } from '@/api';
 import { Drawer, DrawerHeader, DrawerMeta } from '@/components/overlay/Drawer';
 import { loadCompanyProfile } from '@/domain/storage';
 import { collectFileEntries, firstPageUrl, PAGE_URL_KEYS } from '../rows';
@@ -19,8 +19,11 @@ interface PlanDrawerProps {
 }
 
 export function PlanDrawer({ item, onClose }: PlanDrawerProps) {
+  // AI 요약(POST /api/item-summary)은 백엔드 이식 전이라 호출하면 500 이다 — 플래그로 게이트한다.
+  const aiEnabled = isAiEnabled();
   const summary = useQuery({
     queryKey: ['item-summary', 'bid-plan', pick(item.prcrmntReqNo, item.orderPlanUntyNo, item.bidNtceNo)],
+    enabled: aiEnabled,
     queryFn: () =>
       summarizeItem({
         // 원본 runItemAnalysis 의 entityType 판정 그대로 — 조달요청 > 사전규격 > 공고 순.
@@ -102,42 +105,50 @@ export function PlanDrawer({ item, onClose }: PlanDrawerProps) {
         onClose={onClose}
       />
       <h2 className="drawer-title">{title}</h2>
-      <DrawerMeta rows={rows}>
-        <SpecContentBlock
-          productDetailList={item.prdctDtlList}
-          rows={[
-            ['대표 규격', pick(item.rprsntSpecDtlsCntnts, item.specCntnts)],
-            ['용도', item.usgCntnts],
-            ['수량 정보', item.qtyCntnts],
-            ['물품 상세', item.prdctDtlList],
-            ['비고', pick(item.rmrkCntnts, item.rmrk)],
-          ]}
-        />
-        <RawFieldsBlock item={item} />
-      </DrawerMeta>
+      <div className="drawer-body">
+        <DrawerMeta rows={rows}>
+          <SpecContentBlock
+            productDetailList={item.prdctDtlList}
+            rows={[
+              ['대표 규격', pick(item.rprsntSpecDtlsCntnts, item.specCntnts)],
+              ['용도', item.usgCntnts],
+              ['수량 정보', item.qtyCntnts],
+              ['물품 상세', item.prdctDtlList],
+              ['비고', pick(item.rmrkCntnts, item.rmrk)],
+            ]}
+          />
+          <RawFieldsBlock item={item} />
+        </DrawerMeta>
 
-      <div className="drawer-section">
-        <div className="drawer-section-label">✨ AI 분석</div>
-        <div className="drawer-summary">
-          <SummaryState
-            isPending={summary.isPending}
-            error={summary.error}
-            onRetry={() => void summary.refetch()}
-            pendingText="AI 분석 중... 규격서 자동 수집 중입니다."
-          >
-            {data ? (
-              <>
-                <SourceLabel>
-                  {data.source === 'auto-file'
-                    ? `첨부파일 자동 분석: ${data.parsedFileCount}/${data.fileEntryCount}개 본문 추출`
-                    : '첨부파일 본문 추출 실패: API 기본정보 기반 분석'}
-                </SourceLabel>
-                <AiFallbackNote flags={data} />
-                <SummaryBody summary={data.summary} />
-                <ParsedFiles parsedFiles={data.parsedFiles} />
-              </>
-            ) : null}
-          </SummaryState>
+        <div className="drawer-section">
+          <div className="drawer-section-label">✨ AI 분석</div>
+          <div className="drawer-summary">
+            {!aiEnabled ? (
+              <div className="summary-text muted">
+                AI 요약은 백엔드 연동 준비 중입니다. 준비되면 이 자리에 첨부문서 기반 요약이 표시됩니다.
+              </div>
+            ) : (
+              <SummaryState
+                isPending={summary.isPending}
+                error={summary.error}
+                onRetry={() => void summary.refetch()}
+                pendingText="AI 분석 중... 규격서 자동 수집 중입니다."
+              >
+                {data ? (
+                  <>
+                    <SourceLabel>
+                      {data.source === 'auto-file'
+                        ? `첨부파일 자동 분석: ${data.parsedFileCount}/${data.fileEntryCount}개 본문 추출`
+                        : '첨부파일 본문 추출 실패: API 기본정보 기반 분석'}
+                    </SourceLabel>
+                    <AiFallbackNote flags={data} />
+                    <SummaryBody summary={data.summary} />
+                    <ParsedFiles parsedFiles={data.parsedFiles} />
+                  </>
+                ) : null}
+              </SummaryState>
+            )}
+          </div>
         </div>
       </div>
 

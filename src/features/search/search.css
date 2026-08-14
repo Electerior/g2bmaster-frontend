@@ -4,14 +4,24 @@
  */
 
 .search-box {
-  background: var(--surface);
-  border: 1px solid var(--border);
+  /* Soft Glass — 캔버스 위에 뜬 반투명 유리. 표에는 쓰지 않는다(SVG 설계 주석 ⑪). */
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
   border-radius: var(--radius);
   padding: 16px 20px;
   margin-bottom: 16px;
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+/* backdrop-filter 미지원 브라우저에서는 불투명 흰색으로 떨어뜨린다 — 유리 대신 카드. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .search-box {
+    background: var(--surface);
+  }
 }
 
 /* ── 검색 방식 탭 ──────────────────────────────────────────────────────── */
@@ -488,6 +498,101 @@
   border-color: var(--primary);
   background: var(--blue-soft);
   color: var(--primary);
+}
+
+/* ── 공고 통합 검색 필터 줄 ────────────────────────────────────────────── */
+.notice-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+/* 패싯 건수. 0건도 지우지 않고 흐리게 남긴다 — 사라지면 '그 필터가 원래 없다'로 읽힌다. */
+.chip-count {
+  margin-left: 5px;
+  font-style: normal;
+  font-weight: 600;
+  font-size: var(--fs-badge-sm);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.type-filter-btn.active .chip-count {
+  color: var(--primary);
+}
+.type-filter-btn.empty {
+  opacity: 0.5;
+}
+
+.filter-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  padding-top: 2px;
+}
+.filter-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--fs-meta);
+  color: var(--muted);
+}
+.filter-field > span:first-child {
+  font-weight: 700;
+}
+.filter-field select,
+.filter-field input {
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: var(--fs-meta);
+  color: var(--text);
+  background: var(--surface);
+  font-family: inherit;
+}
+.filter-field .amount-input {
+  width: 96px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.filter-tilde,
+.filter-unit {
+  color: var(--muted);
+}
+
+/* 행 끝 ★ 저장 별 — POST /api/saved-notices. 저장 전 빈 별(☆), 저장 후 채운 별(★). */
+.row-save-star {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 4px;
+  font-size: 15px;
+  line-height: 1;
+  color: var(--table-empty-fg);
+  transition:
+    color 0.15s,
+    transform 0.1s;
+}
+.row-save-star:hover:not(:disabled) {
+  color: var(--primary);
+  transform: scale(1.15);
+}
+.row-save-star.saved {
+  color: var(--primary);
+}
+.row-save-star:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+/* 준비 중인 태그 입력의 자리 표시 — 실제 입력과 높이를 맞춰 줄이 흔들리지 않게 한다. */
+.tag-text-disabled {
+  color: var(--muted);
+  font-size: var(--fs-table);
+}
+button.tag-wrap {
+  text-align: left;
+  font-family: inherit;
+  background: var(--surface);
 }
 
 @media (max-width: 760px) {

@@ -13,7 +13,7 @@
  */
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { scanAttachments, type DecoratedRow, type NoticeSearchQuery } from '@/api';
+import { isAiEnabled, scanAttachments, type DecoratedRow, type NoticeSearchQuery } from '@/api';
 import type { NoticeTableKind } from '@/domain/columns';
 import { collectFileEntries, rowKeyForItem, type ScannedRow } from './rows';
 
@@ -71,7 +71,9 @@ export function useAttachmentScan({
       excludeBlockingClauses,
       scanBlocking,
     ],
-    enabled: enabled && Array.isArray(items),
+    // 스캔(POST /api/scan-attachments)은 첨부 파싱에 의존한다 — 백엔드 이식 전이라 호출하면
+    // 500 이다. AI 플래그가 꺼져 있으면 아예 돌리지 않는다(그 컨트롤 자체도 '준비 중'이다).
+    enabled: enabled && isAiEnabled() && Array.isArray(items),
     // 스캔은 서버에서 파일을 여는 작업이라 값이 비싸다. 조건이 그대로면 다시 돌리지 않는다.
     staleTime: Infinity,
     queryFn: async (): Promise<ScanOutcome> => {

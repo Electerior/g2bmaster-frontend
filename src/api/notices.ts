@@ -86,6 +86,10 @@ export interface BidAnnounceItem extends DecoratedRow {
 
 export interface BidResultItem extends DecoratedRow {
   bidNtceNo?: string;
+  /** 공고 차수. 입찰 공고 계열의 bidNtceSqNo 와 같은 자리인데 이름이 다르게 온다. */
+  bidNtceOrd?: string;
+  /** 재입찰 번호. 재입찰이 아니면 '000'. */
+  rbidNo?: string;
   bidNtceNm?: string;
   dminsttNm?: string;
   bidwinnrNm?: string;
@@ -94,6 +98,16 @@ export interface BidResultItem extends DecoratedRow {
   prtcptCnum?: string | number;
   rlOpengDt?: string;
   fnlSucsfDate?: string;
+  /*
+   * 아래 여섯은 응답에는 늘 있었지만 표에 자리가 없어 타입에도 적히지 않았던 것들이다.
+   * 상세를 서랍으로 옮기면서 실제로 그리게 됐다(BidResultDrawer).
+   */
+  bidwinnrBizno?: string;
+  bidwinnrCeoNm?: string;
+  bidwinnrAdrs?: string;
+  bidwinnrTelNo?: string;
+  rgstDt?: string;
+  fnlSucsfCorpOfcl?: string;
 }
 
 /* ─── 요청 ────────────────────────────────────────────────────────────────── */
