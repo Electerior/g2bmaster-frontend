@@ -70,7 +70,7 @@
 .sort-icon {
   margin-left: 4px;
   font-size: var(--fs-badge);
-  color: #b0b8cc;
+  color: rgba(74, 88, 89, 0.55);
 }
 .sort-icon.active {
   color: var(--primary);
@@ -111,12 +111,9 @@
 .data-table tbody tr:nth-child(even) td {
   background: var(--table-row-alt);
 }
-/* hover 는 zebra 위에서도 확실히 뜨도록 왼쪽에 파란 레일 + 배경 강조. */
+/* hover 는 선택 표시처럼 보이는 세로 레일 없이 밝은 Honey Bronze 틴트만 쓴다. */
 .data-table tbody tr:hover td {
   background: var(--table-row-hover);
-}
-.data-table tbody tr:hover td:first-child {
-  box-shadow: inset 3px 0 0 var(--primary);
 }
 .data-table a {
   color: var(--primary);
@@ -217,6 +214,9 @@
 }
 .bid-link:hover {
   border-bottom-style: solid;
+}
+.bid-link:focus {
+  outline: none;
 }
 
 /* ── 공고 통합 검색(로컬 색인) 표 ──────────────────────────────────────── */
@@ -383,20 +383,6 @@
   font-size: var(--fs-badge);
   font-family: inherit;
   white-space: nowrap;
-}
-
-/*
- * 취소 공고는 검색 결과에서 지우지 않는다 — 발주가 접혔다는 사실 자체가 정보다.
- * 대신 눈에 띄게 표시한다.
- */
-.cancelled-row td {
-  background: var(--status-cancelled-bg);
-}
-.cancelled-row td:first-child {
-  box-shadow: inset 3px 0 0 var(--status-cancelled-border);
-}
-.cancelled-row .bid-link {
-  text-decoration: line-through;
 }
 
 .attachment-list {
@@ -599,13 +585,13 @@ details.blocking-info[open] > summary {
   transition: all 0.15s;
 }
 .pagination button:hover {
-  border-color: var(--primary);
-  color: var(--primary);
+  border-color: var(--theme-gunmetal);
+  color: var(--theme-gunmetal);
 }
 .pagination button.active {
-  background: var(--primary);
-  border-color: var(--primary);
-  color: #fff;
+  background: var(--theme-gunmetal);
+  border-color: var(--theme-gunmetal);
+  color: var(--theme-on-dark);
   font-weight: 700;
 }
 .pagination button:disabled {
