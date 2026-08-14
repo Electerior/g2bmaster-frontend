@@ -22,7 +22,7 @@
   position: absolute;
   inset: 0;
   overflow: hidden;
-  background: rgba(29, 78, 216, 0.15);
+  background: rgba(50, 55, 59, 0.15);
 }
 .ai-activity-track::before {
   content: '';
@@ -81,8 +81,7 @@
 
 /* ─── 통합 헤더 (파트너 배너 + 앱 헤더 합침) ───────────────────────────────── */
 .app-header {
-  /* 은은한 파랑 그라데이션 — 단색보다 깊이가 있고, 유리 패널과도 톤이 맞는다. */
-  background: linear-gradient(100deg, var(--primary-dark) 0%, var(--primary) 55%, #2360b8 100%);
+  background: var(--theme-gunmetal);
   padding: 10px 24px;
   min-height: var(--header-height);
   display: flex;
@@ -90,7 +89,7 @@
   justify-content: space-between;
   gap: 16px 20px;
   flex-wrap: wrap;
-  box-shadow: 0 2px 12px rgba(9, 30, 66, 0.22);
+  box-shadow: 0 2px 12px rgba(50, 55, 59, 0.24);
 }
 /* 왼쪽 정체성 묶음: ELECTERIOR · G2B Masters */
 .app-header-brand {
@@ -203,7 +202,7 @@
   font-weight: 800;
   text-decoration: none;
   white-space: nowrap;
-  box-shadow: 0 2px 8px rgba(9, 30, 66, 0.18);
+  box-shadow: 0 2px 8px rgba(50, 55, 59, 0.2);
   transition:
     background 0.15s,
     color 0.15s,
@@ -211,10 +210,10 @@
     box-shadow 0.15s;
 }
 .btn-home:hover {
-  background: #eaf2ff;
+  background: var(--theme-almond-silk);
   color: var(--primary-dark);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(9, 30, 66, 0.24);
+  box-shadow: 0 4px 12px rgba(50, 55, 59, 0.24);
   text-decoration: none;
 }
 /* 전체 리셋 · ⚙ 우리 회사 — 헤더 칩과 같은 반투명 유리 알약. */
@@ -246,9 +245,9 @@
 }
 /* 전체 리셋은 파괴적 동작이라 hover 에서만 붉은 톤으로 경고. */
 .btn-full-reset:hover {
-  background: #fff1f2;
-  border-color: #fff1f2;
-  color: #be123c;
+  background: var(--theme-blushed-brick);
+  border-color: var(--theme-blushed-brick);
+  color: var(--theme-on-dark);
 }
 
 /* ─── 탭 (책 인덱스 · 세로 레일) ──────────────────────────────────────────── */
@@ -280,10 +279,18 @@
   flex-direction: column;
   /* 늘지도 줄지도 않는다. 폭은 최장 라벨이 두 줄로 접히는 값(tokens.css). */
   flex: 0 0 calc(var(--tab-rail-width) + var(--tab-protrude));
-  gap: 4px;
+  gap: 0;
   /* 왼쪽 여백은 활성 탭이 돌출할 자리다 — 탭의 음수 margin 이 이 안으로 들어온다.
      .app-shell-body 에 주면 탭이 없는 라우트(/system · /analysis-lab)까지 들여쓰기된다. */
-  padding: 8px 0 8px var(--tab-protrude);
+  padding: 0 0 8px var(--tab-protrude);
+}
+.app-tab-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.app-tab-section--spaced {
+  margin-top: 18px;
 }
 .app-tab {
   padding: 10px 14px;
@@ -310,20 +317,64 @@
   right: -1px;
 }
 .app-tab:hover {
-  color: var(--primary);
+  color: var(--theme-gunmetal);
   /* 레일이 투명해 뒤가 캔버스 그라데이션이다 — var(--bg) 로는 hover 가 보이지 않는다. */
   background: rgba(255, 255, 255, 0.6);
   text-decoration: none;
+}
+.app-tab:focus:not(:focus-visible) {
+  outline: none;
+}
+.app-tab:focus-visible {
+  outline: 2px solid var(--theme-honey-bronze);
+  outline-offset: -2px;
+}
+.app-tab-disclosure {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  text-align: left;
+}
+.app-tab-disclosure.is-open,
+.app-tab-disclosure.is-current {
+  color: var(--theme-gunmetal);
+  font-weight: 700;
+}
+.app-tab-disclosure.is-open {
+  background: var(--surface-2);
+}
+.app-tab-chevron {
+  flex: 0 0 auto;
+  font-size: 20px;
+  line-height: 1;
+  transform: rotate(0deg);
+  transition: transform 0.15s ease;
+}
+.app-tab-disclosure.is-open .app-tab-chevron {
+  transform: rotate(90deg);
+}
+.app-tab-submenu {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 .app-tab.active {
   background: var(--surface);
   border-color: var(--border);
   border-right-color: var(--surface);
-  color: var(--primary);
+  color: var(--theme-gunmetal);
   font-weight: 700;
   /* 책갈피 — 활성 탭만 왼쪽으로 튀어나온다. 레일의 padding-left 가 그 자리다. */
   margin-left: calc(var(--tab-protrude) * -1);
   padding-left: calc(14px + var(--tab-protrude));
+}
+.app-tab--nested {
+  padding-left: 22px;
+}
+.app-tab--nested.active {
+  padding-left: calc(22px + var(--tab-protrude));
 }
 /* 준비 중 화면의 탭 — 라벨은 흐리게, 옆에 «준비» 배지. 클릭 전에 미완임을 알린다. */
 .app-tab.not-ready {
@@ -337,8 +388,8 @@
   margin-left: 6px;
   padding: 1px 6px;
   border-radius: 4px;
-  background: #fdf3e2;
-  color: #8a5b0c;
+  background: var(--theme-honey-bronze);
+  color: var(--theme-on-light);
   font-size: var(--fs-badge-sm);
   font-weight: 700;
   vertical-align: middle;
@@ -389,8 +440,13 @@
    */
   .app-tabs {
     flex-basis: calc(var(--tab-rail-width-sm) + var(--tab-protrude));
-    padding: 6px 0 6px var(--tab-protrude);
+    padding: 0 0 6px var(--tab-protrude);
+  }
+  .app-tab-section {
     gap: 2px;
+  }
+  .app-tab-section--spaced {
+    margin-top: 14px;
   }
   .app-tab {
     padding: 8px 10px;
@@ -399,5 +455,14 @@
   /* 책갈피 돌출은 좁은 화면에서도 유지한다 — 활성 탭을 알아보는 주된 단서다. */
   .app-tab.active {
     padding-left: calc(10px + var(--tab-protrude));
+  }
+  .app-tab--nested {
+    padding-left: 16px;
+  }
+  .app-tab--nested.active {
+    padding-left: calc(16px + var(--tab-protrude));
+  }
+  .app-tab-submenu {
+    gap: 2px;
   }
 }

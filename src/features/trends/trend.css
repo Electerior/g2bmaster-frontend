@@ -42,7 +42,7 @@
 .trend-keyword-btn {
   border: 1px solid var(--preset-chip-border);
   background: var(--preset-chip-bg);
-  color: var(--primary);
+  color: var(--theme-on-light);
   border-radius: 16px;
   padding: 5px 10px;
   font-size: var(--fs-meta);
@@ -50,7 +50,7 @@
   cursor: pointer;
 }
 .trend-keyword-btn:hover {
-  border-color: var(--primary);
+  border-color: var(--theme-gunmetal);
   background: var(--qtag-and-bg);
 }
 

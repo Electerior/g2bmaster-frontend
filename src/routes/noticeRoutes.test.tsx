@@ -80,6 +80,78 @@ describe('LegacyNoticeRedirect', () => {
     const landed = landOn('/notices/bid-plan?cat=마감', '/notices/bid-plan', '계획');
     expect(new URL(landed, 'http://x').searchParams.get('cat')).toBe('마감');
   });
+  /*
+   * '/search' 는 통합 검색 자신의 옛 주소이자 이 앱의 옛 DEFAULT_ROUTE 였다 —
+   * '/' 로 들어온 요청이 전부 여기로 리다이렉트됐으므로 축적된 링크가 가장 많다.
+   * 그 화면은 삭제된 useIndexCriteria 를 썼고 파라미터 이름이 지금과 다르다.
+   */
+  describe('옛 통합 검색 주소(/search)', () => {
+    function landOnSearch(entry: string): URLSearchParams {
+      return new URL(landOn(entry, '/search'), 'http://x').searchParams;
+    }
+
+    it('404 가 아니라 통합 검색으로 넘어간다', () => {
+      expect(landOn('/search', '/search')).toContain(ROUTES.noticeSearch);
+    });
+
+    it('옛 파라미터 이름을 지금 이름으로 옮긴다', () => {
+      const params = landOnSearch(
+        '/search?q=노트북&category=입찰&division=물품&insttNm=조달청&minAmount=1000000&maxAmount=5000000',
+      );
+      expect(params.get('and')).toBe('노트북');
+      expect(params.get('cat')).toBe('입찰');
+      expect(params.get('type')).toBe('물품');
+      expect(params.get('instt')).toBe('조달청');
+      expect(params.get('min')).toBe('1000000');
+      expect(params.get('max')).toBe('5000000');
+      // 옛 이름은 남기지 않는다 — 지금 화면이 읽지 않으므로 URL 만 길어진다.
+      for (const stale of ['q', 'category', 'division', 'insttNm', 'minAmount', 'maxAmount']) {
+        expect(params.get(stale)).toBeNull();
+      }
+    });
+
+    it('이름이 같은 조건은 건드리지 않는다', () => {
+      const params = landOnSearch('/search?region=강원&state=정정&prdct=4711&from=2026-08-01&page=3');
+      expect(params.get('region')).toBe('강원');
+      expect(params.get('state')).toBe('정정');
+      expect(params.get('prdct')).toBe('4711');
+      expect(params.get('from')).toBe('2026-08-01');
+      expect(params.get('page')).toBe('3');
+    });
+
+    it('지금 이름이 이미 있으면 옛 이름이 덮지 않는다', () => {
+      expect(landOnSearch('/search?q=옛것&and=지금것').get('and')).toBe('지금것');
+    });
+  });
+
+  /*
+   * 백엔드는 activeOnly 를 단계 필터처럼 쓴다(BidNoticeQueryBuilder.build) — 단계 미지정이면
+   * `category IN ('입찰','마감')` + 마감일 조건이라, 켜는 순간 계획·사전규격·마감이 사라지고
+   * 단계 칩이 전부 0건이 된다. 옛 주소의 '기본 켜짐'을 그대로 옮기면 안 되는 이유다.
+   */
+  describe('진행 중 여부(activeOnly)', () => {
+    it('옛 링크에 진행 중 필터를 심지 않는다 — 심으면 단계 칩이 입찰만 남는다', () => {
+      const params = new URL(landOn('/search', '/search'), 'http://x').searchParams;
+      expect(params.get('active')).toBeNull();
+    });
+
+    it('지금 쓰지 않는 activeOnly 키는 떨어뜨린다', () => {
+      const params = new URL(landOn('/search?activeOnly=0', '/search'), 'http://x').searchParams;
+      expect(params.get('activeOnly')).toBeNull();
+      expect(params.get('active')).toBeNull();
+    });
+
+    it('옛 표 주소에서 꺼 둔 링크(active=false)는 그대로 둔다 — 지금 기본값과 같은 뜻이다', () => {
+      const landed = landOn('/notices/bid-plan?active=false', '/notices/bid-plan', '계획');
+      expect(new URL(landed, 'http://x').searchParams.get('active')).toBe('false');
+    });
+
+    it("'마감' 단계 링크가 그대로 살아난다", () => {
+      const params = new URL(landOn('/search?category=마감', '/search'), 'http://x').searchParams;
+      expect(params.get('cat')).toBe('마감');
+      expect(params.get('active')).toBeNull();
+    });
+  });
 });
 
 describe('경유지 판정', () => {

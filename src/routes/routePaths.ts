@@ -89,7 +89,6 @@ export const TAB_ITEMS: readonly TabItem[] = [
   { path: ROUTES.bidResult, kind: 'bid-result', label: SCREENS['bid-result'].label },
   // AI 수주 데스크는 이제 실제 화면이다 — 준비 배지를 떼었다.
   { path: ROUTES.dealRadar, kind: 'deal-radar', label: SCREENS['deal-radar'].label },
-  { path: ROUTES.saved, kind: 'saved-notices', label: SCREENS['saved-notices'].label },
   {
     path: ROUTES.specSearch,
     kind: 'spec-search',
@@ -104,6 +103,8 @@ export const TAB_ITEMS: readonly TabItem[] = [
     kind: 'construction-trend',
     label: SCREENS['construction-trend'].label,
   },
+  // 트렌드 묶음 아래에서 한 단 띄운 독립 인덱스로 표시한다(AppTabs.tsx).
+  { path: ROUTES.saved, kind: 'saved-notices', label: SCREENS['saved-notices'].label },
 ];
 
 /**

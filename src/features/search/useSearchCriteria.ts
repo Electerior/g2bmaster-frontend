@@ -463,7 +463,12 @@ export function buildNoticeIndexQuery(
   }
 
   if (criteria.category) query.category = criteria.category;
-  if (criteria.noticeState) query.state = criteria.noticeState;
+  if (criteria.noticeState) {
+    query.state = criteria.noticeState;
+  } else {
+    // 기본 목록은 실제 검토 대상에 집중한다. 취소 공고는 상태 '취소'를 눌렀을 때만 조회한다.
+    query.excludeState = '취소';
+  }
   if (criteria.bidType) query.division = criteria.bidType;
   if (criteria.region) query.region = criteria.region;
   if (criteria.insttNm) query.insttNm = criteria.insttNm;
@@ -514,6 +519,8 @@ export function buildNoticeFacetQuery(
   delete query.sort;
   delete query.dir;
   if (omit) delete query[omit];
+  // 상태 축의 건수는 취소를 포함한 전체 예외 상태에서 세야 '취소' 진입 뱃지가 사라지지 않는다.
+  if (omit === 'state') delete query.excludeState;
   return query;
 }
 

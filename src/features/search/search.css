@@ -45,12 +45,12 @@
   padding: 7px 14px;
 }
 .search-mode-btn:hover {
-  color: var(--primary);
+  color: var(--theme-gunmetal);
   background: var(--mode-tab-hover);
 }
 .search-mode-btn.active {
-  background: var(--primary);
-  color: #fff;
+  background: var(--mode-tab-active);
+  color: var(--theme-on-dark);
 }
 
 /* ── 불리언 행 ─────────────────────────────────────────────────────────── */
@@ -77,11 +77,11 @@
 }
 .badge-and {
   background: var(--bool-and-bg);
-  color: var(--primary);
+  color: var(--bool-and-fg);
 }
 .badge-or {
   background: var(--bool-or-bg);
-  color: var(--accent);
+  color: var(--bool-or-fg);
 }
 .badge-not {
   background: var(--bool-not-bg);
@@ -137,19 +137,19 @@
   white-space: nowrap;
 }
 .qtag-and {
-  background: var(--qtag-and-bg);
-  color: var(--primary);
+  background: var(--bool-and-bg);
+  color: var(--bool-and-fg);
 }
 .qtag-or {
-  background: var(--qtag-or-bg);
-  color: var(--accent);
+  background: var(--bool-or-bg);
+  color: var(--bool-or-fg);
 }
 .qtag-not {
-  background: var(--qtag-not-bg);
+  background: var(--bool-not-bg);
   color: var(--bool-not-fg);
 }
 .qtag-file {
-  background: var(--qtag-file-bg);
+  background: var(--bool-file-bg);
   color: var(--bool-file-fg);
 }
 .qtag button {
@@ -309,14 +309,14 @@
   white-space: nowrap;
 }
 .quick-date:hover {
-  border-color: var(--primary);
-  color: var(--primary);
+  border-color: var(--theme-gunmetal);
+  color: var(--theme-on-light);
   background: var(--quick-date-hover);
 }
 .quick-date.active {
-  border-color: var(--primary);
-  background: var(--blue-soft);
-  color: var(--primary);
+  border-color: var(--theme-gunmetal);
+  background: var(--theme-gunmetal);
+  color: var(--theme-on-dark);
 }
 .btn-text {
   background: none;
@@ -368,7 +368,7 @@
   border-radius: 16px;
   font-size: var(--fs-meta);
   font-weight: 600;
-  color: var(--primary);
+  color: var(--theme-on-light);
   white-space: nowrap;
   transition: background 0.15s;
   -webkit-user-select: none;
@@ -387,7 +387,7 @@
 }
 .preset-chip:hover {
   background: var(--preset-chip-hover);
-  border-color: var(--primary);
+  border-color: var(--theme-gunmetal);
 }
 .preset-chip-tags {
   font-size: var(--fs-badge);
@@ -401,7 +401,7 @@
   background: none;
   border: none;
   cursor: pointer;
-  color: var(--primary);
+  color: var(--theme-gunmetal);
   opacity: 0.45;
   font-size: 15px;
   line-height: 1;
@@ -409,7 +409,7 @@
 }
 .preset-del:hover {
   opacity: 1;
-  color: var(--danger);
+  color: var(--theme-blushed-brick);
 }
 .preset-empty {
   font-size: var(--fs-meta);
@@ -433,9 +433,9 @@
     border-color 0.15s;
 }
 .btn-save-preset:not(:disabled):hover {
-  background: var(--primary);
-  color: #fff;
-  border-color: var(--primary);
+  background: var(--theme-gunmetal);
+  color: var(--theme-on-dark);
+  border-color: var(--theme-gunmetal);
 }
 .btn-save-preset:disabled {
   opacity: 0.35;
@@ -490,14 +490,14 @@
   line-height: 1.1;
 }
 .type-filter-btn:hover {
-  border-color: var(--primary);
-  color: var(--primary);
+  border-color: var(--theme-gunmetal);
+  color: var(--theme-on-light);
   background: var(--quick-date-hover);
 }
 .type-filter-btn.active {
-  border-color: var(--primary);
-  background: var(--blue-soft);
-  color: var(--primary);
+  border-color: var(--theme-gunmetal);
+  background: var(--theme-gunmetal);
+  color: var(--theme-on-dark);
 }
 
 /* ── 공고 통합 검색 필터 줄 ────────────────────────────────────────────── */
@@ -516,7 +516,7 @@
   font-variant-numeric: tabular-nums;
 }
 .type-filter-btn.active .chip-count {
-  color: var(--primary);
+  color: var(--theme-on-dark);
 }
 .type-filter-btn.empty {
   opacity: 0.5;
