@@ -102,7 +102,6 @@ export const TAB_ITEMS: readonly TabItem[] = [
     label: SCREENS['spec-search'].label,
     notReady: true,
   },
-  { path: ROUTES.priceDb, kind: 'price-db', label: SCREENS['price-db'].label },
   { path: ROUTES.trendProduct, kind: 'product-trend', label: SCREENS['product-trend'].label },
   { path: ROUTES.trendService, kind: 'service-trend', label: SCREENS['service-trend'].label },
   {
@@ -110,8 +109,6 @@ export const TAB_ITEMS: readonly TabItem[] = [
     kind: 'construction-trend',
     label: SCREENS['construction-trend'].label,
   },
-  // 트렌드 묶음 아래에서 한 단 띄운 독립 인덱스로 표시한다(AppTabs.tsx).
-  { path: ROUTES.saved, kind: 'saved-notices', label: SCREENS['saved-notices'].label },
 ];
 
 /**
