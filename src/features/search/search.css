@@ -690,3 +690,44 @@ button.tag-wrap {
     align-items: stretch;
   }
 }
+
+/*
+ * 정렬 선택기 — 결과 상태 줄 오른쪽(.result-topbar 의 space-between 반대편).
+ * 표 머리글이 접히거나(좁은 화면) 애초에 열이 없는 정렬(관련도)에서도 상태가 보이도록,
+ * 이 자리는 어느 폭에서도 접지 않는다.
+ */
+.sort-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+.sort-picker-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-meta);
+  color: var(--muted);
+  white-space: nowrap;
+}
+.sort-picker-field select {
+  font: inherit;
+  color: var(--text);
+  padding: 4px 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 4px);
+  background: var(--surface);
+}
+.sort-dir-btn {
+  font: inherit;
+  line-height: 1;
+  color: var(--primary);
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 4px);
+  background: var(--surface);
+  cursor: pointer;
+}
+.sort-dir-btn:hover {
+  background: var(--table-head-hover);
+}

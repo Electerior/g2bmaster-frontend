@@ -397,6 +397,55 @@ describe('NoticeSearchScreen', () => {
     });
   });
 
+  /*
+   * 정렬 선택기 — 표 머리글이 닿지 못하는 두 경우를 덮는다.
+   * ① 관련도순은 대응하는 열이 없다. ② 좁은 화면에서는 열이 접힌다(공고일이 1180px 아래에서 숨는다).
+   */
+  describe('정렬 선택기', () => {
+    it('고르지 않았을 때 실제로 걸린 정렬을 적는다 — 검색어가 없으면 공고일순', async () => {
+      renderScreen();
+      await screen.findByText('2026년 노트북 및 모니터 구매');
+      expect(screen.getByRole('combobox', { name: /정렬/ })).toHaveValue('');
+      expect(screen.getByRole('option', { name: '기본 — 공고일순' })).toBeInTheDocument();
+    });
+
+    it('검색어가 있으면 관련도순이라고 적는다 — 이 정렬에는 대응하는 열이 없다', async () => {
+      renderScreen('?and=노트북');
+      await screen.findByText('2026년 노트북 및 모니터 구매');
+      expect(screen.getByRole('option', { name: '기본 — 관련도순' })).toBeInTheDocument();
+    });
+
+    it('열이 접혀도 그 정렬을 고를 수 있다 — 공고일은 좁은 화면에서 머리글이 사라진다', async () => {
+      renderScreen();
+      await screen.findByText('2026년 노트북 및 모니터 구매');
+      get.mockClear();
+
+      fireEvent.change(screen.getByRole('combobox', { name: /정렬/ }), {
+        target: { value: 'created' },
+      });
+
+      const listUrl = get.mock.calls
+        .map(([url]) => url as string)
+        .find((u) => u.startsWith('/api/search/notices?'))!;
+      expect(new URLSearchParams(listUrl.split('?')[1]).get('sort')).toBe('created');
+    });
+
+    it("'기본' 으로 되돌리면 sort 를 아예 보내지 않는다 — 서버의 조건부 기본값이 살아야 한다", async () => {
+      renderScreen('?sort=close&dir=asc');
+      await screen.findByText('2026년 노트북 및 모니터 구매');
+      get.mockClear();
+
+      fireEvent.change(screen.getByRole('combobox', { name: /정렬/ }), { target: { value: '' } });
+
+      const listUrl = get.mock.calls
+        .map(([url]) => url as string)
+        .find((u) => u.startsWith('/api/search/notices?'))!;
+      const params = new URLSearchParams(listUrl.split('?')[1]);
+      expect(params.get('sort')).toBeNull();
+      expect(params.get('dir')).toBeNull();
+    });
+  });
+
   it('정렬할 수 없는 컬럼은 머리글을 버튼으로 그리지 않는다', async () => {
     renderScreen();
     await screen.findByText('2026년 노트북 및 모니터 구매');

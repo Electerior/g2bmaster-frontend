@@ -30,6 +30,7 @@ import {
   NoticeFilterBar,
   type NoticeFilterValues,
 } from '@/features/search/NoticeFilterBar';
+import { NoticeSortSelect } from '@/features/search/NoticeSortSelect';
 import { stageTotalOf, useNoticeFacetBars } from '@/features/search/useNoticeFacets';
 import {
   buildNoticeIndexQuery,
@@ -173,6 +174,15 @@ export function NoticeSearchScreen() {
             }}
           />
         </div>
+        {/*
+          정렬은 폭과 무관하게 여기서 항상 보인다. 표 머리글은 열이 접히면 함께 사라지고,
+          관련도순은 대응하는 열이 아예 없다 — NoticeSortSelect 주석 참고.
+        */}
+        <NoticeSortSelect
+          selected={criteria.sortKey}
+          effective={sort}
+          onChange={(patch) => setCriteria(patch)}
+        />
       </div>
 
       <DataTable<NoticeIndexItem>
