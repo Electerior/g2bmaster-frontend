@@ -304,6 +304,18 @@
   background: var(--theme-honey-bronze);
 }
 
+/* 유사 대체 행 — 요구 제품 대신 가장 비슷한 제품으로 채운 행의 표시. */
+.price-analysis-substitute {
+  font-weight: 700;
+}
+
+.price-analysis-requirement {
+  display: block;
+  margin-top: 2px;
+  color: var(--text-muted, #8a8578);
+  font-size: var(--fs-badge-sm, 11px);
+}
+
 .price-analysis-caution {
   margin: 17px 20px 0;
   padding: 11px 13px;

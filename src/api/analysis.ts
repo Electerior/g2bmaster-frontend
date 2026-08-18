@@ -31,6 +31,8 @@ export interface DealAnalysisRequest {
   include?: { spec?: boolean; parts?: boolean; market?: boolean; opening?: boolean };
   /** 저장된 deep 결과를 무시하고 다시 분석한다. */
   forceRefresh?: boolean;
+  /** 저장된 결과만 꺼내 본다 — 없으면 분석을 돌리지 않고 `_notCached` 로 답한다. */
+  cacheOnly?: boolean;
 }
 
 /** 단가 추정 결과는 "못 찾음"과 "찾음"이 형태가 달라 union 으로 온다. */
@@ -46,6 +48,10 @@ export type EstimatedUnitCost =
       hasBase: boolean;
       /** 모든 행의 가격이 확인됐는가. false 면 일부 행이 미확인(low=null). */
       allPriced?: boolean;
+      /** 확정 합계(accepted 행만, mid×수량). deal.unitCost 의 근거다. */
+      confirmedMid?: number;
+      confirmedTotal?: number;
+      confirmedUnits?: number;
       breakdown: Array<{
         category: string;
         option: string;
@@ -54,10 +60,21 @@ export type EstimatedUnitCost =
         low: number | null;
         high: number | null;
         inferred?: boolean;
+        /** 백엔드 검증 통과 여부 — false 면 추론 합계에서 제외된다. */
+        acceptedForCost?: boolean;
+        /** 제외 사유: unpriced | inferred-row | no-evidence | duplicate-row | ... */
+        rejectReason?: string;
         /** 'base'(베어본/완본체 베이스) | 'part'(부품). */
         role?: 'base' | 'part';
         /** 'itmaya'(가격표 색인) | 'danawa'(웹검색). */
         source?: string;
+        /** 요구 제품을 못 찾아 가장 비슷한 제품으로 바꿔 값던 행. */
+        substitute?: boolean;
+        /** 요구사항(규격서 이름) — substitute 행에서 `option` 과 같다. */
+        requirement?: string;
+        /** 왜 이 제품으로 대체했는지(모델 미일치·용량 상이 등). */
+        matchReason?: string;
+        url?: string;
       }>;
       currency: 'KRW';
       /** 'itmaya' | 'danawa' | 'hybrid'(베어본은 색인, 부품은 웹). */
@@ -172,6 +189,8 @@ export interface DealAnalysisResponse {
   _fromCache?: boolean;
   /** 저장된 결과의 분석 시각(ISO). `_fromCache` 일 때만. */
   _analyzedAt?: string;
+  /** cacheOnly 요청에서 저장분이 없을 때만 붙는다 — 화면은 "분석 전"을 그린다. */
+  _notCached?: boolean;
 }
 
 export function analyzeDeal(body: DealAnalysisRequest): Promise<DealAnalysisResponse> {

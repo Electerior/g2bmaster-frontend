@@ -38,12 +38,14 @@ export function rowsFromBreakdown(
     low?: number | null;
     inferred?: boolean;
     role?: 'base' | 'part';
+    source?: string;
   }>,
 ): PriceRow[] {
   return breakdown.map((b) => ({
     // 베어본 행은 구분(category)을 '베어본'으로 못박아 부품과 한눈에 갈린다.
     category: b.role === 'base' ? '베어본' : b.category,
-    name: b.product || b.option || '',
+    // ITMAYA 행의 product 는 베어본 모델코드다 — 사람이 읽는 옵션 설명명(option)을 쓴다.
+    name: b.source === 'itmaya' ? (b.option || b.product || '') : (b.product || b.option || ''),
     qty: b.qty || 1,
     unitPrice: b.low ?? 0,
     inferred: b.inferred,

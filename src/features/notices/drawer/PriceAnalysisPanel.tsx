@@ -5,14 +5,15 @@
  * 어느 공고를 열어도 같은 숫자가 떠서, 984,941,000원짜리 전산모사 시스템 공고에도 대당
  * 1,354,340원이 적혀 있었다. 조달 판단에 쓰이는 화면에서 그것보다 나쁜 상태는 없다.
  *
- * **자동으로 부르지 않는다.** deep 분석은 규격서 첨부를 내려받아 파싱하고, LLM 으로 부품을
- * 뽑고, 부품마다 다나와를 긁는다(백엔드 MarketIntelController 주석). 가격 분석이 서랍의 첫
- * 탭이라 자동 실행으로 두면 공고를 훑어보기만 해도 매번 그 비용이 나간다. 그래서 사람이 누를
- * 때 돈다 — 같은 입력이면 백엔드가 저장된 결과를 돌려주므로 두 번째부터는 즉시 뜬다.
+ * **자동으로 부르지 않는다 — 저장분은 자동으로 꺼낸다.** deep 분석은 규격서 첨부를
+ * 내려받아 파싱하고, LLM 으로 부품을 뽑고, 부품마다 다나와를 긁는다. 그래서 사람이 누를 때만
+ * 돌리되, 패널이 열릴 때 {@code cacheOnly} 로 저장된 결과가 있는지 먼저 물어보고 있으면 즉시
+ * 보여준다 — 첫 탭이어도 공고를 훑는 동안 새 분석 비용은 나가지 않는다.
  *
  * **모르는 것은 비워 둔다.** 원가를 못 구하면 0 을 채우지 않고 서버가 준 안내(note)를 그대로
  * 보여 준다. 0 은 '공짜'로 읽히고, 마진 100% 가 되어 이 화면에서 가장 좋은 딜처럼 보인다.
  */
+import { useEffect, useState } from 'react';
 import { useDealAnalysis, type DealAnalysisResponse } from '@/api/analysis';
 import type { NoticeIndexItem } from '@/api/search';
 import { fmtDisplayDatetime, fmtMoney } from '@/domain/format';
@@ -75,6 +76,23 @@ function toAnalysisItem(item: NoticeIndexItem): Record<string, unknown> {
 export function PriceAnalysisPanel({ item }: PriceAnalysisPanelProps) {
   const analysis = useDealAnalysis();
   const result = analysis.data;
+  // cacheOnly 요청에서 저장분이 없으면 `_notCached` 만 온다 — 화면은 "분석 전"을 그린다.
+  const hasResult = result != null && !result._notCached;
+  // 사용자가 실제 분석(forceRefresh)을 돌리고 있는가 — cacheOnly 조회와 구분한다.
+  const [running, setRunning] = useState(false);
+
+  // 패널이 열릴 때 저장된 분석을 먼저 꺼내 본다. 있으면 즉시, 없으면 분석을 돌리지 않고
+  // "분석 전" 화면을 유지한다 — 첫 탭이라도 자동으로 deep 분석이 돌지 않게 하는 지름길이다.
+  useEffect(() => {
+    analysis.reset();
+    analysis.mutate(
+      { item: toAnalysisItem(item), deep: true, include: ANALYSIS_SCOPE, cacheOnly: true },
+      { onError: () => {} },
+    );
+    // item.id 가 바뀌면(다른 공고) 다시 꺼내 본다. analysis 는 훅이 매 렌더마다 주는 객체라
+    // 의존성에 넣으면 루프가 된다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [item.id]);
 
   const budget = item.amount ?? item.estimatedPrice ?? null;
   const kind = amountKindLabel(item.amountKind);
@@ -91,25 +109,37 @@ export function PriceAnalysisPanel({ item }: PriceAnalysisPanelProps) {
         <div>
           <div className="price-analysis-kicker">가격 분석</div>
           <p>
-            규격서 첨부를 열어 부품을 뽑고 시세로 원가를 추정합니다. 처음 한 번은 시간이 걸리고,
-            같은 조건이면 저장된 결과를 다시 씁니다.
+            저장된 분석이 있으면 바로 보여주고, 없으면 버튼으로 분석을 실행합니다. 처음 한 번은
+            시간이 걸리고, 결과는 저장돼 다음부터 즉시 뜹니다.
           </p>
         </div>
         <button
           type="button"
           className="price-analysis-run"
-          onClick={() => analysis.mutate({ item: toAnalysisItem(item), deep: true, include: ANALYSIS_SCOPE })}
+          onClick={() => {
+            setRunning(true);
+            analysis.mutate(
+              {
+                item: toAnalysisItem(item),
+                deep: true,
+                include: ANALYSIS_SCOPE,
+                // '다시 분석'은 저장분을 재사용하지 않는다 — 시세·로직이 바뀌었을 수 있다.
+                forceRefresh: true,
+              },
+              { onSettled: () => setRunning(false) },
+            );
+          }}
           disabled={analysis.isPending}
         >
-          {analysis.isPending ? '분석 중…' : result ? '다시 분석' : '가격 분석 실행'}
+          {analysis.isPending ? (running ? '분석 중…' : '확인 중…') : hasResult ? '다시 분석' : '가격 분석 실행'}
         </button>
       </div>
 
-      {!result && !analysis.isPending && !analysis.isError ? (
+      {!hasResult && !analysis.isPending && !analysis.isError ? (
         <IdleNotice budget={budget} kind={kind} />
       ) : null}
 
-      {analysis.isPending ? (
+      {running ? (
         <p className="price-analysis-state" role="status">
           규격서를 열어 부품과 시세를 확인하고 있습니다. 첨부가 여러 개면 <strong>몇 분</strong>
           걸립니다 — 서랍을 닫아도 분석은 계속되고, 결과는 저장돼 다음에 바로 뜹니다.
@@ -122,7 +152,7 @@ export function PriceAnalysisPanel({ item }: PriceAnalysisPanelProps) {
         </p>
       ) : null}
 
-      {result ? <AnalysisResult result={result} budget={budget} kind={kind} /> : null}
+      {hasResult ? <AnalysisResult result={result} budget={budget} kind={kind} /> : null}
     </div>
   );
 }
@@ -169,6 +199,10 @@ function AnalysisResult({
   const quantity = result.facts?.quantity ?? deal?.quantity ?? null;
   const estimated = result.estimatedUnitCost;
   const rows = estimated?.matched ? estimated.breakdown : [];
+  // 확정(accepted) 행만 mid×수량으로 더한 추론 합계 — 요약의 '대당 매입원가'와 같은 근거다.
+  const inferredTotal = rows
+    .filter((row) => row.acceptedForCost !== false && row.low != null)
+    .reduce((sum, row) => sum + Math.round(((row.low as number) + (row.high ?? (row.low as number))) / 2) * row.qty, 0);
 
   // 마진은 목록의 마진율 열과 같은 식으로 낸다(실추정가 기준). 분모가 없거나 원가를 모르면
   // 계산하지 않는다 — 0 으로 채우면 '남는 게 없는 딜'로 읽힌다.
@@ -269,30 +303,90 @@ function AnalysisResult({
                 </tr>
               </thead>
               <tbody>
-                {rows.map((row, index) => (
-                  <tr key={`${row.category}-${row.option}-${index}`}>
-                    <th scope="row">{row.role === 'base' ? '베어본' : row.category}</th>
-                    <td>{row.product || row.option}</td>
-                    <td className="price-analysis-number">{row.qty}</td>
-                    {/* 가격을 못 구한 행은 0 이 아니라 '미확인'이다 — 합계에서 빠진 사실을 적는다. */}
-                    <td className="price-analysis-number">
-                      {row.low == null ? '미확인' : fmtMoney(row.low)}
-                    </td>
-                    <td className="price-analysis-number">
-                      {row.low == null ? '-' : fmtMoney(row.low * row.qty)}
-                    </td>
-                    <td>
-                      <span
-                        className={
-                          row.inferred ? 'price-analysis-source negotiated' : 'price-analysis-source'
+                {rows.map((row, index) => {
+                  const rejected = row.acceptedForCost === false;
+                  const mid =
+                    row.low == null
+                      ? null
+                      : Math.round((row.low + (row.high ?? row.low)) / 2);
+                  return (
+                    <tr
+                      key={`${row.category}-${row.option}-${index}`}
+                      className={rejected ? 'price-analysis-rejected' : undefined}
+                    >
+                      <th scope="row">{row.role === 'base' ? '베어본' : row.category}</th>
+                      <td>
+                        {row.substitute ? (
+                          <>
+                            <span className="price-analysis-substitute">{row.product}</span>
+                            <span className="price-analysis-requirement" title={row.matchReason}>
+                              요구: {row.requirement ?? row.option}
+                            </span>
+                          </>
+                        ) : row.source === 'itmaya' ? (
+                          // ITMAYA 행의 product 는 베어본 모델코드("ESC4000-E11")라 option(옵션 설명명)을 보여준다.
+                          row.option || row.product
+                        ) : (
+                          row.product || row.option
+                        )}
+                      </td>
+                      <td className="price-analysis-number">{row.qty}</td>
+                      {/* 단가는 mid(최저~최고 평균) 기준 — 합계가 추론 합계와 맞아떨어지게 한다. */}
+                      <td
+                        className="price-analysis-number"
+                        title={
+                          mid != null && row.low !== row.high
+                            ? `최저 ${fmtMoney(row.low ?? 0)} ~ 최고 ${fmtMoney(row.high ?? 0)}`
+                            : undefined
                         }
                       >
-                        {row.inferred ? '추론' : (row.source ?? '시세')}
-                      </span>
+                        {rejected ? '제외' : mid == null ? '미확인' : fmtMoney(mid)}
+                      </td>
+                      <td className="price-analysis-number">
+                        {rejected || mid == null ? '-' : fmtMoney(mid * row.qty)}
+                      </td>
+                      <td>
+                        <span
+                          className={
+                            rejected || row.inferred
+                              ? 'price-analysis-source negotiated'
+                              : 'price-analysis-source'
+                          }
+                          title={row.substitute ? row.matchReason : undefined}
+                        >
+                          {rejected
+                            ? row.source === 'llm-estimate'
+                              ? '추정값(참고)'
+                              : row.substitute
+                                ? '대체 미승인'
+                                : rejectReasonLabel(row.rejectReason)
+                            : row.substitute
+                              ? '유사 대체'
+                              : row.inferred
+                                ? '추론'
+                                : (row.source ?? '시세')}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              {rows.some((row) => row.low != null) ? (
+                <tfoot>
+                  <tr>
+                    <th scope="row" colSpan={3}>
+                      추론 합계
+                    </th>
+                    <td className="price-analysis-number">1대 기준</td>
+                    <td className="price-analysis-number">{fmtMoney(inferredTotal)}</td>
+                    <td>
+                      {rows.some((row) => row.acceptedForCost === false)
+                        ? '제외 행 제외'
+                        : '전 항목 반영'}
                     </td>
                   </tr>
-                ))}
-              </tbody>
+                </tfoot>
+              ) : null}
             </table>
           </div>
           {estimated?.matched && estimated.allPriced === false ? (
@@ -335,4 +429,24 @@ function costSourceLabel(source: 'user' | 'estimated' | null | undefined): strin
   if (source === 'user') return '직접 입력';
   if (source === 'estimated') return '규격서 추정';
   return '미상';
+}
+
+/** 백엔드가 행을 추론 합계에서 뺀 사유(rejectReason)를 한국어로. */
+function rejectReasonLabel(reason?: string): string {
+  switch (reason) {
+    case 'unpriced':
+      return '가격 미확인';
+    case 'inferred-row':
+      return '참고값 제외';
+    case 'no-evidence':
+      return '근거 없음';
+    case 'duplicate-row':
+      return '중복 제외';
+    case 'bad-price':
+      return '이상 가격';
+    case 'qty-out-of-range':
+      return '수량 이상';
+    default:
+      return reason ? `${reason} 제외` : '제외';
+  }
 }
