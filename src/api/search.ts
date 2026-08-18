@@ -270,6 +270,14 @@ export interface NoticeFacets {
   division?: NoticeFacetBucket[];
   region?: NoticeFacetBucket[];
   state?: NoticeFacetBucket[];
+  /**
+   * 이 요청의 조건 그대로의 총건수.
+   *
+   * **단계 버킷의 합과 다를 수 있다.** '마감 전만' + 단계 미지정이면 서버가 목록을 입찰
+   * 문서로 좁히는데, 단계 버킷은 그 스코프를 뺀 수라서(그래야 칩마다 '누르면 나오는 수'가
+   * 된다) 합이 더 커진다. '전체' 칩은 합이 아니라 이 값을 써야 한다 — {@link stageTotalOf}.
+   */
+  total?: number;
 }
 
 /** 출처별 적재 현황. **DB 컬럼명 그대로** 온다. */

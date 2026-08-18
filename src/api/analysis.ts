@@ -8,6 +8,7 @@
  */
 import { useMutation } from '@tanstack/react-query';
 import { post } from '@/lib/apiClient';
+import { createLimiter } from '@/lib/taskQueue';
 import type {
   AiFallbackFlags,
   DocumentSignals,
@@ -33,6 +34,13 @@ export interface DealAnalysisRequest {
   forceRefresh?: boolean;
   /** 저장된 결과만 꺼내 본다 — 없으면 분석을 돌리지 않고 `_notCached` 로 답한다. */
   cacheOnly?: boolean;
+  /**
+   * 첨부 중 이 URL 을 규격서로 쓴다. 자동 선택(휴리스틱)을 건너뛴다.
+   *
+   * <b>공고 첨부 목록에 있는 URL 이어야 한다</b> — 백엔드가 목록과 대조하고, 없으면 무시하고
+   * 자동 선택으로 돌아간다(임의 URL 다운로드 금지).
+   */
+  specFileUrl?: string;
 }
 
 /** 단가 추정 결과는 "못 찾음"과 "찾음"이 형태가 달라 union 으로 온다. */
@@ -48,8 +56,11 @@ export type EstimatedUnitCost =
       hasBase: boolean;
       /** 모든 행의 가격이 확인됐는가. false 면 일부 행이 미확인(low=null). */
       allPriced?: boolean;
-      /** 확정 합계(accepted 행만, mid×수량). deal.unitCost 의 근거다. */
-      confirmedMid?: number;
+      /**
+       * 확정 합계의 부속값(accepted 행만, mid×수량). deal.unitCost 의 근거다.
+       * 단가 자체인 `confirmedMid` 는 아래에 `number | null` 로 선언돼 있다 —
+       * untrusted 면 null 이 오므로 그 타입이어야 한다.
+       */
       confirmedTotal?: number;
       confirmedUnits?: number;
       breakdown: Array<{
@@ -60,10 +71,6 @@ export type EstimatedUnitCost =
         low: number | null;
         high: number | null;
         inferred?: boolean;
-        /** 백엔드 검증 통과 여부 — false 면 추론 합계에서 제외된다. */
-        acceptedForCost?: boolean;
-        /** 제외 사유: unpriced | inferred-row | no-evidence | duplicate-row | ... */
-        rejectReason?: string;
         /** 'base'(베어본/완본체 베이스) | 'part'(부품). */
         role?: 'base' | 'part';
         /** 'itmaya'(가격표 색인) | 'danawa'(웹검색). */
@@ -75,7 +82,34 @@ export type EstimatedUnitCost =
         /** 왜 이 제품으로 대체했는지(모델 미일치·용량 상이 등). */
         matchReason?: string;
         url?: string;
+        /** 규격서에 제품명이 적혀 있었나(true) / 사양만 있어 AI 가 추론했나(false). */
+        named?: boolean;
+        /** AI 가 근거로 든 규격서 원문 한 줄. 백엔드가 원문과 대조한다. */
+        evidence?: string;
+        // ── 백엔드 검증 결과 (UnitCostValidator) ──────────────────────────
+        /** 이 부품의 근거가 규격서 원문에서 확인됐는가. */
+        evidenceInSpec?: boolean;
+        /** 'quote'(근거 문장 대조) | 'token'(모델 토큰 대조). */
+        evidenceBasis?: 'quote' | 'token';
+        /** 총액에 반영됐는가. false 면 아래 사유로 빠진 행이다. */
+        acceptedForCost?: boolean;
+        /** 'no-evidence-in-spec' | 'category-conflict' | 'zero-priced-row' | 'inferred-row' | 'unpriced'. */
+        rejectReason?: string;
+        /** 사양→모델 탐색기가 막혀 모델을 못 찾았다. "규격서에 없음"과 다른 사건이다. */
+        searchUnavailable?: boolean;
       }>;
+      // ── 백엔드 검증 결과 (UnitCostValidator) ────────────────────────────
+      /**
+       * 총액 신뢰 등급. **`untrusted` 면 `mid` 를 단가로 쓰면 안 된다** — 백엔드도
+       * `deal.unitCostSource` 를 주지 않는다. 참고값으로만 표시할 것.
+       */
+      costConfidence?: 'confirmed' | 'partial' | 'untrusted';
+      /** 규격서 대조를 통과한 행만 합산한 단가. `untrusted` 면 null. */
+      confirmedMid?: number | null;
+      /** 채택된 금액 / 전체 금액. */
+      evidenceRatio?: number;
+      /** 'not-all-priced' · 'category-conflict:gpu' · 'no-base-system' 등. */
+      costWarnings?: string[];
       currency: 'KRW';
       /** 'itmaya' | 'danawa' | 'hybrid'(베어본은 색인, 부품은 웹). */
       priceSource?: string;
@@ -151,7 +185,23 @@ export interface DealAnalysisResponse {
     products: unknown[];
     parsedFiles: Array<{ name: string; textLength: number }>;
     /** confidence: confirmed|heuristic|estimated — 규격서 선택의 확신도. */
-    files: Array<{ url: string; name: string; confidence?: string }>;
+    files: Array<{
+      url: string;
+      name: string;
+      confidence?: string;
+      /** 표제로 읽은 문서종(규격서·제안요청서·공고문 …). 못 읽었으면 빈 문자열. */
+      documentClass?: string;
+      /** 'ACCEPT'(규격서로 확인) | 'FALLBACK'(미확인 — LLM 판단에 맡김). */
+      disposition?: string;
+      /** 'true' | 'false' — 규격서로 확인됐는가. 문자열로 온다(files 는 문자열 맵). */
+      specTrusted?: string;
+      /** 'title/anchored' | 'title/cover' | 'score/no-title' — 어느 층이 판정했는지. */
+      validationVia?: string;
+      /** 'class-may-embed-spec' · 'no-title' 등. 비어 있을 수 있다. */
+      validationReasons?: string;
+      /** 'user'(사람이 지목) | 'auto'(휴리스틱 선택). */
+      selectedBy?: string;
+    }>;
     fileEntryCount: number;
     quantityFound: unknown;
     deliveryFound: string | null;
@@ -193,8 +243,30 @@ export interface DealAnalysisResponse {
   _notCached?: boolean;
 }
 
+/*
+ * 깊은 분석의 마감과 동시 실행 수.
+ *
+ * **마감은 바깥쪽이 안쪽보다 길어야 한다.** 순서가 뒤집히면 서버는 멀쩡히 일하고
+ * 있는데 화면만 포기하고, 사용자에게는 "분석 실패"로 보인다. start_all.sh 가
+ * `LLM(100s) < AI(120s) < 리스(300s)` 를 검사하는데 브라우저는 그 사슬에서 빠져
+ * 있었다 — apiClient 기본값 60초가 가장 짧은 마감이었다.
+ *
+ * 동시 실행을 묶는 이유는 따로 있다. 브라우저 연결 한도(오리진당 6) 때문에 나머지
+ * 요청은 큐에서 기다리는데 그동안에도 axios 마감이 흐른다. 여기서 붙잡으면 대기가
+ * 마감에 포함되지 않고, 백엔드도 20건을 한꺼번에 맞지 않아 건당 응답이 빨라진다.
+ */
+const DEEP_DEADLINE_MS = 240_000;
+const DEEP_CONCURRENCY = 4;
+const deepQueue = createLimiter(DEEP_CONCURRENCY);
+
 export function analyzeDeal(body: DealAnalysisRequest): Promise<DealAnalysisResponse> {
-  return post<DealAnalysisResponse>('/api/deal-analysis', body);
+  // `deep` 을 안 주면 백엔드 기본값이 true 다(첨부를 연다). 얕은 분석만 빠른 길로 보낸다.
+  if (body.deep === false) {
+    return post<DealAnalysisResponse>('/api/deal-analysis', body);
+  }
+  return deepQueue(() =>
+    post<DealAnalysisResponse>('/api/deal-analysis', body, { timeout: DEEP_DEADLINE_MS }),
+  );
 }
 
 /* ─── 공고 AI 요약 ────────────────────────────────────────────────────────── */

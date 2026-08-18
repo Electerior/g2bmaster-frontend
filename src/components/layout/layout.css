@@ -394,6 +394,24 @@
   font-weight: 700;
   vertical-align: middle;
 }
+/* 준비 중 화면의 탭 — 라벨은 흐리게, 옆에 «준비» 배지. 클릭 전에 미완임을 알린다. */
+.app-tab.not-ready {
+  color: var(--table-empty-fg);
+}
+.app-tab.not-ready.active {
+  color: var(--muted);
+}
+.tab-ready-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: #fdf3e2;
+  color: #8a5b0c;
+  font-size: var(--fs-badge-sm);
+  font-weight: 700;
+  vertical-align: middle;
+}
 
 @media (max-width: 760px) {
   .app-header {

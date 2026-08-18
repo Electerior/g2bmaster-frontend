@@ -94,6 +94,8 @@ export const TAB_ITEMS: readonly TabItem[] = [
   { path: ROUTES.bidResult, kind: 'bid-result', label: SCREENS['bid-result'].label },
   // AI 수주 데스크는 이제 실제 화면이다 — 준비 배지를 떼었다.
   { path: ROUTES.dealRadar, kind: 'deal-radar', label: SCREENS['deal-radar'].label },
+  { path: ROUTES.saved, kind: 'saved-notices', label: SCREENS['saved-notices'].label },
+  { path: ROUTES.priceDb, kind: 'price-db', label: SCREENS['price-db'].label },
   {
     path: ROUTES.specSearch,
     kind: 'spec-search',

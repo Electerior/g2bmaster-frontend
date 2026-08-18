@@ -127,6 +127,8 @@ describe('IndexNoticeDrawer 가격 분석 탭', () => {
           attachmentUrls: [{ name: '규격서.hwpx', url: 'https://example.test/spec.hwpx' }],
         }),
       }),
+      // 깊은 분석은 마감을 실어 보낸다(analysis.ts 의 deepQueue) — 인자 수까지 맞아야 한다.
+      expect.objectContaining({ timeout: expect.any(Number) }),
     ));
   });
 
@@ -139,6 +141,7 @@ describe('IndexNoticeDrawer 가격 분석 탭', () => {
     await waitFor(() => expect(mocks.analyzeDeal).toHaveBeenCalledWith(
       '/api/deal-analysis',
       expect.objectContaining({ item: expect.objectContaining({ bidNtceNo: NOTICE.id }) }),
+      expect.objectContaining({ timeout: expect.any(Number) }),
     ));
     // 마진은 목록의 마진율 열과 같은 기준(실추정가)이어야 한다 — 한 공고에 두 숫자가 나오면 안 된다.
     expect(await screen.findByText(/실추정가 기준 · 29\.3%/)).toBeInTheDocument();
