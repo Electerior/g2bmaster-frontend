@@ -32,7 +32,8 @@ npm run dev
 ```
 
 `http://localhost:5173`. `/api` 요청은 vite 프록시가 백엔드(기본 `http://localhost:8080`)로
-넘긴다 — 다른 주소면 `.env` 에 `VITE_PROXY_TARGET` 을 준다.
+넘긴다 — 다른 주소면 `.env` 에 `VITE_PROXY_TARGET` 을 준다. 이 8080 은 **로컬 개발
+기본값일 뿐이다** — 배포 호스트의 8080 은 [cloudflare 터널 입구](#8080-은-cloudflare-터널-입구다)다.
 
 | 명령 | 설명 |
 |---|---|
@@ -50,7 +51,34 @@ npm run dev
 | 변수 | 설명 |
 |---|---|
 | `VITE_API_BASE_URL` | 백엔드 절대 주소. 비우면 같은 오리진의 `/api` 를 호출한다 |
-| `VITE_PROXY_TARGET` | dev 서버가 `/api` 를 넘길 곳 (기본 `http://localhost:8080`) |
+| `VITE_PROXY_TARGET` | dev 서버가 `/api` 를 넘길 곳 (기본 `http://localhost:8080`). 배포 호스트에서는 8080 이 터널 입구라 백엔드가 다른 포트에 있다 |
+
+### 8080 은 cloudflare 터널 입구다
+
+배포 호스트에서 **8080 은 백엔드가 아니다.** cloudflared 터널(`cloudflared.service`)이
+8080 을 오리진으로 잡고 있어서 바깥에서 오는 요청이 전부 이 포트로 떨어진다.
+그래서 8080 에는 `serve-static.mjs` 가 붙어 `dist/` 를 서빙하고, `/api` 와 `/healthz`
+만 백엔드로 넘긴다 — 이 저장소에는 vite dev 서버 말고 이 정적 서버가 하나 더 있는 셈이다.
+
+```bash
+npm run build
+BACKEND=http://127.0.0.1:8082 PORT=8080 node serve-static.mjs
+```
+
+| 변수 | 기본값 | 설명 |
+|---|---|---|
+| `PORT` | `8080` | 터널이 가리키는 포트. 바꿀 일이 없다 |
+| `BACKEND` | `http://127.0.0.1:8082` | `/api` · `/healthz` 를 넘길 백엔드 |
+
+백엔드 기본 포트도 8080 이라(`g2bmaster-backend` 의 `PORT:8080`) 기본값 그대로 띄우면
+터널과 부딪힌다. 배포 호스트에서는 백엔드를 다른 포트로 올리고 `BACKEND` 로 가리킨다.
+
+터널의 ingress 규칙은 Cloudflare 대시보드에 있다 — 호스트에는 토큰
+(`/etc/cloudflared/token`)만 있어서 어떤 호스트명이 8080 에 매달렸는지는 여기서 안 보인다.
+
+`/healthz` 가 `백엔드 연결 실패` 를 뱉으면 화면은 떠도 API 는 전부 죽은 상태다.
+정적 서빙과 백엔드는 별개 프로세스라 화면이 200 인 것은 아무 보증이 못 된다 —
+`BACKEND` 가 가리키는 포트에 백엔드가 실제로 떠 있는지부터 본다.
 
 ---
 
