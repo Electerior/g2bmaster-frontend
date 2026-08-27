@@ -1,4 +1,4 @@
-import { defineConfig, type UserConfig } from 'vite';
+import { defineConfig, type Plugin, type UserConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'node:path';
 
@@ -139,8 +139,43 @@ function vendorChunk(id: string): string | undefined {
   return 'vendor';
 }
 
+/**
+ * 배포되는 index.html 에서 주석을 걷어낸다.
+ *
+ * 이 파일의 <head> 에는 SEO 블록이 왜 이렇게 생겼는지를 설명하는 한국어 주석이 길게 붙어 있다.
+ * 그 주석은 반드시 있어야 한다 — 호스트를 남의 도메인으로 되돌려 놓는 사고가 실제로 났고,
+ * 그때 없었던 것이 바로 그 설명이다. 다만 그것은 **저장소에서 읽을 사람**을 위한 것이지
+ * 방문자가 매번 내려받을 것은 아니다.
+ *
+ * 비용이 작지 않다. index.html 은 `cache-control: no-cache` 로 나가므로 캐시에 얹히지 않고
+ * 매 요청마다 다시 전송된다. 주석을 붙인 뒤 gzip 기준 2.11kB → 2.90kB 로 늘었다.
+ *
+ * 그래서 소스에는 남기고 산출물에서만 뺀다. src/test/indexHtmlSeo.test.ts 는 dist 가 아니라
+ * 저장소 루트의 index.html 을 읽으므로 이 플러그인의 영향을 받지 않는다.
+ *
+ * script·style 블록은 통째로 지나친다. JSON-LD 안에 `<!--` 처럼 보이는 문자열이 들어갈 일은
+ * 없지만, HTML 주석 제거가 스크립트 내용을 건드리는 일은 어떤 경우에도 없어야 한다 —
+ * 정규식 하나로 <head> 를 훑는 작업에서 가장 다치기 쉬운 자리가 거기다.
+ */
+function stripHtmlComments(): Plugin {
+  return {
+    name: 'strip-html-comments',
+    apply: 'build',
+    enforce: 'post',
+    transformIndexHtml(html: string) {
+      return html
+        // 앞의 갈래가 먼저 물면 그대로 돌려주고(=보존), 아니면 주석이므로 지운다.
+        .replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1>|<!--[\s\S]*?-->/gi, (matched, tag) =>
+          tag ? matched : '',
+        )
+        // 주석이 있던 자리에 남은 빈 줄 묶음을 한 줄로 줄인다.
+        .replace(/\n\s*\n\s*\n+/g, '\n\n');
+    },
+  };
+}
+
 const config: ViteConfigWithTest = {
-  plugins: [react()],
+  plugins: [react(), stripHtmlComments()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src'),
