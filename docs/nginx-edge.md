@@ -128,7 +128,79 @@ location / { proxy_pass http://192.168.219.52:5173; }   # 정적 파일이 아�
 
 ---
 
-## 5. 아직 안 한 것
+## 5. 옛 주소 301 — 쿼리스트링이 있으면 왜 301 을 걸지 않나
+
+`LEGACY_NOTICE_ROUTES` 넷(`/search`, `/notices/bid-plan`, `/notices/pre-spec`,
+`/notices/bid-announce`)은 **쿼리스트링이 없을 때만** nginx 가 301 을 낸다.
+있으면 셸을 200 으로 내보내고 `LegacyNoticeRedirect` 가 마저 처리한다.
+
+### 이유
+
+`LegacyNoticeRedirect` 는 단순 리다이렉트가 아니라 파라미터 이름을 변환한다.
+
+| 옛 이름 | 지금 이름 |
+|---|---|
+| `q` | `and` |
+| `category` | `cat` |
+| `division` | `type` |
+| `insttNm` | `instt` |
+| `minAmount` | `min` |
+| `maxAmount` | `max` |
+
+옛 `/search` 화면은 삭제된 `useIndexCriteria` 의 어휘를 썼고, 지금 `/notices` 는
+`useSearchCriteria` 의 어휘를 쓴다. nginx 가 먼저 301 을 내면 브라우저는 `/notices`
+로 바로 착지하고 그 컴포넌트는 **마운트되지 않는다.** 착지한 화면은 `q`·`category`
+라는 이름을 모르므로 조건이 조용히 사라진다 — 오류도 경고도 없이 "검색이 초기
+상태로 열린" 것처럼 보인다.
+
+**쿼리스트링을 보존해서 넘겨도 똑같다.** 값이 없어지는 게 문제가 아니라 변환할
+주체가 사라지는 게 문제다. 이건 301 이라는 수단의 본질적 한계다.
+
+### 검토했다가 버린 대안
+
+**변환을 nginx 로 옮긴다.** 이름 여섯 쌍에 더해 `activeOnly` 의 조건부 로직
+('마감' 단계에서는 심지 않는다)까지 옮겨야 한다. 그렇게 복제한 규칙은
+`LEGACY_PARAM_ALIASES` 가 바뀌는 순간 조용히 갈라진다 — 설정과 코드가 갈라져서
+아무도 모르는 상태, 즉 이 파일이 저장소로 들어온 이유 그 자체를 다시 만든다.
+
+**`/notices` 가 옛 이름도 읽게 한다.** 지금 화면의 어휘에 죽은 어휘를 영구히
+섞는 것이고, 옛 링크가 사라져도 걷어낼 수 없게 된다. `LegacyNoticeRedirect` 를
+한 파일로 격리해 둔 설계 의도와 반대다.
+
+### 그래서 역할을 쪼갰다
+
+| 요청 | 처리 | 얻는 것 |
+|---|---|---|
+| `/search` (쿼리 없음) | nginx 301 → `/notices?active=true` | 링크 자산 통합. 크롤러가 보는 형태가 정확히 이것이다 |
+| `/search?q=조명&from=…` | 셸 200 → 클라이언트가 변환 | 사람이 공유한 검색 조건이 살아남는다 |
+
+쿼리가 붙은 주소는 어차피 색인시키고 싶지 않은 패싯 공간이다(감사 #6). 링크
+자산은 맨 주소에 붙어 있고, 그건 301 로 합쳐진다.
+
+### 301 목적지를 클라이언트와 문자 단위로 맞춘 이유
+
+| 경로 | 301 목적지 |
+|---|---|
+| `/search` | `/notices?active=true` |
+| `/notices/bid-plan` | `/notices?cat=%EA%B3%84%ED%9A%8D&active=true` |
+| `/notices/pre-spec` | `/notices?cat=%EC%82%AC%EC%A0%84%EA%B7%9C%EA%B2%A9&active=true` |
+| `/notices/bid-announce` | `/notices?active=true` |
+
+서버와 클라이언트가 서로 다른 곳에 착지시키면 같은 옛 주소가 경로에 따라 다른
+결과 집합을 내고, 그 차이는 어디에도 표시되지 않는다. 셋을 맞췄다.
+
+- **단계.** `/search` 와 `/notices/bid-announce` 에는 걸지 않는다. `routePaths.ts`
+  가 의도를 적어 두었다 — '입찰'로 고정하면 '마감'으로 분류된 같은 공고가 빠져
+  예전 탭보다 좁은 결과가 나온다. `/search` 는 애초에 전 단계 화면이다.
+- **`active=true`.** 옛 주소는 둘 다 "파라미터 없음 = 진행 중만"이었는데 지금
+  화면의 기본값은 "마감 포함"이다. 심어 주지 않으면 같은 링크가 예전보다 넓은
+  결과를 낸다.
+- **조회 기간.** 심지 않는다. 착지한 `/notices` 에서 검색창의 효과가 최근 30일을
+  심는다 — 경유지(`isTransitRoute`)가 아니므로 그 효과가 정상적으로 돈다.
+
+---
+
+## 6. 아직 안 한 것
 
 - **감사 #6 (패싯 파라미터).** `/notices?from=…&to=…&mode=item&cat=…` 의 조합은
   사실상 무한하고 전부 200 이며 self-canonical 이 없다. nginx 에서 막을 문제가
