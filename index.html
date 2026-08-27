@@ -9,8 +9,45 @@
       본문 폰트. 랜딩(/beta)과 앱 화면이 모두 이것을 쓴다 — tokens.css 의 --font-sans 도
       Pretendard 를 가리킨다. dynamic-subset 이라 화면에 실제로 쓰인 글자 범위만 내려받으므로
       한글 웹폰트치고 전송량이 작다.
+
+      감사가 "제3자 오리진이 크리티컬 패스에 남는다"며 자체 호스팅과 media="print" 비블로킹
+      을 제안했다. 실측해 보고 둘 다 쓰지 않는다 — 수치와 전체 근거는 docs/font-loading.md.
+      · 자체 호스팅: 조각 92개 2.82 MB(저장소에 담을 크기가 아니다). 통짜 파일로 바꾸면
+        2.06 MB 를 다 받아야 첫 글자가 뜬다 — 지금 첫 화면은 202 KB 만 받는다. 더 느려진다.
+      · 비블로킹: 92개 규칙이 전부 font-display:swap 이라 교체(FOUT)는 지금도 일어난다.
+        블로킹을 풀면 교체가 사라지는 게 아니라 크롬이 우선순위를 내려 첫 페인트 뒤로
+        밀린다 — 12.5 KB 요청 하나 아끼려고 감사가 지적한 CLS 를 악화시키는 거래다.
+
+      대신 진짜 병목을 친다. unicode-range 서브셋은 **React 가 그 글자를 실제로 그린 뒤**에야
+      조각을 받으므로, 폰트는 CSS 가 아니라 608 KB JS 를 기다린다 — 교체가 첫 페인트 뒤에
+      오는 게 구조적으로 보장돼 있었다. 아래 preload 두 줄이 그 요청을 HTML 파싱 시점으로
+      당겨 JS 다운로드와 겹치게 한다. 91(38.0 KB)은 라틴·숫자·문장부호 전부와 최빈 한글 12자,
+      90(20.9 KB)은 그다음 43자 — 어느 화면을 열어도 헤더·내비·날짜·금액이 여기 들어가므로
+      헛되이 받는 경우가 없다. 57.5 KB 를 JS 앞에 세우는 값은 치른다. 실측 LCP 가 불리하게
+      나오면 이 두 줄만 지우면 원상복구다.
+
+      **preload 의 버전(@v1.3.9)은 아래 stylesheet 와 반드시 같아야 한다.** 한쪽만 올리면
+      아무도 쓰지 않는 파일을 조용히 받아 온다. src/test/indexHtmlFont.test.ts 가 잠근다.
+
+      CSP 담당께: 여기에 인라인 onload 핸들러는 없다 — 폰트 때문에 script-src 'unsafe-inline'
+      을 열 이유가 없다. 필요한 건 style-src·font-src 의 https://cdn.jsdelivr.net 뿐이다.
+      <noscript> 폴백도 불필요하다. 평범한 블로킹 <link> 라 JS 없는 크롤러·사용자에게도 간다.
     -->
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+    <link
+      rel="preload"
+      as="font"
+      type="font/woff2"
+      crossorigin
+      href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/packages/pretendard/dist/web/variable/woff2-dynamic-subset/PretendardVariable.subset.91.woff2"
+    />
+    <link
+      rel="preload"
+      as="font"
+      type="font/woff2"
+      crossorigin
+      href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/packages/pretendard/dist/web/variable/woff2-dynamic-subset/PretendardVariable.subset.90.woff2"
+    />
     <link
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"

@@ -82,6 +82,23 @@
    * 맑은 고딕으로 떨어지고, macOS·안드로이드에서는 아예 다른 글꼴이 잡혀 화면이 기기마다
    * 달라졌다. 웹폰트를 쓰면 어디서든 같은 글자가 나오고, /beta 랜딩과도 서체가 맞는다.
    * 로드는 index.html 의 link 하나(dynamic-subset)로 끝난다.
+   *
+   * 이 폴백 스택은 웹폰트가 오기 전 몇백 ms 동안 실제로 화면에 뜨는 서체다
+   * (dynamic-subset 의 92개 규칙이 전부 font-display:swap 이다). 그런데도 size-adjust /
+   * ascent-override 로 메트릭을 맞추지 않는 이유:
+   *  - 한글 음절은 Pretendard·Apple SD Gothic Neo·맑은 고딕·Noto Sans KR 어디서나 전각
+   *    (1 em) 이라 교체해도 글자폭이 사실상 그대로다. 폭이 바뀌는 건 라틴·숫자뿐이다.
+   *  - 줄상자 높이는 global.css 의 `line-height: 1.5`(단위 없는 배수)가 고정한다. 폰트의
+   *    ascent/descent 가 달라져도 블록 높이가 따라 움직이지 않는다.
+   *  - 결정적으로, 폴백은 macOS·윈도우·안드로이드에서 서로 다른 글꼴로 잡힌다. 하나의
+   *    size-adjust 값이 셋을 동시에 맞출 수 없고, 틀린 값을 넣으면 웹폰트가 못 올 때
+   *    글자 크기가 어긋난 채로 남는다 — 지금보다 나쁘다.
+   *  - 그래서 교체 자체를 없애는 쪽을 택했다. index.html 이 첫 화면용 조각 두 개를
+   *    preload 해서, 대개 React 가 글자를 그리기 전에 폰트가 도착한다.
+   * 자세한 건 docs/font-loading.md.
+   *
+   * 'Pretendard'(Variable 없는 이름)를 2순위에 둔 것은 의도적이다 — 한국 사용자 중에는
+   * Pretendard 를 데스크톱에 깔아 둔 사람이 많고, 그 경우 교체 대기 중에도 같은 글자가 뜬다.
    */
   --font-sans: 'Pretendard Variable', Pretendard, -apple-system, 'Apple SD Gothic Neo',
     'Segoe UI', 'Noto Sans KR', sans-serif;
