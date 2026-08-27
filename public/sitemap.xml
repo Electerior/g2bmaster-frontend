@@ -1,9 +1,109 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!--
+  사이트맵 — https://g2b-masters.electerior.co.kr
+
+  이전 판은 <loc> 이 하나뿐이었고 그마저 이 도메인이 아니라
+  g2bmasters-open.vercel.app 을 가리켰다. A 도메인이 서빙하는 사이트맵이 B 도메인만
+  나열하면 소유권이 확인되지 않은 교차 제출이라 Google 은 통째로 버린다. 즉 지금까지
+  이 파일은 없는 것과 같았고, 이 사이트의 어떤 주소도 사이트맵으로는 발견되지 않았다.
+
+  담는 기준은 "문서로서 의미가 있는 주소"다. 앱 화면 대부분은 문서가 아니라 필터
+  상태이고, /notices?from=...&to=...&cat=... 같은 조합은 사실상 무한하다. 그래서
+  사이트맵에는 필터가 붙지 않은 기본 주소만 올린다. 쿼리가 붙은 변형을 하나로 접는
+  일은 사이트맵이 아니라 canonical 이 할 일이다.
+
+  의도적으로 뺀 주소 — 사용자별이거나 내부용이라 색인 대상이 아니다:
+    /saved         담아 둔 공고. 방문자마다 내용이 다르니 남에게는 의미가 없다.
+    /system        적재·동기화 상태를 보는 운영 대시보드. 내부 화면이다.
+    /analysis-lab  올린 파일 하나를 보는 화면. 주소에 대응하는 고정된 내용이 없다.
+    /company       조회 결과 화면. 입력 없이 들어오면 빈 화면이다.
+    /officers      위와 같은 이유.
+  이 다섯에는 다른 브랜치에서 noindex 메타가 붙는다. 반대로 robots.txt 로는 막지
+  않는데, 막으면 크롤러가 그 noindex 를 못 읽어 오히려 색인에 남는다. 근거는
+  robots.txt 주석에 적어 두었다.
+
+  lastmod 는 "이 파일을 실제로 고친 날"이다. 화면이 그대로인데 배포마다 오늘 날짜로
+  갱신하면 lastmod 전체가 신뢰를 잃어 크롤러가 아예 무시한다.
+-->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <!--
+    베타 모집 랜딩. 이 사이트에서 산문이 있는 유일한 페이지이자 유입을 받아야 할
+    페이지라 우선순위가 가장 높다. 앱 셸 밖의 독립 페이지다(router.tsx 참고).
+  -->
   <url>
-    <loc>https://g2bmasters-open.vercel.app/</loc>
-    <lastmod>2026-07-12</lastmod>
-    <changefreq>daily</changefreq>
+    <loc>https://g2b-masters.electerior.co.kr/beta</loc>
+    <lastmod>2026-08-27</lastmod>
+    <changefreq>weekly</changefreq>
     <priority>1.0</priority>
+  </url>
+
+  <!-- 실사용 진입점(DEFAULT_ROUTE). 공고는 매일 들어오므로 daily. -->
+  <url>
+    <loc>https://g2b-masters.electerior.co.kr/notices</loc>
+    <lastmod>2026-08-27</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <url>
+    <loc>https://g2b-masters.electerior.co.kr/notices/bid-result</loc>
+    <lastmod>2026-08-27</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.6</priority>
+  </url>
+
+  <!--
+    /spec-search 는 routePaths.ts 의 TAB_ITEMS 에서 notReady: true 이고,
+    SpecSearchScreen 은 아직 ScreenPlaceholder('준비 중') 한 줄만 그린다.
+    "준비 중 화면을 사이트맵에 올리면 빈 화면이 색인된다"는 지적은 옳다.
+
+    그럼에도 지금은 남긴다. 이유 둘:
+    (1) 지금 이 사이트는 어느 주소로 들어와도 같은 빈 셸(index.html)을 내려준다.
+        프리렌더가 없으므로 크롤러가 보는 /spec-search 와 /notices 는 바이트가
+        같다. 이 주소만 유독 얇은 게 아니라 전부 얇으니, 빼서 얻는 것이 없다.
+    (2) 임시 주소가 아니다. 탭에 '준비' 배지를 달고 상시 노출되는 영구 주소라,
+        뺐다가 다시 넣으면 사이트맵만 흔들린다.
+
+    빼야 할 시점은 분명하다: ACTION-PLAN 2.2 의 프리렌더가 들어와 라우트별 HTML 이
+    실제로 생기는 순간. 그때도 이 화면이 '준비 중' 한 줄이면 그때는 진짜 얇은
+    페이지가 되므로, 이 <url> 을 지우거나 noindex 를 걸어야 한다.
+  -->
+  <url>
+    <loc>https://g2b-masters.electerior.co.kr/spec-search</loc>
+    <lastmod>2026-08-27</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
+
+  <url>
+    <loc>https://g2b-masters.electerior.co.kr/price-db</loc>
+    <lastmod>2026-08-27</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
+
+  <!--
+    트렌드 셋은 서로 다른 데이터(물품·용역·공사)를 보는 별개 화면이라 각자 올린다.
+    한 화면의 탭 셋이었다면 하나만 올렸을 것이다.
+  -->
+  <url>
+    <loc>https://g2b-masters.electerior.co.kr/trends/product</loc>
+    <lastmod>2026-08-27</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.5</priority>
+  </url>
+
+  <url>
+    <loc>https://g2b-masters.electerior.co.kr/trends/service</loc>
+    <lastmod>2026-08-27</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.5</priority>
+  </url>
+
+  <url>
+    <loc>https://g2b-masters.electerior.co.kr/trends/construction</loc>
+    <lastmod>2026-08-27</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.5</priority>
   </url>
 </urlset>

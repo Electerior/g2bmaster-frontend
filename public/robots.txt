@@ -1,5 +1,35 @@
+# robots.txt — G2B Masters (https://g2b-masters.electerior.co.kr)
+#
+# 주의: 이 파일이 라이브 /robots.txt 가 아닐 수 있다. Cloudflare 의 관리형 AI 크롤러
+# 차단이 켜져 있으면 엣지가 자기 robots.txt 를 대신 내려주고 오리진의 이 파일은
+# 응답에 닿지 않는다. 여기를 고쳤는데 라이브가 그대로면 배포가 실패한 게 아니다 —
+# docs/seo-operations.md 를 먼저 읽어라.
+#
+# 이전 판의 Sitemap 지시자는 g2bmasters-open.vercel.app 을 가리켰다. 남의 도메인의
+# 사이트맵을 알려 주는 꼴이라 아무 효과가 없었다.
+
 User-agent: *
 Allow: /
+
+# 백엔드 API. 크롤러가 읽을 문서가 아니라 앱이 쓰는 JSON 이고, 그 데이터가 검색
+# 결과에 그대로 뜨는 것은 제품이 파는 것을 검색엔진이 대신 내주는 일이다.
 Disallow: /api/
 
-Sitemap: https://g2bmasters-open.vercel.app/sitemap.xml
+# --- 여기서 일부러 막지 않는 것 -----------------------------------------------
+#
+# /saved · /system · /analysis-lab 은 색인 대상이 아니다. 그런데도 Disallow 를
+# 걸지 않는다. 걸면 오히려 색인에 남기 때문이다.
+#
+# robots.txt 의 Disallow 는 "가져오지 마라"이지 "색인하지 마라"가 아니다. 이 세
+# 화면에는 noindex 메타가 붙는데(다른 브랜치), 크롤러는 페이지를 가져와야 그
+# noindex 를 읽는다. robots 로 막아 두면 크롤러는 내용을 보지 못한 채 외부 링크만
+# 근거로 URL 을 색인에 올린다 — 제목도 설명도 없는 껍데기로. 막을수록 지워지지
+# 않는 상태가 된다.
+#
+# 순서가 있다. noindex 가 먼저고, 그 주소들이 색인에서 완전히 빠진 것을 확인한
+# 뒤에야 크롤 예산을 아끼려고 Disallow 를 검토할 수 있다. 그 전에는 안 된다.
+# 이 주석은 나중에 "왜 내부 화면을 안 막았지" 하고 한 줄 추가하는 일을 막으려고
+# 남긴다.
+# ------------------------------------------------------------------------------
+
+Sitemap: https://g2b-masters.electerior.co.kr/sitemap.xml
