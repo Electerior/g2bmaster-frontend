@@ -22,6 +22,11 @@ command -v sudo >/dev/null || { echo "sudo 필요"; exit 1; }
 [ -d "$FRONTEND_DIST" ] || { echo "프론트 빌드가 없다: $FRONTEND_DIST — 먼저 npm run build"; exit 1; }
 [ -f "$NGINX_SRC" ] || { echo "설정 없음: $NGINX_SRC"; exit 1; }
 
+# nginx 의 `error_page 404 /404.html` 이 이 파일을 꺼내 쓴다. 없으면 죽지는 않고
+# nginx 기본 404 페이지가 나가는데, 그 페이지에는 noindex 가 없다 — 지금 고치고 있는
+# 문제(감사 #2)가 절반만 고쳐진 상태가 된다. 배포는 막지 않고 눈에 띄게만 한다.
+[ -f "$FRONTEND_DIST/404.html" ] || echo "⚠ $FRONTEND_DIST/404.html 이 없다 — public/404.html 이 빌드에 포함됐는지 확인할 것"
+
 echo "==> 1/5 프론트 빌드 복사 → $WEBROOT"
 sudo mkdir -p "$WEBROOT"
 sudo rm -rf "${WEBROOT}".old
@@ -47,6 +52,26 @@ echo "==> 5/5 재기동"
 sudo systemctl reload nginx || sudo systemctl restart nginx
 
 echo
-echo "완료. 확인:"
-echo "  curl -sk https://127.0.0.1:8001/ -o /dev/null -w '%{http_code}\n'"
-echo "  브라우저: https://g2b-masters.electerior.co.kr:8001"
+echo "완료. 확인 (기대값이 함께 적혀 있다 — 다르면 배포가 의도대로 안 간 것이다):"
+cat <<'CHECKS'
+  # 셸이 나가는가 (200)
+  curl -sk https://127.0.0.1:8001/notices -H 'Host: g2b-masters.electerior.co.kr' -o /dev/null -w '%{http_code}\n'
+
+  # 없는 경로가 진짜 404 인가 (404). 200 이면 감사 #2 가 그대로다.
+  curl -sk https://127.0.0.1:8001/this-page-does-not-exist -H 'Host: g2b-masters.electerior.co.kr' -o /dev/null -w '%{http_code}\n'
+
+  # Search Console 인증 파일이 살아 있는가 (200). 404 면 소유확인이 풀린다.
+  curl -sk https://127.0.0.1:8001/google9c899d4c05ca14dc.html -H 'Host: g2b-masters.electerior.co.kr' -o /dev/null -w '%{http_code}\n'
+
+  # 옛 주소가 301 인가 + 목적지가 맞는가
+  curl -sk https://127.0.0.1:8001/search -H 'Host: g2b-masters.electerior.co.kr' -o /dev/null -w '%{http_code} %{redirect_url}\n'
+
+  # 보안 헤더가 네 자리 전부에서 나가는가 (add_header 비상속 — docs/nginx-edge.md 2절)
+  for p in /notices /index.html /assets/ /api/search/notices/status; do
+    echo "== $p"
+    curl -skI "https://127.0.0.1:8001$p" -H 'Host: g2b-masters.electerior.co.kr' \
+      | grep -icE 'strict-transport|x-content-type|x-frame|referrer-policy|permissions-policy'
+  done
+
+  브라우저: https://g2b-masters.electerior.co.kr:8001
+CHECKS
