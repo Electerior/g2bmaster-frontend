@@ -22,6 +22,7 @@ import { StatusBar } from '@/components/table/StatusBar';
 import { useSearchCriteria } from '@/features/search/useSearchCriteria';
 import { PriceTable } from '@/features/deal/PriceTable';
 import { priceTotal, type PriceRow } from '@/features/deal/priceRows';
+import { useSeoMeta } from '@/seo/useSeoMeta';
 import '@/components/common/fieldset.css';
 import '@/features/deal/deal.css';
 import '@/features/saved/saved.css';
@@ -164,9 +165,9 @@ export function SavedNoticesScreen() {
   const { criteria } = useSearchCriteria();
   const deleteMutation = useDeleteSavedNotice();
 
-  useEffect(() => {
-    document.title = '저장 공고 — G2B Masters';
-  }, []);
+  // 사용자별 화면이라 색인에서 뺀다. 그 noindex 가 다음 라우트로 새지 않게 하는 책임은
+  // useSeoMeta 에 있다 — seo/useSeoMeta.ts 의 applyRobots 주석 참고.
+  useSeoMeta();
 
   const q = [...criteria.andTerms, ...criteria.orTerms, criteria.insttNm].filter(Boolean).join(' ');
   const saved = useSavedNotices({ q });

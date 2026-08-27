@@ -4,9 +4,13 @@
  *
  * TODO(다음 웨이브): Dropzone · 본문 추출 · 딜 분석 · 위법 검토 · 콜드메일 초안.
  */
+import { useSeoMeta } from '@/seo/useSeoMeta';
 import { ScreenPlaceholder } from './ScreenPlaceholder';
 
 export function AnalysisLabScreen() {
+  // 올린 파일 하나를 보는 화면이라 색인에서 뺀다(seo/routeMeta.ts).
+  useSeoMeta();
+
   return (
     <ScreenPlaceholder
       title="업로드 분석"

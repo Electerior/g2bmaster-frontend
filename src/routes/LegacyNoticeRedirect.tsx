@@ -13,6 +13,7 @@
  * 이 파일만 지우면 된다.
  */
 import { Navigate, useLocation } from 'react-router-dom';
+import { useSeoMeta } from '@/seo/useSeoMeta';
 import { ROUTES } from './routePaths';
 
 interface LegacyNoticeRedirectProps {
@@ -37,6 +38,17 @@ const LEGACY_PARAM_ALIASES: ReadonlyArray<readonly [from: string, to: string]> =
 ];
 
 export function LegacyNoticeRedirect({ category }: LegacyNoticeRedirectProps) {
+  /*
+   * 머무르지 않고 곧바로 넘어가는 화면인데도 head 를 세운다.
+   *
+   * 이 네 주소는 아직 서버 301 이 아니라 200 + 클라이언트 리다이렉트다(ACTION-PLAN 2.4 가
+   * 서버 쪽을 다룬다). 크롤러가 JS 를 실행하지 않거나 실행 전에 head 를 읽으면, 정적 head 에
+   * 남아 있는 canonical 이 `/search` 를 `/notices` 와 다른 문서로 만든다 — 이 앱에서 축적된
+   * 링크가 가장 많은 주소가 하필 `/search` 다(routePaths.ts). metaForPath 가 경유지에
+   * canonical `/notices` 를 물려 주므로, 여기서 훅을 한 번 부르는 것으로 그 말을 할 수 있다.
+   */
+  useSeoMeta();
+
   const location = useLocation();
   const params = new URLSearchParams(location.search);
 

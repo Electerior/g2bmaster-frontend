@@ -44,6 +44,7 @@ import { rowKeyForItem, type ScannedRow } from '@/features/notices/rows';
 import { useAttachmentScan } from '@/features/notices/useAttachmentScan';
 import { pendingOf, useNoticeQuery } from '@/features/notices/useNoticeSearch';
 import { NoticeDrawer, type DrawerSelection } from '@/features/notices/drawer/NoticeDrawer';
+import { useSeoMeta } from '@/seo/useSeoMeta';
 import '@/features/search/search.css';
 
 const BID_TYPES: readonly BidType[] = ['', '물품', '용역', '공사'];
@@ -91,9 +92,16 @@ export function NoticeTableScreen({ kind }: NoticeTableScreenProps) {
   const [selection, setSelection] = useState<DrawerSelection | null>(null);
   const { notify } = useNotReady();
 
-  useEffect(() => {
-    document.title = `${screen.label} — G2B Masters`;
-  }, [screen.label]);
+  /*
+   * 메타는 kind 가 아니라 **주소**로 찾는다(useSeoMeta 는 인자가 없으면 pathname 을 쓴다).
+   *
+   * 이 컴포넌트의 kind 어휘와 라우트는 더 이상 1:1 이 아니다 — bid-plan · pre-spec ·
+   * bid-announce 는 통합 검색으로 합쳐져 자기 주소가 없고, 지금 라우터가 여기로 보내는 것은
+   * bid-result 하나뿐이다. kind → 경로 표를 새로 만들면 주소 없는 kind 셋을 어떻게 둘지부터
+   * 정해야 하고, 그 표가 routePaths.ts 와 어긋나는 날 메타가 조용히 엉뚱한 라우트를 가리킨다.
+   * 주소로 찾으면 그런 표가 애초에 없다.
+   */
+  useSeoMeta();
 
   /*
    * 파일 키워드는 검색창에서 막혀 있지만 조건의 출처는 URL 이다 — 예전에 공유된 링크에는

@@ -10,7 +10,7 @@
  * 대신 **색인이 언제 것인지**를 상태 줄에 적는다. 그것이 이 계통에서 사용자가 알아야 하는
  * 유일한 신선도 정보다.
  */
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import {
   useNoticeIndexSearch,
   useNoticeIndexStatus,
@@ -37,6 +37,7 @@ import {
   useSearchCriteria,
   type SearchCriteria,
 } from '@/features/search/useSearchCriteria';
+import { useSeoMeta } from '@/seo/useSeoMeta';
 import '@/features/search/search.css';
 
 const SCREEN = SCREENS['notice-search'];
@@ -65,9 +66,8 @@ export function NoticeSearchScreen() {
   const [selected, setSelected] = useState<NoticeIndexItem | null>(null);
   const columns = columnsFor('notice-search');
 
-  useEffect(() => {
-    document.title = `${SCREEN.label} — G2B Masters`;
-  }, []);
+  // 제목만이 아니라 description · canonical · og:* 까지 이 한 줄이 세운다.
+  useSeoMeta();
 
   /*
    * 선택지에 없는 페이지 크기가 URL 로 들어올 수 있다(옛 '전체'=99999 링크, 입찰 결과 탭에서

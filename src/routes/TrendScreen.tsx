@@ -6,7 +6,7 @@
  * 바뀌면 재조회 없이 renderBidTrend 를 다시 불렀다. 그 동작을 유지한다 — 여기서는
  * TanStack Query 캐시가 currentTrendData 자리를 대신하고, 옵션은 그냥 지역 state 다.
  */
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTrends, type TrendBucket, type TrendKind, type TrendNotice, type TrendQuery } from '@/api';
 import { StatusBar } from '@/components/table/StatusBar';
@@ -22,6 +22,7 @@ import {
   type TrendDayLimit,
   type TrendDaySort,
 } from '@/features/trends/trendDays';
+import { useSeoMeta } from '@/seo/useSeoMeta';
 import '@/features/trends/trend.css';
 
 const KIND_TO_SCREEN: Readonly<Record<TrendKind, ScreenKind>> = {
@@ -121,9 +122,16 @@ export function TrendScreen({ kind }: TrendScreenProps) {
   const [dayLimit, setDayLimit] = useState<TrendDayLimit>('21');
   const [daySort, setDaySort] = useState<TrendDaySort>('date');
 
-  useEffect(() => {
-    document.title = `${title} — G2B Masters`;
-  }, [title]);
+  /*
+   * 메타는 kind prop 이 아니라 **주소**로 찾는다(useSeoMeta 는 인자가 없으면 pathname 을 쓴다).
+   *
+   * 화면 안에서 쓰는 title 은 SCREENS 의 라벨('물품 구매 트렌드')이라 그대로 <title> 로
+   * 쓰기엔 검색 결과에서 읽히는 한 줄로 부족하고, kind → 경로 매핑을 새로 만들면
+   * KIND_TO_SCREEN 옆에 같은 성격의 표가 하나 더 생긴다. 라우트가 셋(/trends/product ·
+   * service · construction)이고 메타도 셋이므로, 주소에서 바로 찾는 편이 "라우트 하나 =
+   * 메타 하나"라는 규칙과도 맞고 표도 늘지 않는다.
+   */
+  useSeoMeta();
 
   const query = useMemo<TrendQuery>(
     () => ({

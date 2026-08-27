@@ -26,6 +26,7 @@ import { buildNoticeIndexQuery, useSearchCriteria } from '@/features/search/useS
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { PriceTable } from '@/features/deal/PriceTable';
 import { priceTotal, rowsFromBreakdown, type PriceRow } from '@/features/deal/priceRows';
+import { useSeoMeta } from '@/seo/useSeoMeta';
 import '@/features/deal/deal.css';
 
 /** 한 페이지에 붙이는 공고 수. 카드마다 딜 분석을 돌리므로 20 으로 묶고 페이지로 넘긴다. */
@@ -86,9 +87,7 @@ function toDealItem(item: NoticeIndexItem): Record<string, unknown> {
 }
 
 export function DealRadarScreen() {
-  useEffect(() => {
-    document.title = 'AI 수주 데스크 — G2B Masters';
-  }, []);
+  useSeoMeta();
 
   const { criteria, setCriteria } = useSearchCriteria();
   // deep: 규격서 첨부까지 열어 부품 단가를 추정(느림). 목록 배치는 기본 얕게 돌린다.

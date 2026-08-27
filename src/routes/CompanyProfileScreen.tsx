@@ -5,7 +5,7 @@
  * 조회는 POST 인데도 useMutation 이 아니라 useQuery 를 쓴다: 부수효과가 없는 읽기이고,
  * 업체명이 URL 에 있으므로 그 주소를 열면 결과가 그려져 있어야 하기 때문이다.
  */
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchCompanyHistory, type CompanyParticipation } from '@/api';
 import { StatusBar } from '@/components/table/StatusBar';
@@ -13,6 +13,7 @@ import { PanelNotice } from '@/components/feedback/Spinner';
 import { toG2bDate } from '@/domain/format';
 import { useSearchCriteria } from '@/features/search/useSearchCriteria';
 import { BidRateChart } from '@/features/company/BidRateChart';
+import { useSeoMeta } from '@/seo/useSeoMeta';
 import '@/features/company/company.css';
 
 function fmtAmount(value: unknown): string {
@@ -47,9 +48,8 @@ export function CompanyProfileScreen() {
   const { criteria } = useSearchCriteria();
   const [tab, setTab] = useState<CorpTab>('wins');
 
-  useEffect(() => {
-    document.title = '낙찰자 조회 — G2B Masters';
-  }, []);
+  // 색인 제외 라우트다 — 근거는 seo/routeMeta.ts 의 /company 항목에 적어 두었다.
+  useSeoMeta();
 
   const corpNm = criteria.corpNm.trim();
   const body = {

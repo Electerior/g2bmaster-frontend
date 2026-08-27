@@ -5,13 +5,13 @@
  * 카드마다 공고는 5건까지만 보여주고 나머지는 '외 N건 더 있음' 으로 접는다 — 이 화면의
  * 목적은 "누구에게 연락할 것인가"이지 공고 목록을 읽는 것이 아니다.
  */
-import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { searchOfficers, type OfficerRecord } from '@/api';
 import { StatusBar } from '@/components/table/StatusBar';
 import { PanelNotice } from '@/components/feedback/Spinner';
 import { toG2bDate } from '@/domain/format';
 import { useSearchCriteria } from '@/features/search/useSearchCriteria';
+import { useSeoMeta } from '@/seo/useSeoMeta';
 import '@/features/officer/officer.css';
 
 const MAX_BIDS = 5;
@@ -93,9 +93,8 @@ function OfficerCard({ officer }: { officer: OfficerRecord }) {
 export function OfficerDirectoryScreen() {
   const { criteria } = useSearchCriteria();
 
-  useEffect(() => {
-    document.title = '담당자 조회 — G2B Masters';
-  }, []);
+  // 색인 제외 라우트다 — 담당자 개인정보가 실리는 화면이다(seo/routeMeta.ts 참고).
+  useSeoMeta();
 
   const insttNm = criteria.officerInsttNm.trim();
   const body = {

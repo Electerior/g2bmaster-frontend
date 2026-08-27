@@ -8,7 +8,7 @@
  *
  * priceKrw 가 null 이면 '미확인'으로 표시한다(0 이 아니다) — PriceDbTable/priceDbRows 참고.
  */
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
   PRICE_SOURCE_LABELS,
   PRICE_SOURCES,
@@ -20,12 +20,11 @@ import { EmptyState } from '@/components/feedback/EmptyState';
 import { PanelNotice } from '@/components/feedback/Spinner';
 import { StatusBar } from '@/components/table/StatusBar';
 import { PriceDbTable } from '@/features/price/PriceDbTable';
+import { useSeoMeta } from '@/seo/useSeoMeta';
 import '@/features/price/price.css';
 
 export function PriceDatabaseScreen() {
-  useEffect(() => {
-    document.title = '단가 DB — G2B Masters';
-  }, []);
+  useSeoMeta();
 
   /* ── 조회 필터 ─────────────────────────────────────────────────────────── */
   // 출처 셀렉트는 즉시 반영하고, 텍스트 입력은 확정(조회 버튼·Enter)될 때만 올린다 —
