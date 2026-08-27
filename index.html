@@ -17,11 +17,28 @@
     />
 
     <!--
-      원본 public/index.html 6~67행의 SEO 블록을 그대로 옮긴 것이다.
+      원본 public/index.html 6~67행의 SEO 블록을 옮겨 온 것이다. 이 앱은 검색 유입을 실제로
+      신경 쓴다(robots·naverbot·canonical·hreflang·OpenGraph·JSON-LD 를 모두 갖추고 있었다) —
+      SPA 로 바꾸면서 이 정적 메타를 빠뜨리면 SEO 가 통째로 후퇴한다.
 
-      이 앱은 검색 유입을 실제로 신경 쓴다(robots·naverbot·canonical·hreflang·
-      OpenGraph·JSON-LD 를 모두 갖추고 있었다). SPA 로 바꾸면서 이 정적 메타를 빠뜨리면
-      SEO 가 후퇴한다 — 라우트별 동적 메타가 필요해지면 프리렌더 단계를 붙일 것.
+      **여기 적힌 호스트는 이 도메인(https://g2b-masters.electerior.co.kr)의 것이다.**
+      다른 배포본(vercel 프리뷰 등)의 index.html 에서 이 블록을 복사해 오지 마라. 옮기면서
+      호스트를 재지정하는 일까지 해야 하는데, 실제로 그것을 빠뜨린 적이 있다. SPA 는 모든
+      라우트에 같은 정적 셸을 내보내므로, canonical 하나가 남의 도메인을 가리키면 이 도메인의
+      15개 주소 전부가 "나는 저쪽이 정본"이라고 선언한다. 그때 가리키던 곳은 살아는 있지만
+      /notices 에서 하드 404 를 내는 더 오래된 앱이었다 — 색인 자격이 통째로 사라졌고,
+      og:image 도 그쪽 404 를 가리켜 카카오톡·X·페이스북 공유 미리보기가 전부 비어 나왔다.
+
+      단 JSON-LD 의 Organization 은 예외다. @id 와 url 은 모회사 도메인
+      (https://www.electerior.com/)이 맞다 — 회사 엔티티는 이 앱이 아니라 모회사가 소유하고,
+      두 사이트가 같은 조직을 가리키려면 식별자가 한 곳이어야 한다. logo 만 자산이 실제로
+      존재하는 이 도메인에 둔다.
+
+      이 규칙은 src/test/indexHtmlSeo.test.ts 가 지킨다. 호스트가 다시 흘러가면 CI 가 막는다 —
+      사람 눈으로 잡히지 않아서 감사가 나올 때까지 남아 있던 종류의 사고다.
+
+      라우트별 동적 메타(주소마다 다른 canonical·title)는 정적 index.html 하나로는 불가능하고
+      프리렌더 단계가 필요하다 — 별도 브랜치에서 진행 중이다.
     -->
     <title>G2B Masters - 나라장터·국방전자조달 입찰정보 통합 검색</title>
     <meta name="description" content="G2B Masters는 나라장터·국방전자조달 입찰공고, 발주계획, 사전규격, 입찰결과를 통합 검색하고 품목·자격·수주기회 분석을 지원하는 일렉테리어 그룹의 공공조달 정보 서비스입니다." />
@@ -31,22 +48,22 @@
     <meta name="naverbot" content="index,follow" />
     <meta name="author" content="Electerior Group" />
     <meta name="theme-color" content="#1f56a7" />
-    <link rel="canonical" href="https://g2bmasters-open.vercel.app/" />
-    <link rel="alternate" hreflang="ko-KR" href="https://g2bmasters-open.vercel.app/" />
+    <link rel="canonical" href="https://g2b-masters.electerior.co.kr/" />
+    <link rel="alternate" hreflang="ko-KR" href="https://g2b-masters.electerior.co.kr/" />
 
     <meta property="og:locale" content="ko_KR" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="G2B Masters" />
     <meta property="og:title" content="G2B Masters - 나라장터·국방전자조달 입찰정보 통합 검색" />
     <meta property="og:description" content="나라장터·국방전자조달 공고를 한 번에 찾고 일렉테리어 관점의 품목·자격·수주기회를 분석합니다." />
-    <meta property="og:url" content="https://g2bmasters-open.vercel.app/" />
+    <meta property="og:url" content="https://g2b-masters.electerior.co.kr/" />
     <!--
       og:image 는 반드시 래스터(PNG/JPEG)여야 한다. 페이스북·X·카카오톡 크롤러는
       SVG 를 렌더링하지 않으므로 SVG 를 지정하면 미리보기 이미지가 아예 뜨지 않는다.
       아래 JSON-LD 의 Organization "logo" 는 schema.org 소비자가 SVG 를 처리하므로
       그대로 SVG 를 가리킨다.
     -->
-    <meta property="og:image" content="https://g2bmasters-open.vercel.app/og-image.png" />
+    <meta property="og:image" content="https://g2b-masters.electerior.co.kr/og-image.png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="G2B Masters - 나라장터·국방전자조달 입찰정보 통합 검색" />
@@ -63,24 +80,24 @@
             "@id": "https://www.electerior.com/#organization",
             "name": "Electerior Group",
             "url": "https://www.electerior.com/",
-            "logo": "https://g2bmasters-open.vercel.app/electerior-logo.svg",
+            "logo": "https://g2b-masters.electerior.co.kr/electerior-logo.svg",
             "email": "hello@electerior.com",
             "telephone": "+82-10-5598-0054"
           },
           {
             "@type": "WebSite",
-            "@id": "https://g2bmasters-open.vercel.app/#website",
+            "@id": "https://g2b-masters.electerior.co.kr/#website",
             "name": "G2B Masters",
-            "url": "https://g2bmasters-open.vercel.app/",
+            "url": "https://g2b-masters.electerior.co.kr/",
             "inLanguage": "ko-KR",
             "publisher": { "@id": "https://www.electerior.com/#organization" },
             "description": "나라장터·국방전자조달 입찰정보 통합 검색 서비스"
           },
           {
             "@type": "WebApplication",
-            "@id": "https://g2bmasters-open.vercel.app/#app",
+            "@id": "https://g2b-masters.electerior.co.kr/#app",
             "name": "G2B Masters",
-            "url": "https://g2bmasters-open.vercel.app/",
+            "url": "https://g2b-masters.electerior.co.kr/",
             "applicationCategory": "BusinessApplication",
             "operatingSystem": "Web",
             "inLanguage": "ko-KR",
