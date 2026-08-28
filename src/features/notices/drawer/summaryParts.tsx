@@ -21,20 +21,12 @@ function asParsedFiles(value: unknown): ParsedFileLike[] {
   return Array.isArray(value) ? (value as ParsedFileLike[]) : [];
 }
 
-interface SourceLabelProps {
-  children: ReactNode;
-}
-
-export function SourceLabel({ children }: SourceLabelProps) {
-  return <div className="source-label">{children}</div>;
-}
-
 /**
- * AI 없이 만든 요약이라는 표시.
+ * AI 요약 실패 표시.
  *
- * 이 플래그들은 **HTTP 200 과 함께** 온다(api/types.ts 주석 참고). 오류로 취급해 본문을
- * 감추면 안 된다 — 메타데이터 기반 요약이라도 사용자에게는 쓸모가 있다. 본문은 그대로 두고
- * "무엇이 빠졌는지"만 덧붙인다.
+ * 이 플래그들은 **HTTP 200 과 함께** 온다(api/types.ts 주석 참고). 오류 상태나 무한 대기로
+ * 바꾸지 않고 이 안내를 보여 준다. 현재 생산되는 분기는 aiFallback이며, 나머지는 이전 서버와의
+ * 응답 호환을 위해 유지한다.
  */
 export function AiFallbackNote({ flags }: { flags: AiFallbackFlags }) {
   if (flags.aiDisabled) {

@@ -8,7 +8,7 @@
  * 개찰 조회는 이 컴포넌트에만 있으므로 대상이 없을 수가 없다.
  */
 import { useQuery } from '@tanstack/react-query';
-import { isAiEnabled, summarizeBid, type BidAnnounceItem } from '@/api';
+import { isAiEnabled, summarizeNotice, type BidAnnounceItem } from '@/api';
 import { TypeBadge } from '@/components/badges/Badge';
 import { Drawer, DrawerHeader, DrawerMeta } from '@/components/overlay/Drawer';
 import { loadCompanyProfile } from '@/domain/storage';
@@ -24,15 +24,7 @@ import {
   pick,
   telLink,
 } from './metaValues';
-import { AiFallbackNote, ParsedFiles, SourceLabel, SummaryBody, SummaryState } from './summaryParts';
-
-/** 원본 runAnalysis 의 sourceLabel 분기(app.js:5348). */
-const SOURCE_LABEL: Readonly<Record<string, string>> = {
-  'auto-file': '📄 첨부파일 자동 분석 + 공고 본문 보완',
-  'auto-detail': '📋 공고 원문 자동 분석 (상세 API)',
-  manual: '📂 업로드 파일 분석',
-  meta: '⚠️ 공고 기본정보 기반 분석 (문서 없음)',
-};
+import { AiFallbackNote, ParsedFiles, SummaryBody, SummaryState } from './summaryParts';
 
 interface BidNoticeDrawerProps {
   item: BidAnnounceItem;
@@ -40,15 +32,14 @@ interface BidNoticeDrawerProps {
 }
 
 export function BidNoticeDrawer({ item, onClose }: BidNoticeDrawerProps) {
-  // AI 요약(POST /api/bid-summary)은 백엔드 AI 저장소 + 첨부 파싱에 의존한다. 아직 이식이
-  // 안 끝나 호출하면 500 이 난다 — 그래서 g2b.ai.enabled 와 짝인 프론트 플래그로 게이트한다.
-  // 꺼져 있으면 아예 부르지 않고(enabled:false), 아래에서 '준비 중' 안내로 대체한다.
+  // 단일 공고 요약(POST /api/notice-summary)은 빌드타임 플래그가 켜졌을 때만 호출한다.
+  // 로컬·운영에서 백엔드 AI 설정과 명시적으로 맞추기 위한 스위치다.
   const aiEnabled = isAiEnabled();
 
   // 서랍을 열면 곧바로 분석이 돌아간다(원본 openBidModal 끝의 runAnalysis()).
   // useQuery 로 두면 같은 공고를 다시 열었을 때 캐시가 살아 있어 두 번 부르지 않는다.
   const summary = useQuery({
-    queryKey: ['bid-summary', item.bidNtceNo ?? '', item.bidNtceSqNo ?? item.bidNtceOrd ?? ''],
+    queryKey: ['notice-summary', 'bid-notice', item.bidNtceNo ?? '', item.bidNtceSqNo ?? item.bidNtceOrd ?? ''],
     enabled: aiEnabled,
     queryFn: () => {
       const fileEntries = collectFileEntries(item);
@@ -57,7 +48,8 @@ export function BidNoticeDrawer({ item, onClose }: BidNoticeDrawerProps) {
       if (stdUrl && !fileEntries.some((f) => f.url === stdUrl)) {
         fileEntries.push({ url: stdUrl, name: '표준공고서' });
       }
-      return summarizeBid({
+      return summarizeNotice({
+        entityType: 'bid_notice',
         bidNtceNo: String(item.bidNtceNo ?? ''),
         bidNtceSqNo: String(item.bidNtceSqNo ?? item.bidNtceOrd ?? '000'),
         bidNtceNm: String(item.bidNtceNm ?? ''),
@@ -110,30 +102,23 @@ export function BidNoticeDrawer({ item, onClose }: BidNoticeDrawerProps) {
         <DrawerMeta rows={rows} />
 
         <div className="drawer-section">
-          <div className="drawer-section-label">✨ AI 분석</div>
+          <div className="drawer-section-label">✨ AI 요약</div>
           <div className="drawer-summary">
             {!aiEnabled ? (
-              // 백엔드 AI 저장소·첨부 파싱이 이식되기 전까지는 요약을 부르지 않는다 — 부르면 500 이다.
               <div className="summary-text muted">
-                AI 요약은 백엔드 연동 준비 중입니다. 준비되면 이 자리에 첨부문서 기반 요약이 표시됩니다.
+                AI 요약이 비활성화되어 있습니다. VITE_AI_ENABLED=true로 켤 수 있습니다.
               </div>
             ) : (
               <SummaryState
                 isPending={summary.isPending}
                 error={summary.error}
                 onRetry={() => void summary.refetch()}
-                pendingText="AI 분석 중... 잠시만 기다려 주세요."
+                pendingText="AI 요약 중... 잠시만 기다려 주세요."
               >
                 {data ? (
                   <>
-                    <SourceLabel>{SOURCE_LABEL[data.source] ?? SOURCE_LABEL.meta}</SourceLabel>
-                    {data.noPdf ? (
-                      <div className="summary-error">
-                        첨부문서를 자동으로 찾지 못해 기본정보로만 분석했습니다.
-                      </div>
-                    ) : null}
                     <AiFallbackNote flags={data} />
-                    <SummaryBody summary={data.summary} />
+                    {data.summary ? <SummaryBody summary={data.summary} /> : null}
                     <ParsedFiles parsedFiles={data.parsedFiles} />
                   </>
                 ) : null}

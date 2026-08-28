@@ -30,6 +30,7 @@ import {
   NoticeFilterBar,
   type NoticeFilterValues,
 } from '@/features/search/NoticeFilterBar';
+import { NoticeSortSelect } from '@/features/search/NoticeSortSelect';
 import { stageTotalOf, useNoticeFacetBars } from '@/features/search/useNoticeFacets';
 import {
   buildNoticeIndexQuery,
@@ -85,6 +86,7 @@ export function NoticeSearchScreen() {
 
   const data = search.data;
   const items = data?.items ?? [];
+  const attachmentSearch = data?.meta?.attachmentSearch;
   const sort = effectiveIndexSort(criteria);
   const perPage = data?.numOfRows || perPageChoice;
   const totalPages = Math.max(1, Math.ceil((data?.totalCount ?? 0) / (perPage || 20)));
@@ -96,7 +98,12 @@ export function NoticeSearchScreen() {
   };
 
   const renderCell = (item: NoticeIndexItem, column: ColumnDef): ReactNode => (
-    <IndexCell item={item} column={column} actions={actions} />
+    <IndexCell
+      item={item}
+      column={column}
+      actions={actions}
+      attachmentSearchApplied={attachmentSearch?.applied === true}
+    />
   );
 
   const onSort = (key: string) => {
@@ -118,6 +125,25 @@ export function NoticeSearchScreen() {
   if (indexedAt) notes.push(`색인 ${fmtDisplayDatetime(indexedAt)} 기준`);
   if (criteria.beforeSpecRgstNo) notes.push(`사전규격 ${criteria.beforeSpecRgstNo} 연결 건`);
   if (criteria.detailProductCode) notes.push(`품명번호 ${criteria.detailProductCode}*`);
+  if (attachmentSearch?.scope === false) notes.push('첨부 검색 범위 꺼짐');
+  if (attachmentSearch?.skippedTerms?.length) {
+    notes.push(`첨부 검색 제외 낱말 ${attachmentSearch.skippedTerms.join(', ')}`);
+  }
+  if (
+    attachmentSearch?.indexedNotices != null &&
+    attachmentSearch.totalNotices != null
+  ) {
+    notes.push(
+      `첨부 색인 ${attachmentSearch.indexedNotices.toLocaleString()}/${attachmentSearch.totalNotices.toLocaleString()}건`,
+    );
+  }
+  /*
+   * 금액 조건은 **금액이 적힌 공고만** 볼 수 있다. 원본에 금액이 없는 공고(실측 2,180건,
+   * 대부분 계획 단계와 예산을 공개하지 않는 누리장터 민간공고)는 조건을 거는 순간 통째로 빠진다.
+   * 적지 않으면 화면에서는 "그 금액대 공고가 없다"와 구분되지 않는다 — 첨부 검색의 색인 범위를
+   * 화면에 적는 것과 같은 이유다. 줄일 수 있는 손실이 아니므로 숨기지 않고 말한다.
+   */
+  if (criteria.minAmount || criteria.maxAmount) notes.push('금액 미공개 공고 제외');
 
   const renderStatusBar = (): ReactNode => {
     if (search.error) return <StatusBar error message={`오류: ${search.error.message}`} />;
@@ -163,6 +189,15 @@ export function NoticeSearchScreen() {
             }}
           />
         </div>
+        {/*
+          정렬은 폭과 무관하게 여기서 항상 보인다. 표 머리글은 열이 접히면 함께 사라지고,
+          관련도순은 대응하는 열이 아예 없다 — NoticeSortSelect 주석 참고.
+        */}
+        <NoticeSortSelect
+          selected={criteria.sortKey}
+          effective={sort}
+          onChange={(patch) => setCriteria(patch)}
+        />
       </div>
 
       <DataTable<NoticeIndexItem>
@@ -174,7 +209,6 @@ export function NoticeSearchScreen() {
         sort={sort}
         onSort={onSort}
         renderCell={renderCell}
-        rowClassName={(item) => (item.state === '취소' ? 'cancelled-row' : undefined)}
         loading={search.isPending}
         /*
           결과 집합을 바꾸는 조건(단계·구분·상태·지역·기간·금액·검색어)만 전환 키에 넣는다.

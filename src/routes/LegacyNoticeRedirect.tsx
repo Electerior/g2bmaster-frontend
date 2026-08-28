@@ -51,19 +51,23 @@ export function LegacyNoticeRedirect({ category }: LegacyNoticeRedirectProps) {
   if (category && !params.get('cat')) params.set('cat', category);
 
   /*
-   * 3) 진행 중 여부.
+   * 3) 진행 중 여부는 **심지 않는다.**
    *
-   * 옛 주소는 두 화면 모두 "파라미터 없음 = 진행 중만"이었다(`/search` 는 `activeOnly=0`,
-   * 옛 표 주소는 `active=false` 로 꺼야 했다). 지금은 "없음 = 마감 포함"이라, 심어 주지
-   * 않으면 같은 링크가 예전보다 넓은 결과를 낸다.
+   * 옛 화면들은 "파라미터 없음 = 진행 중만"이었지만, 그 의미를 그대로 옮기면 안 된다.
+   * 백엔드는 `activeOnly` 를 단계 필터처럼 쓴다(BidNoticeQueryBuilder.build):
+   * 단계를 지정하지 않으면 `category IN ('입찰','마감')` 을 걸고 거기에 마감일 조건을
+   * 덧붙이므로, 켜는 순간 계획·사전규격·마감이 한꺼번에 사라져 남는 것은 입찰뿐이다.
+   * 패싯도 목록과 같은 조건으로 세므로 단계 칩이 전부 0건이 된다 —
+   * DEFAULT_CRITERIA.activeOnly 를 꺼짐으로 둔 이유가 바로 이것이다.
    *
-   * 단 '마감' 단계에서는 심지 않는다 — 마감일이 전부 과거라 켜면 항상 0건이 된다.
-   * 삭제된 useIndexCriteria 도 같은 이유로 이 조합을 강제로 껐다.
+   * 그리고 보존할 '켜짐' 신호가 애초에 없다. 옛 주소는 끌 때만 값을 남겼다
+   * (`/search` 는 `activeOnly=0`, 옛 표 주소는 `active=false`). 둘 다 지금의 기본값과
+   * 같은 뜻이므로, 지금 쓰지 않는 `activeOnly` 만 떨어뜨리면 된다.
+   *
+   * (병합 메모: 이 브랜치에는 '마감 단계가 아니면 active=true 를 심는' 판이 있었다.
+   *  upstream 의 fix 3d62921 이 더 나중이고 근거가 백엔드 쪽에 있어 그쪽을 택했다.)
    */
-  const turnedOff = params.get('activeOnly') === '0' || params.get('active') === 'false';
   params.delete('activeOnly');
-  if (turnedOff || params.get('cat') === '마감') params.delete('active');
-  else params.set('active', 'true');
 
   const search = params.toString();
   return <Navigate to={{ pathname: ROUTES.noticeSearch, search }} replace />;

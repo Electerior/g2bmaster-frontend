@@ -28,7 +28,7 @@ export type StorageKey = (typeof STORAGE_KEYS)[keyof typeof STORAGE_KEYS];
  */
 export const UI_STATE_VERSION = '20260727-1';
 
-/** 원본 saveUiState(app.js:400) 가 담던 필드 그대로. */
+/** 현재 화면에서 복원할 수 있는 검색 상태. */
 export interface PersistedUiState {
   tab?: string;
   searchMode?: string;
@@ -39,9 +39,6 @@ export interface PersistedUiState {
   excludeBlockingClauses?: boolean;
   bidType?: string;
   insttNm?: string;
-  corpNm?: string;
-  brnNo?: string;
-  officerInsttNm?: string;
   fromDate?: string;
   toDate?: string;
   trendDayLimit?: string;

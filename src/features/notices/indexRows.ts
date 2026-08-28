@@ -5,8 +5,31 @@
  * 고장 난 것으로 오해한다"는 종류다. 그래서 컴포넌트 안에 흩어 두지 않고 여기 모은다 —
  * 표·서랍 두 곳이 같은 규칙을 써야 하기 때문이다.
  */
-import type { NoticeIndexItem, NoticeProduct } from '@/api/search';
+import type { NoticeAmountKind, NoticeIndexItem, NoticeProduct } from '@/api/search';
 import type { SaveNoticeRequest } from '@/api/saved';
+
+/**
+ * 금액 종류의 표기.
+ *
+ * **왜 종류를 굳이 적는가.** 목록의 금액 칸 하나에 성격이 다른 금액이 섞여 있다 — 나라장터
+ * 입찰은 추정가격, 사전규격은 배정예산(예산이라 추정가격보다 크다), 누리장터는 기준금액
+ * (투찰 상한), D2B 는 기초예비가격이다. 적재기가 이것들을 일부러 다른 칸에 담는 이유도
+ * 개념이 달라서인데, 검색은 "얼마짜리인가"를 하나로 물어야 해서 서버가 하나를 고른다
+ * (`amount`/`amountKind` — 금액 필터·정렬이 본 값과 같다).
+ *
+ * 고른 사실을 숨기고 숫자만 나열하면 사용자는 비교할 수 없는 값을 비교하게 된다.
+ * 화면만 보고는 알아챌 방법이 없는 종류의 거짓말이라, 값 옆에 반드시 종류를 적는다.
+ */
+const AMOUNT_KIND_LABELS: Readonly<Record<NoticeAmountKind, string>> = {
+  estimatedPrice: '추정가격',
+  assignedBudget: '배정예산',
+  referenceAmount: '기준금액',
+  basicExpectedPrice: '기초예비가격',
+};
+
+export function amountKindLabel(kind: NoticeAmountKind | null | undefined): string | null {
+  return kind ? (AMOUNT_KIND_LABELS[kind] ?? null) : null;
+}
 
 /**
  * 지역 표기. **빈 문자열은 '전국'** 이다(지역 제한 없음).
@@ -67,12 +90,11 @@ export function productSummary(list: NoticeProduct[] | null | undefined): string
   return items.length === 1 ? first : `${first} 외 ${items.length - 1}건`;
 }
 
-/**
- * 행 키. 색인은 PK 가 공고번호 하나뿐이라 **한 공고에 행은 언제나 하나**다 —
- * 기존 4탭처럼 차수·출처를 섞어 만들 필요가 없다.
- */
+/** 행 키. 색인 PK 와 같은 `(id, source)` — 서로 다른 출처에서 공고번호가 겹칠 수 있다. */
 export function indexRowKey(item: NoticeIndexItem, index: number): string {
-  return item.id ? String(item.id) : `row-${index}`;
+  if (!item.id) return `row-${index}`;
+  const escapePart = (value: unknown) => String(value ?? '').replace(/[|]/g, '/');
+  return `${escapePart(item.id)}|${escapePart(item.source)}`;
 }
 
 /**

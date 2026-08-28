@@ -1,4 +1,4 @@
-import { defineConfig, type UserConfig } from 'vite';
+import { defineConfig, type Plugin, type UserConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'node:path';
 
@@ -42,8 +42,140 @@ type ViteConfigWithTest = UserConfig & {
   };
 };
 
+/**
+ * react 런타임 한 묶음.
+ *
+ * react 와 react-dom 을 **다른 청크로 가르지 않는다**. react-dom 은 react 의 내부 상태
+ * (`__SECRET_INTERNALS_...` 의 디스패처)를 직접 읽는데, 둘이 다른 청크에 있으면 그 값을
+ * 청크 경계 너머에서 참조하게 되고 초기화 순서가 어긋나면 렌더 첫 훅에서 터진다.
+ * scheduler 는 react-dom 이 물고 있는 실행 스케줄러라 역시 같이 둔다.
+ * react-is · use-sync-external-store 는 지금 트리에 없지만 들어와도 같은 이유로 여기 속한다.
+ */
+const REACT_CORE = new Set(['react', 'react-dom', 'scheduler', 'react-is', 'use-sync-external-store']);
+
+/**
+ * 라우터 한 묶음. react-router-dom 은 react-router 를, react-router 는 @remix-run/router 를
+ * 그대로 재수출한다. 셋은 언제나 함께 로드되므로 갈라 봐야 요청만 늘어난다.
+ */
+const ROUTER = new Set(['react-router', 'react-router-dom', '@remix-run/router']);
+
+/**
+ * 마크다운(unified) 생태계.
+ *
+ * 실제로 쓰는 곳은 `src/components/markdown/Markdown.tsx` 하나인데, 거기서 시작된 의존이
+ * micromark · mdast · hast · vfile 계열로 번져 70개가 넘는 패키지를 끌고 온다.
+ * 이름이 제각각이라 계열 접두사(MARKDOWN_FAMILIES)로 잡고, 접두사에 안 걸리는 단품 유틸은
+ * MARKDOWN_UTILS 에 정확히 적는다. 지금 이 목록에 걸리지 않는 벤더는 axios 하나뿐이다.
+ *
+ * 주의: 이 청크를 가른다고 초기 페이로드가 곧바로 줄지는 않는다. 라우터가 아직 정적 import 라
+ * 마크다운 화면을 안 열어도 청크는 함께 받아진다. 지금 얻는 것은 캐시 분리(마크다운 스택은
+ * 거의 안 바뀐다)이고, 실제 지연 로딩은 아래 라우트 코드 스플릿 주석 참고.
+ */
+const MARKDOWN_FAMILIES = [
+  'react-markdown',
+  'remark-',
+  'rehype-',
+  'mdast-',
+  'micromark',
+  'hast-',
+  'unist-',
+  'unified',
+  'vfile',
+  'style-to-',
+  'character-entities',
+  'estree-util-',
+];
+const MARKDOWN_UTILS = new Set([
+  '@ungap/structured-clone',
+  'bail',
+  'ccount',
+  'comma-separated-tokens',
+  'decode-named-character-reference',
+  'devlop',
+  'escape-string-regexp',
+  'extend',
+  'html-url-attributes',
+  'html-void-elements',
+  'inline-style-parser',
+  'is-plain-obj',
+  'longest-streak',
+  'markdown-table',
+  'property-information',
+  'space-separated-tokens',
+  'stringify-entities',
+  'trim-lines',
+  'trough',
+  'web-namespaces',
+  'zwitch',
+]);
+
+/**
+ * 모듈 id 로 벤더 청크를 고른다.
+ *
+ * `id.includes('react')` 같은 부분 문자열 매칭은 **쓰면 안 된다**. react-dom · react-router-dom ·
+ * react-markdown 이 전부 같이 걸려서, 가른 줄 알았는데 결국 한 덩어리가 나온다.
+ * 그래서 경로에서 node_modules 다음 세그먼트(스코프 패키지는 두 세그먼트)를 잘라
+ * **패키지 이름 단위**로 판단한다. 중첩 설치(A/node_modules/B) 는 마지막 node_modules 가
+ * 실제 소유 패키지이므로 lastIndexOf 로 찾는다.
+ *
+ * node_modules 밖(앱 소스·가상 모듈)은 undefined 를 돌려 rollup 기본 배치에 맡긴다.
+ */
+function vendorChunk(id: string): string | undefined {
+  const marker = '/node_modules/';
+  const at = id.lastIndexOf(marker);
+  if (at === -1) return undefined;
+
+  const segments = id.slice(at + marker.length).split('/');
+  const pkg = segments[0].startsWith('@') ? `${segments[0]}/${segments[1]}` : segments[0];
+
+  if (REACT_CORE.has(pkg)) return 'vendor-react';
+  if (ROUTER.has(pkg)) return 'vendor-router';
+  if (pkg.startsWith('@tanstack/')) return 'vendor-query';
+  if (MARKDOWN_UTILS.has(pkg) || MARKDOWN_FAMILIES.some((family) => pkg.startsWith(family))) {
+    return 'vendor-markdown';
+  }
+
+  // 나머지 의존(현재는 axios 뿐). 앱 코드보다 훨씬 덜 바뀌므로 앱 청크와는 떼어 둔다.
+  return 'vendor';
+}
+
+/**
+ * 배포되는 index.html 에서 주석을 걷어낸다.
+ *
+ * 이 파일의 <head> 에는 SEO 블록이 왜 이렇게 생겼는지를 설명하는 한국어 주석이 길게 붙어 있다.
+ * 그 주석은 반드시 있어야 한다 — 호스트를 남의 도메인으로 되돌려 놓는 사고가 실제로 났고,
+ * 그때 없었던 것이 바로 그 설명이다. 다만 그것은 **저장소에서 읽을 사람**을 위한 것이지
+ * 방문자가 매번 내려받을 것은 아니다.
+ *
+ * 비용이 작지 않다. index.html 은 `cache-control: no-cache` 로 나가므로 캐시에 얹히지 않고
+ * 매 요청마다 다시 전송된다. 주석을 붙인 뒤 gzip 기준 2.11kB → 2.90kB 로 늘었다.
+ *
+ * 그래서 소스에는 남기고 산출물에서만 뺀다. src/test/indexHtmlSeo.test.ts 는 dist 가 아니라
+ * 저장소 루트의 index.html 을 읽으므로 이 플러그인의 영향을 받지 않는다.
+ *
+ * script·style 블록은 통째로 지나친다. JSON-LD 안에 `<!--` 처럼 보이는 문자열이 들어갈 일은
+ * 없지만, HTML 주석 제거가 스크립트 내용을 건드리는 일은 어떤 경우에도 없어야 한다 —
+ * 정규식 하나로 <head> 를 훑는 작업에서 가장 다치기 쉬운 자리가 거기다.
+ */
+function stripHtmlComments(): Plugin {
+  return {
+    name: 'strip-html-comments',
+    apply: 'build',
+    enforce: 'post',
+    transformIndexHtml(html: string) {
+      return html
+        // 앞의 갈래가 먼저 물면 그대로 돌려주고(=보존), 아니면 주석이므로 지운다.
+        .replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1>|<!--[\s\S]*?-->/gi, (matched, tag) =>
+          tag ? matched : '',
+        )
+        // 주석이 있던 자리에 남은 빈 줄 묶음을 한 줄로 줄인다.
+        .replace(/\n\s*\n\s*\n+/g, '\n\n');
+    },
+  };
+}
+
 const config: ViteConfigWithTest = {
-  plugins: [react()],
+  plugins: [react(), stripHtmlComments()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src'),
@@ -61,6 +193,20 @@ const config: ViteConfigWithTest = {
   build: {
     outDir: 'dist',
     sourcemap: true,
+    /**
+     * 청크 이름표(dist/.vite/manifest.json).
+     *
+     * 빌드 뒤에 도는 /beta 프리렌더(scripts/prerender-beta.mjs)가 이것을 읽는다. 그 단계는
+     * 정적 HTML 안에 랜딩 청크의 CSS 링크와 modulepreload 를 직접 써 넣어야 하는데,
+     * 파일 이름에 콘텐츠 해시가 박혀 있어(landing-CRKkmEkO.css) 빌드 전에는 알 수 없다.
+     * dist/assets 를 훑어 이름으로 짐작하는 방법도 있지만, 그러면 청크를 어떻게 가르느냐
+     * (chore/vite-build-hardening 의 manualChunks)에 따라 조용히 틀린 파일을 링크하게 된다.
+     * manifest 는 "이 모듈이 어느 파일이 됐고 무엇을 함께 필요로 하는가"를 vite 가 직접
+     * 적어 주는 유일한 출처다.
+     *
+     * 산출된 manifest.json 은 프리렌더가 다 쓰고 나서 지운다 — 배포물에 남길 이유가 없다.
+     */
+    manifest: true,
   },
   test: {
     environment: 'jsdom',

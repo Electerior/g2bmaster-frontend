@@ -114,12 +114,37 @@ function blockNamed(header: string, within: NginxBlock[] = TLS_BLOCKS): NginxBlo
 
 /* ─── SPA 폴백 ─────────────────────────────────────────────────────────────── */
 
-/** `location @spa` 의 `if ($uri !~ '…')` 에서 정규식을 꺼내 JS RegExp 로 옮긴다. */
-function spaFallbackPattern(): RegExp {
+/** `location @spa` 의 `if ($uri !~ '…')` 안에 적힌 정규식 원문. */
+function spaFallbackSource(): string {
   const spa = blockNamed('location @spa');
   const matched = /\$uri\s*!~\s*'([^']+)'/.exec(spa.body);
   if (!matched) throw new Error('`location @spa` 에서 SPA 폴백 정규식을 찾지 못했다');
-  return new RegExp(matched[1]);
+  return matched[1];
+}
+
+/** 그 정규식을 JS RegExp 로 옮긴다. */
+function spaFallbackPattern(): RegExp {
+  return new RegExp(spaFallbackSource());
+}
+
+/**
+ * 정규식이 열거하는 주소 목록.
+ *
+ * `^/(?:a|b|c)/?$` 한 가지 모양만 받는다. 중첩 그룹(`notices(?:/bid-result)?`)을
+ * 허용하면 목록을 기계가 읽을 수 없고, 그러면 아래의 집합 비교가 성립하지 않는다 —
+ * 즉 "죽은 화면이 목록에 남아 있는" 방향을 잡을 수 없게 된다. 설정 쪽 주석에도
+ * 같은 이유를 적어 두었다.
+ */
+function spaRoutePaths(): string[] {
+  const source = spaFallbackSource();
+  const shape = /^\^\/\(\?:([^()]+)\)\/\?\$$/.exec(source);
+  if (!shape) {
+    throw new Error(
+      `@spa 정규식이 \`^/(?:a|b|c)/?$\` 모양이 아니다: ${source}\n` +
+        '라우트 하나에 항목 하나로 적어야 한다 — 축약하면 ROUTES 와 대조할 수 없다.',
+    );
+  }
+  return shape[1].split('|').map((alternative) => `/${alternative}`);
 }
 
 describe('SPA 폴백 — ROUTES 의 모든 화면이 셸을 받는가', () => {
@@ -135,19 +160,52 @@ describe('SPA 폴백 — ROUTES 의 모든 화면이 셸을 받는가', () => {
 
   it('끝의 슬래시가 붙어도 매치된다 — React Router 는 둘을 같은 라우트로 본다', () => {
     expect(pattern.test(`${ROUTES.noticeSearch}/`)).toBe(true);
-    expect(pattern.test(`${ROUTES.trendProduct}/`)).toBe(true);
+    expect(pattern.test(`${ROUTES.bidResult}/`)).toBe(true);
+    expect(pattern.test(`${ROUTES.beta}/`)).toBe(true);
+  });
+
+  it('목록과 ROUTES 가 같은 집합이다 — 죽은 화면이 남아 있으면 깨진다', () => {
+    /*
+     * ⚠ 한쪽 방향(ROUTES ⊆ 목록)만 보면 잡히지 않는 고장이 있다. 2026-08-28 main 을
+     *   병합했더니 화면 아홉 개가 없어져 있었는데(deal-radar · spec-search ·
+     *   price-db · trends 셋 · company · officers · analysis-lab) 설정의 목록에는
+     *   그대로 남아 있었다. 위의 it.each 는 전부 통과한다 — 목록이 더 넓기만 하기
+     *   때문이다. 그동안 죽은 주소 아홉 개가 200 + 셸을 냈고, 그게 이 브랜치가 없애고
+     *   있는 soft 404(감사 #2) 그 자체다.
+     *
+     *   화면을 지우는 쪽이 nginx 설정을 볼 이유는 없으므로 사람에게 맡길 수 없다.
+     */
+    expect([...spaRoutePaths()].sort()).toEqual([...Object.values(ROUTES)].sort());
+  });
+
+  it.each(spaRoutePaths())('%s 는 정규식 메타문자 없는 그대로의 경로다', (path) => {
+    // 목록을 그대로 주소로 읽는 위 비교가 성립하려면 `.` `+` 같은 것이 없어야 한다.
+    expect(path).toMatch(/^\/[a-z0-9/-]+$/);
   });
 
   it.each([
     '/definitely-not-a-route',
-    '/llms.txt',
     '/sitemap_index.xml',
     '/notices/nope',
     // 계층 경로를 `trends/.*` 로 열어 두면 이 둘이 다시 soft 404 가 된다.
     '/trends',
     '/trends/aaaa',
+    // 접힌 화면들. 목록에 남겨 두면 죽은 주소가 200 + 셸을 낸다.
+    '/price-db',
+    '/analysis-lab',
+    '/deal-radar',
   ])('%s 는 매치되지 않는다 (진짜 404 여야 한다)', (path) => {
     expect(spaFallbackPattern().test(path)).toBe(false);
+  });
+
+  it('/llms.txt 는 정규식에 걸리지 않고 실제 파일로 나간다', () => {
+    /*
+     * 감사 당시에는 없는 파일이라 200 + 셸이 나갔지만 PR #17 이 public/llms.txt 를
+     * 넣었다. 지금은 `location /` 의 `try_files $uri` 가 먼저 집으므로 @spa 까지
+     * 오지 않는다 — 정규식이 이것을 매치하면 안 되는 이유는 404 여서가 아니라
+     * 여기까지 올 일이 없기 때문이다.
+     */
+    expect(spaFallbackPattern().test('/llms.txt')).toBe(false);
   });
 
   it('실제 파일을 먼저 찾는 순서가 유지된다', () => {

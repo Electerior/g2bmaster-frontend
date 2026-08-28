@@ -70,7 +70,7 @@
 .sort-icon {
   margin-left: 4px;
   font-size: var(--fs-badge);
-  color: #b0b8cc;
+  color: rgba(74, 88, 89, 0.55);
 }
 .sort-icon.active {
   color: var(--primary);
@@ -111,12 +111,9 @@
 .data-table tbody tr:nth-child(even) td {
   background: var(--table-row-alt);
 }
-/* hover 는 zebra 위에서도 확실히 뜨도록 왼쪽에 파란 레일 + 배경 강조. */
+/* hover 는 선택 표시처럼 보이는 세로 레일 없이 밝은 Honey Bronze 틴트만 쓴다. */
 .data-table tbody tr:hover td {
   background: var(--table-row-hover);
-}
-.data-table tbody tr:hover td:first-child {
-  box-shadow: inset 3px 0 0 var(--primary);
 }
 .data-table a {
   color: var(--primary);
@@ -218,6 +215,9 @@
 .bid-link:hover {
   border-bottom-style: solid;
 }
+.bid-link:focus {
+  outline: none;
+}
 
 /* ── 공고 통합 검색(로컬 색인) 표 ──────────────────────────────────────── */
 .col-noticeName {
@@ -304,6 +304,24 @@
   color: var(--muted);
 }
 
+/*
+ * 금액과 그 종류. 기관 칸과 같은 모양(값 + 옅은 한 줄)을 쓴다 — 두 칸 다 "이 값이 무엇인지"를
+ * 덧붙이는 자리라 표기가 같아야 사용자가 규칙을 한 번만 익힌다.
+ *
+ * 종류를 늘 적는 이유는 이 칸에 추정가격·배정예산·기준금액·기초예비가격이 섞이기 때문이다.
+ * 대부분이 추정가격이라고 그때만 생략하면, 라벨이 붙은 행이 예외처럼 보여 오히려 오해를 부른다.
+ */
+.amt-pair {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.amt-pair em {
+  font-style: normal;
+  font-size: var(--fs-badge);
+  color: var(--muted);
+}
+
 .notice-name-cell {
   display: flex;
   flex-direction: column;
@@ -316,6 +334,31 @@
 }
 .notice-name-cell .bid-link:hover {
   border-bottom-color: var(--primary);
+}
+/* 첨부 전문검색의 결과·한계. 제목과 무관한 행이 섞인 이유와 미색인 상태를 글자로 구분한다. */
+.notice-match-flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+.notice-match-flag {
+  align-self: flex-start;
+  border-radius: 10px;
+  padding: 1px 6px;
+  font-size: var(--fs-badge-sm);
+  font-weight: 700;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+.notice-match-flag.attachment-only {
+  background: var(--bool-file-bg);
+  color: var(--bool-file-fg);
+}
+.notice-match-flag.attachment-unindexed {
+  border: 1px dashed var(--border);
+  color: var(--muted);
+  background: var(--surface-2);
 }
 /* 공고번호 — 공고명 아래 옅은 한 줄(별도 컬럼 대신). */
 .notice-no {
@@ -365,20 +408,6 @@
   font-size: var(--fs-badge);
   font-family: inherit;
   white-space: nowrap;
-}
-
-/*
- * 취소 공고는 검색 결과에서 지우지 않는다 — 발주가 접혔다는 사실 자체가 정보다.
- * 대신 눈에 띄게 표시한다.
- */
-.cancelled-row td {
-  background: var(--status-cancelled-bg);
-}
-.cancelled-row td:first-child {
-  box-shadow: inset 3px 0 0 var(--status-cancelled-border);
-}
-.cancelled-row .bid-link {
-  text-decoration: line-through;
 }
 
 .attachment-list {
@@ -581,13 +610,13 @@ details.blocking-info[open] > summary {
   transition: all 0.15s;
 }
 .pagination button:hover {
-  border-color: var(--primary);
-  color: var(--primary);
+  border-color: var(--theme-gunmetal);
+  color: var(--theme-gunmetal);
 }
 .pagination button.active {
-  background: var(--primary);
-  border-color: var(--primary);
-  color: #fff;
+  background: var(--theme-gunmetal);
+  border-color: var(--theme-gunmetal);
+  color: var(--theme-on-dark);
   font-weight: 700;
 }
 .pagination button:disabled {
@@ -636,5 +665,133 @@ details.blocking-info[open] > summary {
   }
   .col-prdctClsfcNo {
     min-width: 92px;
+  }
+}
+
+/* ─── 공고 통합 검색 표의 창 폭 대응 ──────────────────────────────────────────
+ *
+ * 이 표(.compact)는 아홉 개 열을 940px 하한으로, 공고명 하나를 420px 하한으로 들고 있었다.
+ * 창을 좁혀도 둘 다 그대로라 가로 스크롤이 남고, 그 스크롤이 **공고명을 화면 밖으로
+ * 밀어낸다** — 어느 공고의 행인지 모르는 채 금액과 마감일만 보게 된다.
+ *
+ * 폭이 줄면 열을 덜어낸다. 덜어낸 값이 사라지는 것은 아니다 — 행을 누르면 열리는
+ * IndexNoticeDrawer 가 단계·구분·공고기관·수요기관·지역·공고일·금액 4종·담당자·연락처·
+ * 상태·사전규격·공고 본문을 전부 그린다. 표에만 있고 드로어에 없는 것은 공고명과 ★ 둘뿐이다.
+ *
+ * 덜어내는 순서는 "목록을 훑으며 고르는 데 쓰이는가"로 정했다. 공고일은 마감일시가 있으면
+ * 판단에 거의 쓰이지 않아 먼저 빠지고, 지역은 값이 길어(`서울특별시,인천광역시,경기도`)
+ * 행 높이를 가장 크게 키우므로 그다음이다. 마지막까지 남는 넷은
+ * 공고명 · 금액 · 마감일시 · ★ 다.
+ *
+ * 하한을 단계마다 숫자로 깎지 않는 이유: 실제로 쓸 수 있는 폭은 창 폭이 아니라
+ * 창 폭에서 탭 레일(132px)과 패널 여백을 뺀 값이라, 창 폭 기준으로 예산을 짜면 항상 어긋난다.
+ * 그래서 표와 공고명의 하한을 모두 풀고,
+ * 남은 폭을 공고명이 흡수하게 둔다 — 모자라면 글자가 접힌다.
+ */
+
+/* 금액이 숫자와 단위 사이에서 갈라지지 않게. 좁은 칸에서 두 줄이 되면 행 높이가 들쭉날쭉해진다. */
+.amt-pair .amt {
+  white-space: nowrap;
+}
+
+/*
+ * ★ 열. 키가 `id` 라서 레거시 표의 식별번호 규칙(.col-id { min-width:104px })을 그대로
+ * 물려받고 있었다 — 머리글이 비어 있는 칸이 104px 를 차지해, 넓은 창에서도 표가 패널을
+ * 넘겨 가로 스크롤을 만들던 원인의 절반이다. 여기서는 별 하나만 들어가므로 그만큼만 준다.
+ */
+.data-table.compact .col-id {
+  min-width: 0;
+  width: 44px;
+  text-align: center;
+}
+
+/*
+ * 공고명 하한도 푼다. `.col-noticeName { min-width: 420px }` 는 레거시 표 기준으로 잡힌
+ * 값인데, 하한을 두면 나머지 열의 최소폭 합에 그것이 더해져 폭마다 몇 px 씩 어긋난다
+ * (실측: 패널 1179 / 표 1183, 패널 679 / 표 683 — 어느 폭에서도 얇은 가로 스크롤이 남는다).
+ * 하한 대신 `width: 32%` 가 목표 폭을 잡고, 모자라면 글자가 접힌다 —
+ * 공고번호(`R26BK01669201`)는 끊기지 않으므로 그것이 실질적인 최소 폭이 된다.
+ */
+.data-table.compact .col-noticeName {
+  min-width: 0;
+}
+
+@media (max-width: 1180px) {
+  /* 하한을 푼다 — 이제 폭을 흡수하는 쪽은 공고명이다. */
+  .data-table.compact {
+    min-width: 0;
+  }
+  /* 마감일시가 있으면 공고일은 훑는 데 쓰이지 않는다. */
+  .data-table.compact .col-createdDate {
+    display: none;
+  }
+
+  /*
+   * 공고명 고정 — 가로 스크롤이 남는 구간에서도 무엇의 행인지 잃지 않게.
+   * 배경을 명시해야 한다. 기본 행은 배경이 없어(패널의 흰색이 비친다) 그대로 두면
+   * 아래를 지나는 셀이 글자 위에 겹쳐 보인다. 얼룩무늬·hover 는 아래에서 다시 덮는다.
+   */
+  .data-table.compact th.col-noticeName,
+  .data-table.compact td.col-noticeName {
+    position: sticky;
+    left: 0;
+  }
+  .data-table.compact td.col-noticeName {
+    background: var(--surface);
+    z-index: 1;
+    box-shadow: 1px 0 0 var(--table-row-line);
+  }
+  .data-table.compact th.col-noticeName {
+    /* 다른 머리글(z-index:2)보다 위 — 세로·가로 고정이 만나는 모서리다. */
+    z-index: 3;
+    box-shadow: 0 1px 0 var(--border), 1px 0 0 var(--border);
+  }
+  /* 얼룩무늬와 hover 가 고정 칸에도 그대로 걸리도록 명시한다(선택자 순서 = 우선순위). */
+  .data-table.compact tbody tr:nth-child(even) td.col-noticeName {
+    background: var(--table-row-alt);
+  }
+  .data-table.compact tbody tr:hover td.col-noticeName {
+    background: var(--table-row-hover);
+  }
+}
+
+@media (max-width: 1040px) {
+  /* 지역은 값이 길어 행 높이를 가장 크게 키운다. */
+  .data-table.compact .col-region {
+    display: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .data-table.compact .col-noticeInstitutionName {
+    display: none;
+  }
+  /*
+   * 본문 미리보기(300자)를 접는다. 좁은 칸에서 이것이 행 높이의 대부분을 차지하는데,
+   * 훑는 단계에서 읽히는 글이 아니다 — 전문은 드로어의 '공고 본문'에 있다.
+   */
+  .data-table.compact .notice-name-cell .body-preview {
+    display: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .data-table.compact .col-businessDivision {
+    display: none;
+  }
+}
+
+@media (max-width: 620px) {
+  /* 남는 넷: 공고명 · 금액 · 마감일시 · ★ */
+  .data-table.compact .col-category {
+    display: none;
+  }
+  /*
+   * 마감일시 하한(92px)도 푼다. 이 칸은 날짜 한 줄과 D-DAY 배지뿐이라 그만큼이 필요 없고,
+   * 남겨 두면 다섯 열의 최소폭 합이 패널을 9px 넘겨 얇은 가로 스크롤이 다시 생긴다.
+   * 금액은 하한을 두지 않아도 `nowrap` 때문에 자기 폭을 지킨다 — 그쪽은 건드리지 않는다.
+   */
+  .data-table.compact .col-closeDate {
+    min-width: 0;
   }
 }

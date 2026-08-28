@@ -16,7 +16,6 @@ import type { SearchMode } from '@/domain/searchModes';
 import { isTransitRoute } from '@/routes/routePaths';
 import { useSearchCriteria, type SearchCriteria } from './useSearchCriteria';
 import { SearchModeTabs } from './SearchModeTabs';
-import { activeSearchMode } from './searchRoutes';
 import { TagInput } from './TagInput';
 import './search.css';
 
@@ -45,7 +44,7 @@ function andPlaceholder(mode: SearchMode): string {
     : '키워드 입력 후 Enter — 모두 일치해야 함';
 }
 
-/** × 버튼이 달린 한 줄 입력. 발주기관·업체명·사업자번호·담당자 기관이 같은 모양을 쓴다. */
+/** × 버튼이 달린 발주기관 입력. */
 interface ClearableInputProps {
   badgeClass: string;
   badgeLabel: string;
@@ -54,8 +53,6 @@ interface ClearableInputProps {
   onChange: (value: string) => void;
   onSubmit: () => void;
   clearTitle: string;
-  maxLength?: number;
-  narrow?: boolean;
 }
 
 function ClearableInput({
@@ -66,19 +63,16 @@ function ClearableInput({
   onChange,
   onSubmit,
   clearTitle,
-  maxLength,
-  narrow = false,
 }: ClearableInputProps) {
   return (
     <>
       <span className={`bool-badge ${badgeClass}`}>{badgeLabel}</span>
-      <div className={narrow ? 'instt-wrap instt-wrap-brn' : 'instt-wrap'}>
+      <div className="instt-wrap">
         <input
           className="instt-input"
           value={value}
           placeholder={placeholder}
           autoComplete="off"
-          maxLength={maxLength}
           aria-label={badgeLabel}
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={(e) => {
@@ -108,41 +102,35 @@ function ClearableInput({
 export function SearchHeader() {
   const location = useLocation();
   const { criteria, setCriteria } = useSearchCriteria();
-  const mode = activeSearchMode(location.pathname, criteria.mode);
+  const mode = criteria.mode;
   const layout = searchModeLayout(mode);
   const { notify } = useNotReady();
 
   /*
-   * 첨부 전수조사(파일 내 검색 · 입찰 불가 조항)와 유사도 확장은 백엔드에서 작업 중이다.
+   * 첨부 전수조사(입찰 불가 조항)와 유사도 확장은 백엔드에서 작업 중이다.
    * 로컬 색인에는 첨부 본문도 임베딩도 아직 없다.
    *
-   * 조작부는 **지우지 않고 남긴다.** 지우면 다음 웨이브에서 되살릴 자리를 잃고, 사용자도
-   * 그런 기능이 있었다는 사실을 모르게 된다. 대신 손대면 준비 중임을 알린다.
+   * 남아 있는 조작부는 **지우지 않는다.** 지우면 다음 웨이브에서 되살릴 자리를 잃고,
+   * 사용자도 그런 기능이 있었다는 사실을 모르게 된다. 대신 손대면 준비 중임을 알린다.
+   *
+   * 예외가 '파일 내' 행이다(2026-08-28 삭제). 첨부 본문 검색은 준비 중 표시를 단 채로도
+   * 키워드·품목 검색의 네 번째 줄을 차지해 왔는데, 통합 검색(`buildNoticeIndexQuery`)은
+   * 이 조건을 아예 싣지 않아 눌러도 결과가 달라지지 않는 줄이었다. 조건 계층
+   * (`criteria.fileKeywords` · `simFile` · `buildQuery` 의 `fileScan`)은 그대로 두었으므로,
+   * 백엔드에 전역 파일 필터 계약이 생기면 이 파일에 행 하나만 다시 붙이면 된다.
    */
-  const fileScanPending = { label: '첨부문서 전수조사', notify };
   const similarityPending = { label: '유사도 확장', notify };
 
   // 한 줄 입력은 확정 전까지 URL 에 올리지 않는다 — 글자마다 히스토리가 쌓이면 뒤로 가기가
   // 못 쓰게 된다. 확정(Enter · 검색 · 지우기)될 때만 URL 로 올라간다.
   const [insttDraft, setInsttDraft] = useState(criteria.insttNm);
-  const [corpDraft, setCorpDraft] = useState(criteria.corpNm);
-  const [brnDraft, setBrnDraft] = useState(criteria.brnNo);
-  const [officerDraft, setOfficerDraft] = useState(criteria.officerInsttNm);
 
   // 프리셋·뒤로 가기처럼 URL 이 밖에서 바뀌면 입력칸도 따라가야 한다.
   const syncedRef = useRef('');
-  const signature = [
-    criteria.insttNm,
-    criteria.corpNm,
-    criteria.brnNo,
-    criteria.officerInsttNm,
-  ].join('|');
+  const signature = criteria.insttNm;
   if (syncedRef.current !== signature) {
     syncedRef.current = signature;
     if (insttDraft !== criteria.insttNm) setInsttDraft(criteria.insttNm);
-    if (corpDraft !== criteria.corpNm) setCorpDraft(criteria.corpNm);
-    if (brnDraft !== criteria.brnNo) setBrnDraft(criteria.brnNo);
-    if (officerDraft !== criteria.officerInsttNm) setOfficerDraft(criteria.officerInsttNm);
   }
 
   // 원본은 init() 에서 기본 30일 범위를 넣고 시작했다. 조건이 URL 로 올라간 뒤에도 그
@@ -172,10 +160,6 @@ export function SearchHeader() {
   const commitDrafts = (patch: Partial<SearchCriteria> = {}) => {
     setCriteria({
       insttNm: insttDraft.trim(),
-      corpNm: corpDraft.trim(),
-      // 사업자번호는 숫자만 남긴다 — 원본과 같다(하이픈을 넣어도 조회된다).
-      brnNo: brnDraft.replace(/[^0-9]/g, ''),
-      officerInsttNm: officerDraft.trim(),
       ...patch,
     });
   };
@@ -223,21 +207,6 @@ export function SearchHeader() {
                 onChange={(notTerms) => setCriteria({ notTerms })}
                 onSubmit={(notTerms) => commitDrafts(notTerms ? { notTerms } : {})}
               />
-              <TagInput
-                kind="file"
-                badgeLabel="파일 내"
-                placeholder="첨부 PDF·HWPX 본문 검색 — 백엔드 작업 중"
-                values={criteria.fileKeywords}
-                onChange={(fileKeywords) => setCriteria({ fileKeywords })}
-                onSubmit={(fileKeywords) => commitDrafts(fileKeywords ? { fileKeywords } : {})}
-                similarity={{
-                  checked: criteria.simFile,
-                  onChange: (simFile) => setCriteria({ simFile }),
-                  title: '규격서 본문을 대상으로 의미가 비슷한 말까지 찾습니다',
-                  notReady: similarityPending,
-                }}
-                notReady={fileScanPending}
-              />
             </>
           ) : null}
 
@@ -254,112 +223,67 @@ export function SearchHeader() {
               />
             </div>
           ) : null}
-
-          {layout.officerRow ? (
-            <div className="bool-row">
-              <ClearableInput
-                badgeClass="badge-officer"
-                badgeLabel="발주기관"
-                value={officerDraft}
-                placeholder="발주기관명 입력 후 Enter — 예: 한국전자통신연구원"
-                onChange={setOfficerDraft}
-                onSubmit={commitDrafts}
-                clearTitle="초기화"
-              />
-            </div>
-          ) : null}
-
-          {layout.corpRow ? (
-            <div className="bool-row">
-              <ClearableInput
-                badgeClass="badge-corp"
-                badgeLabel="업체명"
-                value={corpDraft}
-                placeholder="업체명 입력 후 Enter"
-                onChange={setCorpDraft}
-                onSubmit={commitDrafts}
-                clearTitle="업체명 초기화"
-              />
-              <ClearableInput
-                badgeClass="badge-brn"
-                badgeLabel="사업자번호"
-                value={brnDraft}
-                placeholder="000-00-00000 (선택)"
-                onChange={setBrnDraft}
-                onSubmit={commitDrafts}
-                clearTitle="사업자번호 초기화"
-                maxLength={12}
-                narrow
-              />
-            </div>
-          ) : null}
         </div>
 
-        {layout.blockingCheck ? (
-          /*
-           * 첨부문서 전수조사에 얹혀 있던 기능이라 함께 대기 중이다. 체크 상태는 조건에
-           * 반영되지 않으므로 켜 둔 것처럼 보이면 안 된다 — 언제나 꺼진 채로 그린다.
-           */
-          <label
-            className="filter-check search-blocking-check not-ready-control"
-            title="경쟁 제한 조항 자동 제외: 백엔드에서 작업 중입니다"
-          >
-            <input
-              type="checkbox"
-              checked={false}
-              readOnly
-              onChange={() => notify('입찰 불가 조항 자동 제외')}
-            />{' '}
-            입찰 불가 조항 자동 제외
-          </label>
-        ) : null}
+        {/*
+          첨부문서 전수조사에 얹혀 있던 기능이라 함께 대기 중이다. 체크 상태는 조건에
+          반영되지 않으므로 켜 둔 것처럼 보이면 안 된다 — 언제나 꺼진 채로 그린다.
+        */}
+        <label
+          className="filter-check search-blocking-check not-ready-control"
+          title="경쟁 제한 조항 자동 제외: 백엔드에서 작업 중입니다"
+        >
+          <input
+            type="checkbox"
+            checked={false}
+            readOnly
+            onChange={() => notify('입찰 불가 조항 자동 제외')}
+          />{' '}
+          입찰 불가 조항 자동 제외
+        </label>
 
-        {layout.searchUi ? (
-          <div className="search-footer">
-            <div className="date-row">
-              <label htmlFor="from-date">기간</label>
-              <input
-                id="from-date"
-                type="date"
-                value={criteria.fromDate}
-                onChange={(e) => setCriteria({ fromDate: e.target.value })}
-              />
-              <span>~</span>
-              <input
-                id="to-date"
-                type="date"
-                aria-label="종료일"
-                value={criteria.toDate}
-                onChange={(e) => setCriteria({ toDate: e.target.value })}
-              />
-              <div className="quick-dates" aria-label="빠른 기간 선택">
-                {QUICK_DATES.map((quick) => (
-                  <button
-                    key={quick.days}
-                    type="button"
-                    className={
-                      activeQuickDays === quick.days ? 'quick-date active' : 'quick-date'
-                    }
-                    onClick={() => setCriteria(quickRange(quick.days))}
-                  >
-                    {quick.label}
-                  </button>
-                ))}
-              </div>
-              <button
-                type="button"
-                className="btn-text"
-                onClick={() => setCriteria({ fromDate: '', toDate: '' })}
-              >
-                초기화
-              </button>
+        <div className="search-footer">
+          <div className="date-row">
+            <label htmlFor="from-date">기간</label>
+            <input
+              id="from-date"
+              type="date"
+              value={criteria.fromDate}
+              onChange={(e) => setCriteria({ fromDate: e.target.value })}
+            />
+            <span>~</span>
+            <input
+              id="to-date"
+              type="date"
+              aria-label="종료일"
+              value={criteria.toDate}
+              onChange={(e) => setCriteria({ toDate: e.target.value })}
+            />
+            <div className="quick-dates" aria-label="빠른 기간 선택">
+              {QUICK_DATES.map((quick) => (
+                <button
+                  key={quick.days}
+                  type="button"
+                  className={activeQuickDays === quick.days ? 'quick-date active' : 'quick-date'}
+                  onClick={() => setCriteria(quickRange(quick.days))}
+                >
+                  {quick.label}
+                </button>
+              ))}
             </div>
-            {/* 인자 없이 불러야 한다 — 그대로 넘기면 MouseEvent 가 patch 로 들어간다. */}
-            <button type="button" className="btn-search" onClick={() => commitDrafts()}>
-              검색
+            <button
+              type="button"
+              className="btn-text"
+              onClick={() => setCriteria({ fromDate: '', toDate: '' })}
+            >
+              초기화
             </button>
           </div>
-        ) : null}
+          {/* 인자 없이 불러야 한다 — 그대로 넘기면 MouseEvent 가 patch 로 들어간다. */}
+          <button type="button" className="btn-search" onClick={() => commitDrafts()}>
+            검색
+          </button>
+        </div>
       </section>
     </>
   );
