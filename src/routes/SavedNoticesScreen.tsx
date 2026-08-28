@@ -18,6 +18,7 @@ import {
 import { FieldSet } from '@/components/common/FieldSet';
 import { Markdown } from '@/components/markdown/Markdown';
 import { PanelNotice } from '@/components/feedback/Spinner';
+import { PanelTitle } from '@/components/layout/PanelTitle';
 import { StatusBar } from '@/components/table/StatusBar';
 import { useSearchCriteria } from '@/features/search/useSearchCriteria';
 import { PriceTable } from '@/features/deal/PriceTable';
@@ -175,6 +176,7 @@ export function SavedNoticesScreen() {
 
   return (
     <section className="panel" aria-label="저장 공고">
+      <PanelTitle visuallyHidden>저장 공고</PanelTitle>
       <StatusBar
         message={
           q

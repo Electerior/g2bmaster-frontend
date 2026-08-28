@@ -3,6 +3,7 @@
  * 빈 화면 대신 돌아갈 길을 준다.
  */
 import { Link } from 'react-router-dom';
+import { PanelTitle } from '@/components/layout/PanelTitle';
 import { NOT_FOUND_META } from '@/seo/routeMeta';
 import { useSeoMeta } from '@/seo/useSeoMeta';
 import { DEFAULT_ROUTE } from './routePaths';
@@ -20,7 +21,7 @@ export function NotFoundScreen() {
 
   return (
     <section className="panel" aria-label="페이지를 찾을 수 없음">
-      <h2 className="panel-title">페이지를 찾을 수 없습니다</h2>
+      <PanelTitle>페이지를 찾을 수 없습니다</PanelTitle>
       <div className="empty-msg">
         요청하신 주소에 해당하는 화면이 없습니다.
         <div style={{ marginTop: 16 }}>

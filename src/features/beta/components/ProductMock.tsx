@@ -44,9 +44,14 @@ export default function ProductMock() {
 
         <div className="app-main">
           <div className="app-head">
-            <h4>
+            {/*
+              제목 요소가 아니라 굵은 글자다. 이 블록은 제품 화면을 흉내 낸 장식이고,
+              Hero 의 h1 바로 뒤에 h4 가 오면 문서의 제목 사다리가 h1 → h4 로 뛴다.
+              굵기·크기는 landing.css 의 `.app-head strong` 이 그대로 나른다.
+            */}
+            <strong>
               오늘 수집된 공고 <span style={{ color: 'var(--gold)' }}>312</span>건 중 매칭 3건
-            </h4>
+            </strong>
             <span>2026-08-06 07:00</span>
           </div>
 

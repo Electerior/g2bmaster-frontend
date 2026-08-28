@@ -37,7 +37,8 @@ export class ErrorBoundary extends Component<Props, State> {
 
     return (
       <div className="card" style={{ margin: '40px auto', maxWidth: 640 }} role="alert">
-        <h2 style={{ fontSize: 18, marginBottom: 8 }}>화면을 표시하지 못했습니다</h2>
+        {/* 이 대체 화면이 뜨면 문서에 남는 것은 이것뿐이다 — 그러니 h1 이다(PanelTitle 주석). */}
+        <h1 style={{ fontSize: 18, marginBottom: 8 }}>화면을 표시하지 못했습니다</h1>
         <p className="meta" style={{ marginBottom: 12 }}>
           새로고침해도 같은 문제가 반복되면 관리자에게 알려 주세요.
         </p>

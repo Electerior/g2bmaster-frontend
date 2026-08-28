@@ -10,6 +10,7 @@ import { useQuery } from '@tanstack/react-query';
 import { fetchCompanyHistory, type CompanyParticipation } from '@/api';
 import { StatusBar } from '@/components/table/StatusBar';
 import { PanelNotice } from '@/components/feedback/Spinner';
+import { PanelTitle } from '@/components/layout/PanelTitle';
 import { toG2bDate } from '@/domain/format';
 import { useSearchCriteria } from '@/features/search/useSearchCriteria';
 import { BidRateChart } from '@/features/company/BidRateChart';
@@ -69,6 +70,8 @@ export function CompanyProfileScreen() {
   if (!corpNm) {
     return (
       <section className="panel" aria-label="낙찰자 조회">
+        {/* 조기 반환 갈래에도 제목이 있어야 한다 — 조건 없이 들어온 주소도 하나의 페이지다. */}
+        <PanelTitle visuallyHidden>낙찰자 조회</PanelTitle>
         <StatusBar error message="업체명을 입력하고 Enter 또는 검색 버튼을 누르세요." />
       </section>
     );
@@ -81,6 +84,7 @@ export function CompanyProfileScreen() {
 
   return (
     <section className="panel" aria-label="낙찰자 조회">
+      <PanelTitle visuallyHidden>낙찰자 조회</PanelTitle>
       <StatusBar
         error={Boolean(history.error)}
         message={

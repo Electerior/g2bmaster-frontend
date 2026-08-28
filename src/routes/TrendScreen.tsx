@@ -11,6 +11,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useTrends, type TrendBucket, type TrendKind, type TrendNotice, type TrendQuery } from '@/api';
 import { StatusBar } from '@/components/table/StatusBar';
 import { PanelNotice } from '@/components/feedback/Spinner';
+import { PanelTitle } from '@/components/layout/PanelTitle';
 import { SCREENS, type ScreenKind } from '@/domain/columns';
 import { calcDday, fmtDisplayDatetime, toG2bDate, trendFullMoney, trendMoney } from '@/domain/format';
 import { useSearchCriteria } from '@/features/search/useSearchCriteria';
@@ -181,6 +182,7 @@ export function TrendScreen({ kind }: TrendScreenProps) {
 
   return (
     <section className="panel" aria-label={title}>
+      <PanelTitle visuallyHidden>{title}</PanelTitle>
       <StatusBar error={Boolean(trends.error)} message={statusMessage()} />
 
       {trends.isPending ? (
@@ -225,14 +227,19 @@ export function TrendScreen({ kind }: TrendScreenProps) {
             ))}
           </div>
 
+          {/*
+            소제목은 h2 다. 화면 제목이 h1(PanelTitle)이므로 h3 로 두면 h2 를 건너뛴다 —
+            예전에는 셸의 h1 밑에서 이 여섯이 곧바로 h3 였고, 그때부터 이미 단계가 비어 있었다.
+            보이는 모습은 trend.css 의 `.trend-section h2` 가 그대로 나른다.
+          */}
           <div className="trend-layout">
             <section className="trend-section trend-wide">
-              <h3>
+              <h2>
                 일자별 {itemLabel} 공고{' '}
                 <small>
                   {trendDayLimitLabel(dayLimit)} / {trendDaySortLabel(daySort)}
                 </small>
-              </h3>
+              </h2>
               <TrendDayTable
                 byDay={data.byDay ?? []}
                 limit={dayLimit}
@@ -243,23 +250,23 @@ export function TrendScreen({ kind }: TrendScreenProps) {
               />
             </section>
             <section className="trend-section">
-              <h3>키워드 TOP</h3>
+              <h2>키워드 TOP</h2>
               <RankList items={data.keywords ?? []} onKeyword={applyKeyword} />
             </section>
             <section className="trend-section">
-              <h3>발주기관 TOP</h3>
+              <h2>발주기관 TOP</h2>
               <RankList items={data.topInstitutions ?? []} />
             </section>
             <section className="trend-section">
-              <h3>계약방법</h3>
+              <h2>계약방법</h2>
               <RankList items={data.contractMethods ?? []} />
             </section>
             <section className="trend-section trend-wide">
-              <h3>마감임박 {itemLabel}</h3>
+              <h2>마감임박 {itemLabel}</h2>
               <NoticeList items={data.closingSoon ?? []} onOpenNotice={openNotice} />
             </section>
             <section className="trend-section trend-wide">
-              <h3>고액 {itemLabel} 공고</h3>
+              <h2>고액 {itemLabel} 공고</h2>
               <NoticeList items={data.highValue ?? []} onOpenNotice={openNotice} />
             </section>
           </div>

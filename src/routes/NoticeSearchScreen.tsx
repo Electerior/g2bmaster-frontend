@@ -17,6 +17,7 @@ import {
   type NoticeIndexItem,
 } from '@/api/search';
 import { EmptyState } from '@/components/feedback/EmptyState';
+import { PanelTitle } from '@/components/layout/PanelTitle';
 import { DataTable } from '@/components/table/DataTable';
 import { Pagination } from '@/components/table/Pagination';
 import { INDEX_PER_PAGE_OPTIONS, snapPerPage } from '@/components/table/perPage';
@@ -147,6 +148,7 @@ export function NoticeSearchScreen() {
 
   return (
     <section className="panel" aria-label={SCREEN.label}>
+      <PanelTitle visuallyHidden>{SCREEN.label}</PanelTitle>
       <div className="result-topbar">
         <div className="topbar-left">
           {renderStatusBar()}

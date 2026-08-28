@@ -3,6 +3,8 @@
  *
  * 왼쪽은 정체성(ELECTERIOR · G2B Masters), 오른쪽은 연락처와 앱 액션이 한 줄에 온다.
  * 연락처 pill·복사 동작은 예전 배너 그대로다(ContactPill) — 마케팅 문구·링크는 임의로 바꾸지 않는다.
+ *
+ * 이 헤더에는 제목 요소(h1~h6)가 하나도 없다. 이유는 브랜드 표기 위 주석에 적어 두었다.
  */
 import { Link, useNavigate } from 'react-router-dom';
 import { fullReset } from '@/domain/storage';
@@ -55,7 +57,15 @@ export function AppHeader({ onOpenSettings }: AppHeaderProps) {
         </a>
         <span className="brand-divider" aria-hidden="true" />
         <div className="app-header-inner">
-          <h1>
+          {/*
+            브랜드 표기는 제목(h1)이 아니라 그냥 글자다 — 일부러 그렇게 두었다.
+            셸은 14개 라우트에서 전부 렌더되므로 여기에 h1 을 두면 모든 주소의 가장 강한
+            제목 신호가 "G2B Masters" 하나로 같아진다. 그 자리는 화면마다 다른 제목이
+            차지해야 한다(PanelTitle 참고). 되돌려 h1 로 만들면 한 페이지에 h1 이 둘이 되고
+            src/routes/routeHeadings.test.tsx 가 깨진다.
+            보이는 모습은 .app-title 클래스가 그대로 나른다(global.css · layout.css).
+          */}
+          <div className="app-title">
             <Link
               className="app-title-link"
               to={DEFAULT_ROUTE}
@@ -63,7 +73,7 @@ export function AppHeader({ onOpenSettings }: AppHeaderProps) {
             >
               G2B Masters
             </Link>
-          </h1>
+          </div>
           <span className="app-header-sub">나라장터 입찰정보 통합 조회</span>
         </div>
       </div>

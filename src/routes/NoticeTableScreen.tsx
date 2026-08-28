@@ -21,6 +21,7 @@ import { Pagination } from '@/components/table/Pagination';
 import { PER_PAGE_ALL } from '@/components/table/perPage';
 import { StatusBar } from '@/components/table/StatusBar';
 import { EmptyState, PendingState } from '@/components/feedback/EmptyState';
+import { PanelTitle } from '@/components/layout/PanelTitle';
 import {
   columnsFor,
   defaultSortForKind,
@@ -344,6 +345,7 @@ export function NoticeTableScreen({ kind }: NoticeTableScreenProps) {
 
   return (
     <section className="panel" aria-label={screen.label}>
+      <PanelTitle visuallyHidden>{screen.label}</PanelTitle>
       <div className="result-topbar">
         <div className="topbar-left">
           {renderStatusBar()}

@@ -18,6 +18,7 @@ import {
 } from '@/api/price';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { PanelNotice } from '@/components/feedback/Spinner';
+import { PanelTitle } from '@/components/layout/PanelTitle';
 import { StatusBar } from '@/components/table/StatusBar';
 import { PriceDbTable } from '@/features/price/PriceDbTable';
 import { useSeoMeta } from '@/seo/useSeoMeta';
@@ -80,7 +81,7 @@ export function PriceDatabaseScreen() {
 
   return (
     <section className="panel" aria-label="단가 DB">
-      <h2 className="panel-title">단가 DB</h2>
+      <PanelTitle>단가 DB</PanelTitle>
 
       {/* 조회 필터 */}
       <form className="price-filter" onSubmit={submitFilter}>
