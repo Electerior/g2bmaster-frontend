@@ -17,7 +17,7 @@ const { default: Apply } = await import('./Apply');
 
 beforeEach(() => mutate.mockReset());
 
-it('서버가 성공하기 전에는 접수 완료라고 표시하지 않는다', () => {
+it('서버로 요청을 전달하면 즉시 접수 완료를 표시하고 실패하면 오류로 복귀한다', () => {
   render(
     <Apply
       status={{ total: 20, remaining: 12, deadline: '2026-08-31T23:59:59+09:00', open: true }}
@@ -33,11 +33,11 @@ it('서버가 성공하기 전에는 접수 완료라고 표시하지 않는다'
   fireEvent.click(screen.getByRole('checkbox'));
   fireEvent.click(screen.getByRole('button', { name: '베타 신청하기' }));
 
-  expect(screen.getByRole('button', { name: '신청 중…' })).toBeDisabled();
-  expect(screen.queryByText('신청이 접수되었습니다')).not.toBeInTheDocument();
-
-  const options = mutate.mock.calls[0][1] as { onSuccess: () => void };
-  act(() => options.onSuccess());
-
   expect(screen.getByText('신청이 접수되었습니다')).toBeInTheDocument();
+
+  const options = mutate.mock.calls[0][1] as { onError: (error: Error) => void };
+  act(() => options.onError(new Error('접수 서버에 연결하지 못했습니다.')));
+
+  expect(screen.queryByText('신청이 접수되었습니다')).not.toBeInTheDocument();
+  expect(screen.getByText('접수에 실패했습니다. 잠시 후 다시 시도해 주세요.')).toBeInTheDocument();
 });

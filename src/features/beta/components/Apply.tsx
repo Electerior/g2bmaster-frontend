@@ -33,12 +33,12 @@ const Apply = forwardRef<HTMLElement, Props>(function Apply({ status, countdown 
       return;
     }
 
-    setState({ status: 'submitting' });
+    // 요청을 전달하는 즉시 완료 화면을 보여 주고, 실제 실패 시 폼과 오류로 복귀한다.
+    setState({ status: 'success' });
 
     signup.mutate(
       { ...form, privacyAgreed: agreed },
       {
-        onSuccess: () => setState({ status: 'success' }),
         onError: (err) => {
           // 서버의 한국어 오류 문구는 사용자 대상 계약(§1.1)이므로 그대로 씁니다.
           // 이 저장소의 apiClient 는 연결이 끊긴 경우도 ApiError(status 0) 로 넘겨줍니다.
@@ -53,7 +53,6 @@ const Apply = forwardRef<HTMLElement, Props>(function Apply({ status, countdown 
   }
 
   const locked = !status.open;
-  const submitting = state.status === 'submitting';
 
   return (
     <section className="sec" id="apply" ref={ref} style={{ paddingTop: 'clamp(40px,6vw,80px)' }}>
@@ -141,9 +140,8 @@ const Apply = forwardRef<HTMLElement, Props>(function Apply({ status, countdown 
               </p>
             )}
 
-            {/* 서버가 성공을 확인하기 전에는 중복 제출을 막고 진행 상태를 보여 준다. */}
-            <button type="submit" className="btn" style={{ width: '100%' }} disabled={locked || submitting}>
-              {locked ? '모집이 마감되었습니다' : submitting ? '신청 중…' : '베타 신청하기'}
+            <button type="submit" className="btn" style={{ width: '100%' }} disabled={locked}>
+              {locked ? '모집이 마감되었습니다' : '베타 신청하기'}
             </button>
 
             {state.status === 'success' && (

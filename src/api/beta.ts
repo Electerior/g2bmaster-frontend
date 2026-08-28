@@ -39,7 +39,6 @@ export interface BetaSignupResponse {
 
 export type SignupState =
   | { status: 'idle' }
-  | { status: 'submitting' }
   | { status: 'success' }
   | { status: 'error'; message: string };
 
@@ -72,17 +71,24 @@ export function useBetaStatus() {
   });
 }
 
-/** 실제 접수가 성공한 뒤에만 잔여 수를 줄이고 서버 상태를 다시 맞춘다. */
+/** 전송 즉시 잔여 수를 반영하고, 실패하면 이전 상태로 되돌린다. */
 export function useBetaSignup() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: submitBetaSignup,
-    onSuccess: () => {
+    onMutate: () => {
+      const previous = queryClient.getQueryData<BetaStatus>(betaKeys.status());
       queryClient.setQueryData<BetaStatus>(betaKeys.status(), (prev) => {
         if (!prev) return prev;
         const remaining = Math.max(0, prev.remaining - 1);
         return { ...prev, remaining, open: prev.open && remaining > 0 };
       });
+      return { previous };
+    },
+    onError: (_error, _variables, context) => {
+      if (context?.previous) queryClient.setQueryData(betaKeys.status(), context.previous);
+    },
+    onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: betaKeys.status() });
     },
   });
