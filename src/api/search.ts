@@ -52,12 +52,6 @@ export const NOTICE_SORT_KEYS = [
   'name',
   'amount',
   'updated',
-  /*
-   * 마진율순. 원가를 아는 공고(딜 분석을 돌렸거나 가격표를 저장한 건)만 값이 있고 나머지는
-   * 뒤에 붙는다 — **결과 집합은 줄지 않는다**. 정렬을 바꿨다고 공고가 사라지면 안 되므로
-   * 서버가 미분석 건을 빼지 않고 뒤로 민다.
-   */
-  'margin',
 ] as const;
 export type NoticeSortKey = (typeof NOTICE_SORT_KEYS)[number];
 
@@ -217,6 +211,16 @@ export interface NoticeIndexItem {
   /** 전문검색일 때만. */
   relevance?: number;
 
+  /**
+   * 검색어가 걸린 위치. 첨부 검색 스코프를 타지 않은 질의에는 오지 않는다.
+   * `attachment` 만 있으면 제목·공고본문이 아니라 첨부 본문에서 찾은 결과다.
+   */
+  matchedIn?: Array<'notice' | 'attachment'>;
+  /**
+   * 이 공고의 첨부 본문 색인이 끝났는가. `false` 는 미일치가 아니라 아직 판단할 수 없다는 뜻이다.
+   */
+  attachmentIndexed?: boolean;
+
   /** 남은 **일수**(시각이 아니라). 마감이 없는 계획 단계는 오지 않는다. */
   dday?: number | null;
   /** `priceDetail.estimatedPrice` 를 꺼내 둔 것. **나라장터 입찰·마감·계획에만 있다.** */
@@ -257,7 +261,23 @@ export interface NoticeIndexItem {
   marginUpdatedAt?: string | null;
 }
 
-export type NoticeSearchResponse = PageEnvelope<NoticeIndexItem>;
+export interface NoticeAttachmentSearchMeta {
+  /** 이 엔드포인트가 첨부 본문을 검색 범위에 넣도록 설정돼 있는가. */
+  scope: boolean;
+  /** 이번 질의가 실제로 첨부 본문을 검색했는가. 검색어가 없거나 모두 건너뛰면 false 다. */
+  applied: boolean;
+  /** 제외 낱말을 첨부 본문에도 적용했는가. */
+  excludeApplied: boolean;
+  /** 한 글자 등 첨부 전문색인이 처리할 수 없어 공고 본문에서만 적용한 낱말. */
+  skippedTerms: string[];
+  /** 첨부 검색 커버리지. 스코프가 꺼져 있으면 두 값이 생략될 수 있다. */
+  totalNotices?: number;
+  indexedNotices?: number;
+}
+
+export type NoticeSearchResponse = PageEnvelope<NoticeIndexItem> & {
+  meta?: { attachmentSearch?: NoticeAttachmentSearchMeta };
+};
 
 export interface NoticeFacetBucket {
   value: string;
@@ -323,8 +343,16 @@ export function fetchNoticeIndexStatus(): Promise<NoticeIndexStatus> {
 }
 
 /** 상세 한 건. 색인에 없으면 404 + `{ error: '색인에 없는 공고입니다: …' }`. */
-export function fetchNoticeDetail(id: string): Promise<NoticeIndexItem> {
-  return get<NoticeIndexItem>(`/api/search/notices/${encodeURIComponent(id)}`);
+export function fetchNoticeDetail(
+  id: string,
+  source?: string | null,
+): Promise<NoticeIndexItem> {
+  const base = `/api/search/notices/${encodeURIComponent(id)}`;
+  const normalizedSource = String(source ?? '').trim();
+  const suffix = normalizedSource
+    ? `?${toSearchParams({ source: normalizedSource }).toString()}`
+    : '';
+  return get<NoticeIndexItem>(`${base}${suffix}`);
 }
 
 /* ─── 쿼리 훅 ─────────────────────────────────────────────────────────────── */
@@ -334,7 +362,8 @@ export const noticeIndexKeys = {
   search: (q: NoticeIndexQuery) => ['notice-index', 'search', q] as const,
   facets: (q: NoticeIndexQuery) => ['notice-index', 'facets', q] as const,
   status: () => ['notice-index', 'status'] as const,
-  detail: (id: string) => ['notice-index', 'detail', id] as const,
+  detail: (id: string, source?: string | null) =>
+    ['notice-index', 'detail', id, String(source ?? '').trim()] as const,
 };
 
 export function useNoticeIndexSearch(query: NoticeIndexQuery, options: { enabled?: boolean } = {}) {
@@ -367,10 +396,10 @@ export function useNoticeIndexStatus() {
   });
 }
 
-export function useNoticeDetail(id: string | null) {
+export function useNoticeDetail(id: string | null, source?: string | null) {
   return useQuery({
-    queryKey: noticeIndexKeys.detail(id ?? ''),
-    queryFn: () => fetchNoticeDetail(id as string),
+    queryKey: noticeIndexKeys.detail(id ?? '', source),
+    queryFn: () => fetchNoticeDetail(id as string, source),
     enabled: Boolean(id),
     staleTime: 5 * 60_000,
   });

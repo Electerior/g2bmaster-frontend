@@ -255,18 +255,15 @@
 /*
  * 검색창 아래 본문 — 탭 레일과 결과 패널을 가로로 나란히 놓는다.
  *
- * 예전에는 탭이 패널 위에 얹힌 가로 스트립이었다. 탭 9개가 뷰포트 ~1150px 아래에서
- * 넘쳤는데 overflow-x:auto 에 스크롤바까지 숨긴 탓에 **넘쳤다는 신호가 어디에도 없었다** —
- * 뒤 두 탭(용역·공사 트렌드)은 존재 자체를 알 수 없었다. 세로로 세우면 탭 수가 폭을
- * 먹지 않으므로 그 문제가 구조적으로 사라진다.
+ * 예전에는 탭이 패널 위에 얹힌 가로 스트립이었다. 지금은 운영 중인 조회 화면만
+ * 세로 레일에 두어 좁은 화면에서도 이름을 그대로 읽을 수 있다.
  */
 /* 이름이 .app-body 가 아닌 것은 베타 랜딩의 목업이 그 이름을 이미 쓰기 때문이다
    (landing.css `.beta-landing .app-body` — 제품 스크린샷 흉내). 랜딩은 셸 밖에서
    렌더돼 실제로 겹치지는 않지만, 같은 이름을 두 뜻으로 쓰면 다음 사람이 반드시 헷갈린다. */
 .app-shell-body {
   display: flex;
-  /* 패널이 짧아도 레일 높이(탭 9개 ≈ 440px)까지 늘어난다 — 안 그러면 짧은 화면
-     (404 · 자리표시자)에서 탭이 패널 아래로 삐져나온다. */
+  /* 짧은 화면에서도 탭과 패널의 높이를 함께 늘린다. */
   align-items: stretch;
 }
 
@@ -281,7 +278,7 @@
   flex: 0 0 calc(var(--tab-rail-width) + var(--tab-protrude));
   gap: 0;
   /* 왼쪽 여백은 활성 탭이 돌출할 자리다 — 탭의 음수 margin 이 이 안으로 들어온다.
-     .app-shell-body 에 주면 탭이 없는 라우트(/system · /analysis-lab)까지 들여쓰기된다. */
+     .app-shell-body 에 주면 탭이 없는 /system 화면까지 들여쓰기된다. */
   padding: 0 0 8px var(--tab-protrude);
 }
 .app-tab-section {
@@ -303,8 +300,7 @@
   /* 세로 레일은 두 줄이 자연스럽다. 가로 스트립의 white-space:nowrap 을 버린 이유 —
      한 줄로 고정하면 «준비» 배지까지 190px 이 되어 본문을 그만큼 깎는다. */
   line-height: 1.35;
-  /* 한글은 기본 줄바꿈이 음절 단위라 '하드웨어 스펙 검색'이 '…스펙 검 / 색'으로 쪼개진다.
-     keep-all 이면 띄어쓰기에서만 접혀 '하드웨어 스펙 / 검색'이 된다. */
+  /* 한글 라벨은 띄어쓰기에서만 접어 읽기 쉬운 단위로 유지한다. */
   word-break: keep-all;
   color: var(--muted);
   text-decoration: none;
@@ -329,37 +325,6 @@
   outline: 2px solid var(--theme-honey-bronze);
   outline-offset: -2px;
 }
-.app-tab-disclosure {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  text-align: left;
-}
-.app-tab-disclosure.is-open,
-.app-tab-disclosure.is-current {
-  color: var(--theme-gunmetal);
-  font-weight: 700;
-}
-.app-tab-disclosure.is-open {
-  background: var(--surface-2);
-}
-.app-tab-chevron {
-  flex: 0 0 auto;
-  font-size: 20px;
-  line-height: 1;
-  transform: rotate(0deg);
-  transition: transform 0.15s ease;
-}
-.app-tab-disclosure.is-open .app-tab-chevron {
-  transform: rotate(90deg);
-}
-.app-tab-submenu {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
 .app-tab.active {
   background: var(--surface);
   border-color: var(--border);
@@ -369,48 +334,6 @@
   /* 책갈피 — 활성 탭만 왼쪽으로 튀어나온다. 레일의 padding-left 가 그 자리다. */
   margin-left: calc(var(--tab-protrude) * -1);
   padding-left: calc(14px + var(--tab-protrude));
-}
-.app-tab--nested {
-  padding-left: 22px;
-}
-.app-tab--nested.active {
-  padding-left: calc(22px + var(--tab-protrude));
-}
-/* 준비 중 화면의 탭 — 라벨은 흐리게, 옆에 «준비» 배지. 클릭 전에 미완임을 알린다. */
-.app-tab.not-ready {
-  color: var(--table-empty-fg);
-}
-.app-tab.not-ready.active {
-  color: var(--muted);
-}
-.tab-ready-badge {
-  display: inline-block;
-  margin-left: 6px;
-  padding: 1px 6px;
-  border-radius: 4px;
-  background: var(--theme-honey-bronze);
-  color: var(--theme-on-light);
-  font-size: var(--fs-badge-sm);
-  font-weight: 700;
-  vertical-align: middle;
-}
-/* 준비 중 화면의 탭 — 라벨은 흐리게, 옆에 «준비» 배지. 클릭 전에 미완임을 알린다. */
-.app-tab.not-ready {
-  color: var(--table-empty-fg);
-}
-.app-tab.not-ready.active {
-  color: var(--muted);
-}
-.tab-ready-badge {
-  display: inline-block;
-  margin-left: 6px;
-  padding: 1px 6px;
-  border-radius: 4px;
-  background: #fdf3e2;
-  color: #8a5b0c;
-  font-size: var(--fs-badge-sm);
-  font-weight: 700;
-  vertical-align: middle;
 }
 
 @media (max-width: 760px) {
@@ -449,12 +372,7 @@
   /*
    * 좁은 화면 — 레일도 라벨도 그대로 두고 폭과 글자만 줄인다.
    *
-   * 한때 여기서 라벨을 이모지로 갈음했는데(🔍 🏁 🤖 …) 실물이 알아볼 수 없었다.
-   * 아이콘 아홉 개가 세로로 늘어서면 어느 것이 '용역 트렌드'이고 어느 것이 '공사 트렌드'인지
-   * 글리프만으로는 구분이 안 되고, 그렇다고 하나씩 눌러 확인하게 만들 수는 없다.
-   * 폭을 24px 아끼자고 탭의 이름을 지우는 것은 남는 장사가 아니다 — 이름을 남긴다.
-   *
-   * 가로 스트립으로 되돌리는 선택지는 여전히 없다: 탭 9개는 390px 폭에 들어가지 않는다.
+   * 좁은 화면에서도 라벨을 글자로 남겨 탭의 목적을 바로 알 수 있게 한다.
    */
   .app-tabs {
     flex-basis: calc(var(--tab-rail-width-sm) + var(--tab-protrude));
@@ -473,14 +391,5 @@
   /* 책갈피 돌출은 좁은 화면에서도 유지한다 — 활성 탭을 알아보는 주된 단서다. */
   .app-tab.active {
     padding-left: calc(10px + var(--tab-protrude));
-  }
-  .app-tab--nested {
-    padding-left: 16px;
-  }
-  .app-tab--nested.active {
-    padding-left: calc(16px + var(--tab-protrude));
-  }
-  .app-tab-submenu {
-    gap: 2px;
   }
 }

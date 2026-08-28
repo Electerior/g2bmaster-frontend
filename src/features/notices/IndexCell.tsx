@@ -20,8 +20,6 @@ import {
   ddayLabel,
   ddayTone,
   institutionPair,
-  marginBasisTitle,
-  marginRateLabel,
   regionLabel,
 } from './indexRows';
 import { SaveNoticeButton } from './SaveNoticeButton';
@@ -47,9 +45,16 @@ interface IndexCellProps {
   item: NoticeIndexItem;
   column: ColumnDef;
   actions: IndexCellActions;
+  /** 이번 목록 질의가 첨부 본문을 실제 검색했는가. */
+  attachmentSearchApplied?: boolean;
 }
 
-export function IndexCell({ item, column, actions }: IndexCellProps): ReactNode {
+export function IndexCell({
+  item,
+  column,
+  actions,
+  attachmentSearchApplied = false,
+}: IndexCellProps): ReactNode {
   const notReady = useNotReady();
   const raw = (item as unknown as Record<string, unknown>)[column.key];
 
@@ -113,11 +118,35 @@ export function IndexCell({ item, column, actions }: IndexCellProps): ReactNode 
       const name = String(item.noticeName ?? '').trim();
       if (!name) return EMPTY;
       const no = String(item.id ?? '').trim();
+      const matchedIn = item.matchedIn ?? [];
+      const attachmentOnly =
+        matchedIn.includes('attachment') && !matchedIn.includes('notice');
+      const attachmentUnknown = attachmentSearchApplied && item.attachmentIndexed === false;
       return (
         <div className="notice-name-cell">
           <button type="button" className="bid-link" onClick={() => actions.openDetail(item)}>
             {name}
           </button>
+          {attachmentOnly || attachmentUnknown ? (
+            <span className="notice-match-flags">
+              {attachmentOnly ? (
+                <span
+                  className="notice-match-flag attachment-only"
+                  title="공고명·공고본문이 아니라 첨부 본문에서 검색어가 일치했습니다"
+                >
+                  첨부 일치
+                </span>
+              ) : null}
+              {attachmentUnknown ? (
+                <span
+                  className="notice-match-flag attachment-unindexed"
+                  title="첨부 본문이 아직 색인되지 않아 첨부에서의 일치 여부를 판단할 수 없습니다"
+                >
+                  첨부 미색인
+                </span>
+              ) : null}
+            </span>
+          ) : null}
           {/* 공고번호는 표에서 별도 컬럼을 빼는 대신 공고명 아래 옅게 붙인다(SVG 목업). */}
           {no ? <span className="notice-no">{no}</span> : null}
           {item.bodyPreview ? <p className="body-preview">{item.bodyPreview}</p> : null}
@@ -211,31 +240,6 @@ export function IndexCell({ item, column, actions }: IndexCellProps): ReactNode 
         <span className="amt-pair">
           <span className="amt">{fmtMoney(value)}</span>
           {kind ? <em title={`이 금액은 ${kind}입니다`}>{kind}</em> : null}
-        </span>
-      );
-    }
-
-    /*
-     * 마진율.
-     *
-     * 이 칸의 어려움은 **빈 값이 세 가지 뜻일 수 있다**는 것이다: 원가를 아직 모른다(대부분),
-     * 예산이 미공개라 분모가 없다, 마진이 정말 0이다. 앞의 둘을 '0%' 나 '-' 로 뭉개면 분석하지
-     * 않은 공고가 '남는 게 없는 공고'로 보이고, 마진순 정렬을 켠 사용자는 그 행들을 실제로
-     * 검토해서 버린 것으로 읽는다. 그래서 값이 없으면 '미분석'이라고 적는다.
-     *
-     * 값이 있을 때도 숫자만으로는 부족하다. 사람이 확정한 원가와 AI 추정 원가는 믿을 만한
-     * 정도가 다른데 화면에서는 똑같은 숫자다 — 출처를 함께 적어야 추정을 확정처럼 믿지 않는다.
-     */
-    case 'margin': {
-      const rate = raw as number | null | undefined;
-      if (rate == null) {
-        return <span className="cell-empty" title="원가를 아직 모른다 — 딜 분석을 돌리거나 가격표를 저장하면 채워진다">미분석</span>;
-      }
-      const confirmed = item.marginSource === 'confirmed';
-      return (
-        <span className={`margin-pair ${rate < 0 ? 'margin-neg' : 'margin-pos'}`}>
-          <span className="margin-rate">{marginRateLabel(rate)}</span>
-          <em title={marginBasisTitle(item)}>{confirmed ? '확정' : '추정'}</em>
         </span>
       );
     }

@@ -24,6 +24,7 @@ const { NoticeSearchScreen } = await import('./NoticeSearchScreen');
 /** 조달청 대행 + 지역 있음 + 마감 있음. */
 const DELEGATED: NoticeIndexItem = {
   id: 'R26BK01638523',
+  source: 'G2B',
   noticeName: '2026년 노트북 및 모니터 구매',
   category: '입찰',
   businessDivision: '물품',
@@ -39,6 +40,8 @@ const DELEGATED: NoticeIndexItem = {
   amount: 45000000,
   amountKind: 'estimatedPrice',
   bodyPreview: '노트북컴퓨터 모니터 일반경쟁 적격심사',
+  matchedIn: ['attachment'],
+  attachmentIndexed: true,
   // 사람이 가격표를 저장해 원가가 확정된 공고. 실추정가 49,500,000 − 원가 35,000,000 → 29.29%
   marginRate: 29.29,
   marginCost: 35000000,
@@ -76,6 +79,7 @@ const SPEC: NoticeIndexItem = {
 /** 계획 단계 — 마감이 없어 dday·closeDate 필드가 아예 오지 않는다. 지역은 빈 문자열(전국). */
 const PLAN: NoticeIndexItem = {
   id: '20260715001',
+  source: 'G2B',
   noticeName: '스마트캠퍼스 통합관제 시스템 구축 발주계획',
   category: '계획',
   businessDivision: '용역',
@@ -86,6 +90,7 @@ const PLAN: NoticeIndexItem = {
   estimatedPrice: 1200000000,
   amount: 1200000000,
   amountKind: 'estimatedPrice',
+  attachmentIndexed: false,
 };
 
 /** 취소 공고 — 기본 목록에서는 빠지고 상태 '취소'를 고른 경우에만 나온다. */
@@ -156,7 +161,25 @@ function respond(url: string) {
     : excludeState === '취소'
       ? ITEMS.filter((item) => item.state !== '취소')
       : ITEMS;
-  return Promise.resolve({ items, totalCount: items.length, pageNo: 1, numOfRows: 20 });
+  const terms = [params.get('andTerms'), params.get('orTerms'), params.get('notTerms')]
+    .flatMap((value) => String(value ?? '').split(','))
+    .filter(Boolean);
+  return Promise.resolve({
+    items,
+    totalCount: items.length,
+    pageNo: 1,
+    numOfRows: 20,
+    meta: {
+      attachmentSearch: {
+        scope: true,
+        applied: terms.some((term) => term.length >= 2),
+        excludeApplied: Boolean(params.get('notTerms')),
+        skippedTerms: terms.filter((term) => term.length < 2),
+        totalNotices: 45_736,
+        indexedNotices: 1_225,
+      },
+    },
+  });
 }
 
 function renderScreen(search = '') {
@@ -183,6 +206,44 @@ describe('NoticeSearchScreen', () => {
     expect(urls.some((u) => u.startsWith('/api/search/notices?'))).toBe(true);
     expect(urls.some((u) => u.startsWith('/api/search/notices/facets?'))).toBe(true);
     expect(urls.some((u) => u.includes('/api/bid-announce'))).toBe(false);
+  });
+
+  it('첨부에서만 걸린 행과 첨부 미색인 행을 구분해 표시한다', async () => {
+    renderScreen('?and=노트북');
+    expect(await screen.findByText('첨부 일치')).toHaveAttribute(
+      'title',
+      expect.stringContaining('첨부 본문에서 검색어가 일치'),
+    );
+    expect(screen.getByText('첨부 미색인')).toHaveAttribute(
+      'title',
+      expect.stringContaining('일치 여부를 판단할 수 없습니다'),
+    );
+  });
+
+  it('첨부 검색 범위와 건너뛴 낱말·색인 커버리지를 상태 줄에 알린다', async () => {
+    renderScreen('?and=차');
+    expect(await screen.findByText('첨부 검색 제외 낱말 차')).toBeInTheDocument();
+    expect(screen.getByText('첨부 색인 1,225/45,736건')).toBeInTheDocument();
+  });
+
+  it('서버가 첨부 스코프를 끈 경우 상태 줄에서 숨기지 않는다', async () => {
+    get.mockImplementation(async (url: string) => {
+      const data = await respond(url);
+      if (!url.startsWith('/api/search/notices?')) return data;
+      return {
+        ...data,
+        meta: {
+          attachmentSearch: {
+            scope: false,
+            applied: false,
+            excludeApplied: false,
+            skippedTerms: [],
+          },
+        },
+      };
+    });
+    renderScreen('?and=노트북');
+    expect(await screen.findByText('첨부 검색 범위 꺼짐')).toBeInTheDocument();
   });
 
   it('지역이 빈 공고를 전국으로 적는다', async () => {
@@ -348,53 +409,15 @@ describe('NoticeSearchScreen', () => {
     expect(params.get('sort')).toBeNull();
   });
 
-  /*
-   * 마진율 칸.
-   *
-   * 이 열의 값은 세 상태가 있고 화면에서 서로 달라야 한다: 확정 원가로 낸 마진, 추정 원가로
-   * 낸 마진, 그리고 **원가를 아직 모름**. 셋을 같은 모양으로 그리면 분석하지 않은 공고가
-   * '남는 게 없는 공고'로 보이고, 추정을 확정처럼 믿게 된다.
-   */
-  describe('마진율', () => {
-    it('부호와 원가 출처를 함께 적는다', async () => {
-      const { container } = renderScreen();
-      await screen.findByText('2026년 노트북 및 모니터 구매');
+  it('가격 분석 결과인 마진 열·값·정렬을 렌더하지 않는다', async () => {
+    renderScreen();
+    await screen.findByText('2026년 노트북 및 모니터 구매');
 
-      // 양수에도 부호를 붙인다 — 이 표에서 음수가 흔해 부호 없는 수와 나란히 두면 잘못 읽힌다.
-      const confirmed = screen.getByText('+29.3%').closest('.margin-pair')!;
-      expect(within(confirmed as HTMLElement).getByText('확정')).toBeInTheDocument();
-
-      const estimated = screen.getByText('-21.6%').closest('.margin-pair')!;
-      expect(within(estimated as HTMLElement).getByText('추정')).toBeInTheDocument();
-      // 역마진만 색을 준다 — 이 열에서 눈에 걸려야 하는 행이다.
-      expect(estimated).toHaveClass('margin-neg');
-      expect(confirmed).not.toHaveClass('margin-neg');
-      expect(container.querySelectorAll('.margin-neg')).toHaveLength(1);
-    });
-
-    it("원가를 모르는 공고는 '0%' 가 아니라 '미분석' 이다", async () => {
-      renderScreen();
-      await screen.findByText('스마트캠퍼스 통합관제 시스템 구축 발주계획');
-      // PLAN·CLOSED 에는 마진 필드가 없다.
-      expect(screen.getAllByText('미분석').length).toBeGreaterThan(0);
-      expect(screen.queryByText('+0.0%')).not.toBeInTheDocument();
-    });
-
-    it('머리글을 누르면 마진순으로 다시 조회한다', async () => {
-      renderScreen();
-      await screen.findByText('2026년 노트북 및 모니터 구매');
-      get.mockClear();
-
-      fireEvent.click(screen.getByLabelText('마진율 정렬'));
-
-      const listUrl = get.mock.calls
-        .map(([url]) => url as string)
-        .find((u) => u.startsWith('/api/search/notices?'))!;
-      const params = new URLSearchParams(listUrl.split('?')[1]);
-      expect(params.get('sort')).toBe('margin');
-      // 마진은 '높은 순'부터 보는 것이 기본이다 — 낮은 순이 먼저 나오면 역마진만 보인다.
-      expect(params.get('dir')).toBe('desc');
-    });
+    // 백엔드 응답에 마진 필드가 남아 있어도 UI에는 노출하지 않는다.
+    expect(screen.queryByRole('columnheader', { name: /마진율/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: /마진율/ })).not.toBeInTheDocument();
+    expect(screen.queryByText('+29.3%')).not.toBeInTheDocument();
+    expect(screen.queryByText('미분석')).not.toBeInTheDocument();
   });
 
   /*

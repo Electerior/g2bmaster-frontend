@@ -1,6 +1,4 @@
-/*
- * 저장 공고 카드 — 원본 .deal-card / .saved-card / .prod-gap 블록.
- */
+/* 저장 공고 카드. */
 .saved-list {
   display: flex;
   flex-direction: column;
@@ -48,20 +46,6 @@
   opacity: 0.6;
   cursor: default;
 }
-.saved-gap {
-  margin-top: 4px;
-}
-/* 합계 ↔ 실추정가 차액. 초과는 눈에 띄어야 한다 — 그 구성으로는 남지 않는다는 뜻이다. */
-.prod-gap {
-  font-size: var(--fs-badge);
-  font-weight: 600;
-}
-.prod-gap.under {
-  color: var(--gap-under-fg);
-}
-.prod-gap.over {
-  color: var(--gap-over-fg);
-}
 .saved-summary {
   font-size: var(--fs-meta);
   color: var(--muted);
@@ -74,6 +58,3 @@
   font-size: var(--fs-meta);
   margin-top: 6px;
 }
-
-.saved-card-actions { display: flex; align-items: center; gap: 8px; }
-.saved-table-actions { margin-top: 10px; text-align: right; }

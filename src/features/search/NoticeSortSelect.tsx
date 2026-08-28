@@ -29,7 +29,6 @@ const SORT_LABEL: Readonly<Record<NoticeSortKey, string>> = {
   name: '공고명',
   amount: '금액',
   updated: '색인 갱신',
-  margin: '마진율',
 };
 
 interface NoticeSortSelectProps {

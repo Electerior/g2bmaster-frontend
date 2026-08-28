@@ -1,285 +1,40 @@
 /*
- * AI · 분석 계열 엔드포인트 — 딜 분석, 공고/품목 요약, 낙찰자 이력, 담당자 조회,
- * 담합 매트릭스, 유사 완본체 비교, 파일 파싱.
+ * AI · 분석 계열 엔드포인트 — 공고 단순 요약, 낙찰자 이력, 담당자 조회,
+ * 담합 매트릭스, 파일 파싱.
  *
- * **가장 중요한 계약:** 이 중 요약 계열은 LLM 이 실패해도 HTTP 200 을 준다.
- * 본문에 aiFallback / aiTimeout / aiDisabled 플래그가 실려 오고 summary 는 메타데이터로
- * 채워진다. axios 인터셉터는 이것을 오류로 보지 않으므로, 화면이 플래그를 직접 읽어야 한다.
+ * **가장 중요한 계약:** 공고 요약은 LLM 이 실패해도 HTTP 200 을 준다.
+ * 이때 summary=null, aiFallback=true, aiError=한국어 사유가 오므로 화면이 직접 표시한다.
  */
 import { useMutation } from '@tanstack/react-query';
 import { post } from '@/lib/apiClient';
-import { createLimiter } from '@/lib/taskQueue';
-import type {
-  AiFallbackFlags,
-  DocumentSignals,
-  FileEntry,
-  FileSummary,
-  LegalAssessment,
-  SourceTrace,
-} from './types';
-
-/* ─── 딜 분석 ─────────────────────────────────────────────────────────────── */
-
-export interface DealAnalysisRequest {
-  item: Record<string, unknown>;
-  type?: string;
-  bidPrice?: number;
-  unitCost?: number;
-  quantity?: number;
-  /** 깊은 분석 — 규격서 첨부까지 열어 부품 단가를 추정한다. **기본 켜짐**(백엔드도 기본 true). */
-  deep?: boolean;
-  /** 갈래별 on/off. 안 주면 각 true. spec·parts 는 deep 이 켜져 있어야 돈다. */
-  include?: { spec?: boolean; parts?: boolean; market?: boolean; opening?: boolean };
-  /** 저장된 deep 결과를 무시하고 다시 분석한다. */
-  forceRefresh?: boolean;
-  /** 저장된 결과만 꺼내 본다 — 없으면 분석을 돌리지 않고 `_notCached` 로 답한다. */
-  cacheOnly?: boolean;
-  /**
-   * 첨부 중 이 URL 을 규격서로 쓴다. 자동 선택(휴리스틱)을 건너뛴다.
-   *
-   * <b>공고 첨부 목록에 있는 URL 이어야 한다</b> — 백엔드가 목록과 대조하고, 없으면 무시하고
-   * 자동 선택으로 돌아간다(임의 URL 다운로드 금지).
-   */
-  specFileUrl?: string;
-}
-
-/** 단가 추정 결과는 "못 찾음"과 "찾음"이 형태가 달라 union 으로 온다. */
-export type EstimatedUnitCost =
-  | { matched: false; reason: string; gpuCount?: number }
-  | {
-      matched: true;
-      low: number;
-      high: number;
-      mid: number;
-      gpuCount: number;
-      /** 베어본(완본체 베이스) 행을 포함하는가. 부품과 함께 나열된다. */
-      hasBase: boolean;
-      /** 모든 행의 가격이 확인됐는가. false 면 일부 행이 미확인(low=null). */
-      allPriced?: boolean;
-      /**
-       * 확정 합계의 부속값(accepted 행만, mid×수량). deal.unitCost 의 근거다.
-       * 단가 자체인 `confirmedMid` 는 아래에 `number | null` 로 선언돼 있다 —
-       * untrusted 면 null 이 오므로 그 타입이어야 한다.
-       */
-      confirmedTotal?: number;
-      confirmedUnits?: number;
-      breakdown: Array<{
-        category: string;
-        option: string;
-        product: string | null;
-        qty: number;
-        low: number | null;
-        high: number | null;
-        inferred?: boolean;
-        /** 'base'(베어본/완본체 베이스) | 'part'(부품). */
-        role?: 'base' | 'part';
-        /** 'itmaya'(가격표 색인) | 'danawa'(웹검색). */
-        source?: string;
-        /** 요구 제품을 못 찾아 가장 비슷한 제품으로 바꿔 값던 행. */
-        substitute?: boolean;
-        /** 요구사항(규격서 이름) — substitute 행에서 `option` 과 같다. */
-        requirement?: string;
-        /** 왜 이 제품으로 대체했는지(모델 미일치·용량 상이 등). */
-        matchReason?: string;
-        url?: string;
-        /** 규격서에 제품명이 적혀 있었나(true) / 사양만 있어 AI 가 추론했나(false). */
-        named?: boolean;
-        /** AI 가 근거로 든 규격서 원문 한 줄. 백엔드가 원문과 대조한다. */
-        evidence?: string;
-        // ── 백엔드 검증 결과 (UnitCostValidator) ──────────────────────────
-        /** 이 부품의 근거가 규격서 원문에서 확인됐는가. */
-        evidenceInSpec?: boolean;
-        /** 'quote'(근거 문장 대조) | 'token'(모델 토큰 대조). */
-        evidenceBasis?: 'quote' | 'token';
-        /** 총액에 반영됐는가. false 면 아래 사유로 빠진 행이다. */
-        acceptedForCost?: boolean;
-        /** 'no-evidence-in-spec' | 'category-conflict' | 'zero-priced-row' | 'inferred-row' | 'unpriced'. */
-        rejectReason?: string;
-        /** 사양→모델 탐색기가 막혀 모델을 못 찾았다. "규격서에 없음"과 다른 사건이다. */
-        searchUnavailable?: boolean;
-      }>;
-      // ── 백엔드 검증 결과 (UnitCostValidator) ────────────────────────────
-      /**
-       * 총액 신뢰 등급. **`untrusted` 면 `mid` 를 단가로 쓰면 안 된다** — 백엔드도
-       * `deal.unitCostSource` 를 주지 않는다. 참고값으로만 표시할 것.
-       */
-      costConfidence?: 'confirmed' | 'partial' | 'untrusted';
-      /** 규격서 대조를 통과한 행만 합산한 단가. `untrusted` 면 null. */
-      confirmedMid?: number | null;
-      /** 채택된 금액 / 전체 금액. */
-      evidenceRatio?: number;
-      /** 'not-all-priced' · 'category-conflict:gpu' · 'no-base-system' 등. */
-      costWarnings?: string[];
-      currency: 'KRW';
-      /** 'itmaya' | 'danawa' | 'hybrid'(베어본은 색인, 부품은 웹). */
-      priceSource?: string;
-      /** 부품 합보다 완제품이 나은지 — 완제품이면 유사 완제품 후보를 함께 준다. */
-      prebuilt?: {
-        isPrebuilt: boolean;
-        score?: number;
-        reason?: string;
-        comparables?: Array<{ name: string; priceKrw: number; url: string; source?: string }>;
-      };
-    };
-
-export interface DealAnalysisResponse {
-  bidNtceNo: string;
-  score: number | null;
-  facts: {
-    productName: string;
-    productCode: string;
-    quantity: number;
-    unitPrice: number;
-    budget: number;
-  };
-  /** include.market=false 면 null 로 온다(백엔드 non_null 직렬화). */
-  market: {
-    sampleCount: number;
-    rateSampleCount: number;
-    medianRate: number;
-    minRate: number;
-    maxRate: number;
-    medianAmountRaw: number;
-    latestDate: string;
-    budget: number;
-    expectedAward: number;
-    expectedSaving: number;
-    expectedSavingPct: number;
-    usedBaseline: boolean;
-    matchCount: number;
-  } | null;
-  opening: {
-    participantCount: number;
-    participants: Array<{
-      name: string;
-      amount: number;
-      rate: number;
-      rank: number;
-      won: boolean;
-    }>;
-    /** 참여업체가 있을 때만 붙는다. */
-    winningAmount?: number;
-    minAmount?: number;
-    maxAmount?: number;
-    medianAmount?: number;
-  };
-  deal: {
-    budget: number;
-    expectedAward: number;
-    expectedRate: number;
-    unitCost: number;
-    quantity: number;
-    cost: number;
-    hasCost: boolean;
-    profitAtBudget: number;
-    profitAtExpected: number;
-    profitAtBid: number;
-    marginPctAtExpected: number;
-    breakevenBid: number;
-    bidRate: number;
-    unitCostSource: 'user' | 'estimated' | null;
-  };
-  simBidUsed: number | null;
-  spec: null | {
-    text: string;
-    products: unknown[];
-    parsedFiles: Array<{ name: string; textLength: number }>;
-    /** confidence: confirmed|heuristic|estimated — 규격서 선택의 확신도. */
-    files: Array<{
-      url: string;
-      name: string;
-      confidence?: string;
-      /** 표제로 읽은 문서종(규격서·제안요청서·공고문 …). 못 읽었으면 빈 문자열. */
-      documentClass?: string;
-      /** 'ACCEPT'(규격서로 확인) | 'FALLBACK'(미확인 — LLM 판단에 맡김). */
-      disposition?: string;
-      /** 'true' | 'false' — 규격서로 확인됐는가. 문자열로 온다(files 는 문자열 맵). */
-      specTrusted?: string;
-      /** 'title/anchored' | 'title/cover' | 'score/no-title' — 어느 층이 판정했는지. */
-      validationVia?: string;
-      /** 'class-may-embed-spec' · 'no-title' 등. 비어 있을 수 있다. */
-      validationReasons?: string;
-      /** 'user'(사람이 지목) | 'auto'(휴리스틱 선택). */
-      selectedBy?: string;
-    }>;
-    fileEntryCount: number;
-    quantityFound: unknown;
-    deliveryFound: string | null;
-  };
-  estimatedUnitCost: EstimatedUnitCost | null;
-  /** 국방전자조달(D2B) 전용 상세. 나라장터 공고에는 null. */
-  d2bGw: null | {
-    detail: {
-      areaLimit: string;
-      estimatedPrice: number;
-      budget: number;
-      lowerBoundRate: number;
-      contractMethod: string;
-      charger: string;
-      chargerTel: string;
-      opengDt: string;
-      bidPlace: string;
-    } | null;
-    items: Array<{
-      name: string;
-      qty: number;
-      unit: string;
-      unitPrice: number;
-      amount: number;
-      deliveryDate: string;
-      spec: string;
-      niin: string;
-      fsc: string;
-    }>;
-    total: number;
-  };
-  /** 단가를 못 구했을 때만 붙는 안내 문구. */
-  note?: string;
-  /** 저장된 deep 결과를 재사용했는가. */
-  _fromCache?: boolean;
-  /** 저장된 결과의 분석 시각(ISO). `_fromCache` 일 때만. */
-  _analyzedAt?: string;
-  /** cacheOnly 요청에서 저장분이 없을 때만 붙는다 — 화면은 "분석 전"을 그린다. */
-  _notCached?: boolean;
-}
-
-/*
- * 깊은 분석의 마감과 동시 실행 수.
- *
- * **마감은 바깥쪽이 안쪽보다 길어야 한다.** 순서가 뒤집히면 서버는 멀쩡히 일하고
- * 있는데 화면만 포기하고, 사용자에게는 "분석 실패"로 보인다. start_all.sh 가
- * `LLM(100s) < AI(120s) < 리스(300s)` 를 검사하는데 브라우저는 그 사슬에서 빠져
- * 있었다 — apiClient 기본값 60초가 가장 짧은 마감이었다.
- *
- * 동시 실행을 묶는 이유는 따로 있다. 브라우저 연결 한도(오리진당 6) 때문에 나머지
- * 요청은 큐에서 기다리는데 그동안에도 axios 마감이 흐른다. 여기서 붙잡으면 대기가
- * 마감에 포함되지 않고, 백엔드도 20건을 한꺼번에 맞지 않아 건당 응답이 빨라진다.
- */
-const DEEP_DEADLINE_MS = 240_000;
-const DEEP_CONCURRENCY = 4;
-const deepQueue = createLimiter(DEEP_CONCURRENCY);
-
-export function analyzeDeal(body: DealAnalysisRequest): Promise<DealAnalysisResponse> {
-  // `deep` 을 안 주면 백엔드 기본값이 true 다(첨부를 연다). 얕은 분석만 빠른 길로 보낸다.
-  if (body.deep === false) {
-    return post<DealAnalysisResponse>('/api/deal-analysis', body);
-  }
-  return deepQueue(() =>
-    post<DealAnalysisResponse>('/api/deal-analysis', body, { timeout: DEEP_DEADLINE_MS }),
-  );
-}
+import type { FileEntry, LegalAssessment } from './types';
 
 /* ─── 공고 AI 요약 ────────────────────────────────────────────────────────── */
 
-export interface BidSummaryRequest {
+/**
+ * 계획·사전규격·입찰공고가 함께 쓰는 단일 요약 요청.
+ *
+ * 세 화면의 원본 필드명이 서로 달라 공통 필드와 식별자를 한 봉투에 둔다. 백엔드는
+ * {@code entityType} 과 식별자를 기준으로 필요한 기본정보·첨부만 골라 단순 요약한다.
+ */
+export interface NoticeSummaryRequest {
   bidNtceNo?: string;
   bidNtceSqNo?: string;
+  bfSpecRgstNo?: string;
+  prcrmntReqNo?: string;
+  entityType?: string;
   bidNtceNm?: string;
+  title?: string;
   ntceInsttNm?: string;
+  insttNm?: string;
+  itemName?: string;
   presmptPrce?: string | number;
+  amount?: string | number;
   cntrctCnclsMthdNm?: string;
+  cntrctMthdNm?: string;
   dtilPrdctClsfcNoNm?: string;
   _type?: string;
+  type?: string;
   /** 사용자가 직접 붙여 넣은 본문 — 있으면 첨부 파싱을 건너뛴다. */
   manualContent?: string;
   manualFileName?: string;
@@ -288,105 +43,31 @@ export interface BidSummaryRequest {
   rawFields?: Record<string, unknown>;
 }
 
-/** source 는 본문을 어디에서 얻었는지. 'meta' = 첨부 없이 메타데이터만으로 만든 요약. */
-export type SummarySource = 'manual' | 'auto-file' | 'auto-detail' | 'meta';
-
-export interface BidSummaryResponse extends AiFallbackFlags, DocumentSignals {
+export interface NoticeSummarySuccess {
   summary: string;
-  source: SummarySource;
-  /** noPdf === (source === 'meta') 로 서버가 계산해 준다. */
-  noPdf: boolean;
-  sourceTrace?: SourceTrace;
-  fileEntryCount: number;
-  parsedFileCount: number;
-  parsedFiles: unknown[];
-  failedFiles: unknown[];
-  fileRecords?: unknown[];
-  fileSummary?: FileSummary;
+  promptVersion: string;
+  llmModel: string;
+  aiFallback?: false;
+  aiError?: never;
+  /** 이전 응답과의 점진적 호환. 새 단순 요약 응답에서는 생략될 수 있다. */
+  parsedFiles?: unknown[];
 }
 
-export function summarizeBid(body: BidSummaryRequest): Promise<BidSummaryResponse> {
-  return post<BidSummaryResponse>('/api/bid-summary', body);
+export interface NoticeSummaryFallback {
+  /** AI 실패도 HTTP 200이며 본문은 null이다. */
+  summary: null;
+  aiFallback: true;
+  aiError: string;
+  promptVersion?: never;
+  llmModel?: never;
+  parsedFiles?: unknown[];
 }
 
-/* ─── 품목 요약 (수주 데스크 · 내보내기가 쓰는 깊은 분석) ───────────────────── */
+export type NoticeSummaryResponse = NoticeSummarySuccess | NoticeSummaryFallback;
 
-export interface ItemSummaryRequest {
-  bidNtceNo?: string;
-  bidNtceSqNo?: string;
-  bfSpecRgstNo?: string;
-  prcrmntReqNo?: string;
-  entityType?: string;
-  title?: string;
-  insttNm?: string;
-  itemName?: string;
-  amount?: string | number;
-  cntrctMthdNm?: string;
-  type?: string;
-  companyProfile?: string;
-  fileEntries?: FileEntry[];
-  rawFields?: Record<string, unknown>;
-  analysisMode?: string;
-  deep?: boolean;
-  /** 'deal-radar' 를 주면 프롬프트가 바뀌고 품목 분해 필드가 추가된다. */
-  context?: string;
-  specText?: string;
-  preferFile?: boolean;
-  /** 저장된 분석 이력을 무시하고 다시 돌린다. */
-  forceRefresh?: boolean;
-}
-
-export interface ProductLine {
-  name: string;
-  count: number;
-  countLabel: string;
-  unitLow: number;
-  unitHigh: number;
-  unitMid: number;
-  lineMid: number;
-  matchedOption: string;
-}
-
-export interface ItemSummaryResponse extends AiFallbackFlags, DocumentSignals {
-  summary: string;
-  factIntegrity?: {
-    verifiedFacts: unknown[];
-    rejectedCount: number;
-    uncertainties: string[];
-  };
-  productCounts?: Record<string, unknown> | null;
-  productGroups?: unknown[] | null;
-  productLines?: ProductLine[] | null;
-  productTotal?: number | null;
-  source: string;
-  fileEntryCount: number;
-  parsedFileCount: number;
-  fileRecords?: unknown[];
-  fileSummary?: FileSummary;
-  parsedFiles: unknown[];
-  failedFiles: unknown[];
-  relatedItems: unknown[];
-  noFile: boolean;
-  sourceTrace?: SourceTrace;
-  fastMode: boolean;
-  analysisMeta?: {
-    entityType: string;
-    entityId: string;
-    entityOrd: string;
-    deepMode: boolean;
-    analysisMode: string;
-    model: string;
-    inputHash: string;
-    promptVersion: string;
-  };
-  _analysisHistoryId?: number;
-  /** 캐시(분석 이력) 히트일 때만 붙는다 — 새로 돌린 것이 아니라는 표시. */
-  _fromHistory?: boolean;
-  _analyzedAt?: string;
-}
-
-export function summarizeItem(body: ItemSummaryRequest): Promise<ItemSummaryResponse> {
-  return post<ItemSummaryResponse>('/api/item-summary', body);
+/** 계획·사전규격·입찰공고가 모두 쓰는 단일 요약 표면. */
+export function summarizeNotice(body: NoticeSummaryRequest): Promise<NoticeSummaryResponse> {
+  return post<NoticeSummaryResponse>('/api/notice-summary', body);
 }
 
 /* ─── 낙찰자 이력 ─────────────────────────────────────────────────────────── */
@@ -523,43 +204,12 @@ export function analyzeCollusion(
   return post<CollusionAnalysisResponse>('/api/collusion-analysis', body);
 }
 
-/* ─── 유사 완본체 비교 ────────────────────────────────────────────────────── */
-
-export interface PrebuiltComparablesRequest {
-  name: string;
-  qty?: number;
-  /** 서버는 최대 60개까지만 본다. */
-  components: Array<{ name: string; perUnit?: number; unitPrice?: number }>;
-}
-
-export interface PrebuiltComparablesResponse {
-  eligible: boolean;
-  reason: string;
-  isPrebuilt: boolean;
-  score: number;
-  signals: unknown[];
-  /** 최대 5건. */
-  comparables: unknown[];
-  requiredSpec: Record<string, unknown> | null;
-  query: string;
-  queryBasis: string;
-  misses: unknown[];
-  searchStatus: string;
-}
-
-export function fetchPrebuiltComparables(
-  body: PrebuiltComparablesRequest,
-): Promise<PrebuiltComparablesResponse> {
-  return post<PrebuiltComparablesResponse>('/api/prebuilt-comparables', body);
-}
-
 /* ─── 파일 파싱 (multipart) ───────────────────────────────────────────────── */
 
 export interface ParseFileResponse {
   /** markdown 본문. */
   text: string;
   filename: string;
-  estimatedUnitCost: EstimatedUnitCost | null;
   documentTags: string[];
   bidBlockingClauses: {
     excluded: boolean;
@@ -583,17 +233,6 @@ export function parseFile(file: File): Promise<ParseFileResponse> {
 
 /* ─── 훅 ──────────────────────────────────────────────────────────────────── */
 
-export function useDealAnalysis() {
-  return useMutation({ mutationFn: analyzeDeal });
-}
-
-export function useBidSummary() {
-  return useMutation({ mutationFn: summarizeBid });
-}
-
-export function useItemSummary() {
-  return useMutation({ mutationFn: summarizeItem });
-}
 
 export function useCompanyHistory() {
   return useMutation({ mutationFn: fetchCompanyHistory });
@@ -607,9 +246,6 @@ export function useCollusionAnalysis() {
   return useMutation({ mutationFn: analyzeCollusion });
 }
 
-export function usePrebuiltComparables() {
-  return useMutation({ mutationFn: fetchPrebuiltComparables });
-}
 
 export function useParseFile() {
   return useMutation({ mutationFn: parseFile });

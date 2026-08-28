@@ -212,31 +212,6 @@
   padding: 1px 7px;
 }
 
-/* ── 단가 조회 상태 배지 (원본 .prod-price-status) ─────────────────────── */
-.price-status {
-  display: inline-block;
-  color: var(--source-d2b-fg);
-  background: var(--source-d2b-bg);
-  border: 1px solid var(--source-d2b-border);
-  border-radius: 4px;
-  padding: 1px 4px;
-  font-size: var(--fs-badge-sm);
-  font-weight: 700;
-}
-.price-status + .price-status {
-  margin-left: 3px;
-}
-.price-status.tone-ok {
-  color: var(--won-badge-fg);
-  background: var(--ofc-service-bg);
-  border-color: var(--won-badge-border);
-}
-.price-status.tone-bad {
-  color: var(--status-cancelled-fg);
-  background: var(--status-cancelled-bg);
-  border-color: var(--status-cancelled-border);
-}
-
 /* 값 없음 표식 — 원본은 <span style="color:#bbb">-</span> 였다. */
 .cell-empty {
   color: var(--table-empty-fg);

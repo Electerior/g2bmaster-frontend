@@ -184,4 +184,17 @@ describe('URL 코덱 왕복', () => {
     expect(criteriaFromParams(new URLSearchParams('active=false')).activeOnly).toBe(false);
     expect(criteriaFromParams(new URLSearchParams('active=true')).activeOnly).toBe(true);
   });
+
+  it('삭제한 검색 모드와 전용 조건은 옛 URL에서 복원하지 않는다', () => {
+    for (const mode of ['corp', 'officer', 'upload']) {
+      const parsed = criteriaFromParams(
+        new URLSearchParams(`mode=${mode}&corp=테스트업체&brn=1234567890&officer=조달청`),
+      );
+      expect(parsed.mode).toBe('keyword');
+      const encoded = criteriaToParams(parsed).toString();
+      expect(encoded).not.toContain('corp=');
+      expect(encoded).not.toContain('brn=');
+      expect(encoded).not.toContain('officer=');
+    }
+  });
 });

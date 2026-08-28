@@ -1,25 +1,18 @@
 /*
- * 라우트 표 — 화면 14개 + 기본 리다이렉트 + 404.
+ * 라우트 표 — 운영 중인 조회 화면 + 기본 리다이렉트 + 404.
  *
  * 모든 화면은 App(셸) 아래에 중첩된다. 셸을 매 화면이 각자 그리면 탭을 옮길 때마다
  * 헤더·배너가 언마운트됐다 다시 붙어 스크롤과 포커스가 튄다.
  */
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { App } from '@/App';
-import { AnalysisLabScreen } from './AnalysisLabScreen';
 import { BetaLandingScreen } from './BetaLandingScreen';
-import { CompanyProfileScreen } from './CompanyProfileScreen';
-import { DealRadarScreen } from './DealRadarScreen';
 import { LegacyNoticeRedirect } from './LegacyNoticeRedirect';
 import { NotFoundScreen } from './NotFoundScreen';
 import { NoticeSearchScreen } from './NoticeSearchScreen';
 import { NoticeTableScreen } from './NoticeTableScreen';
-import { OfficerDirectoryScreen } from './OfficerDirectoryScreen';
-import { PriceDatabaseScreen } from './PriceDatabaseScreen';
 import { SavedNoticesScreen } from './SavedNoticesScreen';
-import { SpecSearchScreen } from './SpecSearchScreen';
 import { SystemDashboardScreen } from './SystemDashboardScreen';
-import { TrendScreen } from './TrendScreen';
 import { DEFAULT_ROUTE, LEGACY_NOTICE_ROUTES, ROUTES } from './routePaths';
 
 export function AppRouter() {
@@ -53,23 +46,8 @@ export function AppRouter() {
         {/* 낙찰 결과는 색인에 없다(색인은 공고까지다) — 팬아웃 API 를 그대로 쓴다. */}
         <Route path={ROUTES.bidResult} element={<NoticeTableScreen kind="bid-result" />} />
 
-        {/* 탭이지만 표가 아닌 화면들 */}
-        <Route path={ROUTES.dealRadar} element={<DealRadarScreen />} />
+        {/* 저장한 공고를 다시 보는 화면 */}
         <Route path={ROUTES.saved} element={<SavedNoticesScreen />} />
-        <Route path={ROUTES.specSearch} element={<SpecSearchScreen />} />
-
-        {/* 단가 DB — 물품 시세 카탈로그(price_catalog) 조회·수정·AI 적재. */}
-        <Route path={ROUTES.priceDb} element={<PriceDatabaseScreen />} />
-
-        {/* 트렌드 3종 */}
-        <Route path={ROUTES.trendProduct} element={<TrendScreen kind="product" />} />
-        <Route path={ROUTES.trendService} element={<TrendScreen kind="service" />} />
-        <Route path={ROUTES.trendConstruction} element={<TrendScreen kind="construction" />} />
-
-        {/* 원본에서 검색 모드였던 것들 — 이제 각자 주소를 가진다 */}
-        <Route path={ROUTES.company} element={<CompanyProfileScreen />} />
-        <Route path={ROUTES.officers} element={<OfficerDirectoryScreen />} />
-        <Route path={ROUTES.analysisLab} element={<AnalysisLabScreen />} />
 
         {/* 원본에서 별도 페이지였던 것 */}
         <Route path={ROUTES.system} element={<SystemDashboardScreen />} />

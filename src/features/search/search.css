@@ -95,21 +95,6 @@
   background: var(--bool-instt-bg);
   color: var(--bool-instt-fg);
 }
-.badge-corp {
-  background: var(--bool-corp-bg);
-  color: var(--bool-corp-fg);
-}
-.badge-brn {
-  background: var(--bool-brn-bg);
-  color: var(--bool-brn-fg);
-  margin-left: 12px;
-}
-.badge-officer {
-  background: var(--bool-officer-bg);
-  color: var(--bool-officer-fg);
-  border: 1px solid var(--bool-officer-border);
-}
-
 .tag-wrap {
   flex: 1;
   display: flex;
@@ -187,7 +172,7 @@
   cursor: pointer;
 }
 
-/* ── 단일 입력 행(발주기관 · 업체 · 사업자번호 · 담당자) ───────────────── */
+/* ── 발주기관 입력 행 ──────────────────────────────────────────────────── */
 .instt-wrap {
   flex: 1;
   display: flex;
@@ -201,9 +186,6 @@
 }
 .instt-wrap:focus-within {
   border-color: var(--bool-instt-fg);
-}
-.instt-wrap-brn {
-  max-width: 180px;
 }
 .instt-input {
   border: none;

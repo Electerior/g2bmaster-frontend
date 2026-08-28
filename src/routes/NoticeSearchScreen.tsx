@@ -46,10 +46,7 @@ const SCREEN = SCREENS['notice-search'];
  * 처음 누른 정렬의 방향.
  *
  * 서버 규칙과 맞춰 둔다: 마감 임박은 '가까운 것부터'가 자연스러워 오름차순이고, 이름은
- * 가나다순이 자연스럽다. 나머지(최신·금액·마진·관련도)는 큰 값이 위로 와야 한다.
- *
- * 마진이 내림차순인 것은 취향이 아니다 — 오름차순으로 열면 역마진 공고가 첫 화면을 채우고,
- * 서버에서도 그쪽만 인덱스를 타 정렬이 공짜다(내림차순 = 인덱스 선언 방향).
+ * 가나다순이 자연스럽다. 나머지(최신·금액·관련도)는 큰 값이 위로 와야 한다.
  */
 function initialDirFor(key: string): 'asc' | 'desc' {
   return key === 'close' || key === 'name' ? 'asc' : 'desc';
@@ -89,6 +86,7 @@ export function NoticeSearchScreen() {
 
   const data = search.data;
   const items = data?.items ?? [];
+  const attachmentSearch = data?.meta?.attachmentSearch;
   const sort = effectiveIndexSort(criteria);
   const perPage = data?.numOfRows || perPageChoice;
   const totalPages = Math.max(1, Math.ceil((data?.totalCount ?? 0) / (perPage || 20)));
@@ -100,7 +98,12 @@ export function NoticeSearchScreen() {
   };
 
   const renderCell = (item: NoticeIndexItem, column: ColumnDef): ReactNode => (
-    <IndexCell item={item} column={column} actions={actions} />
+    <IndexCell
+      item={item}
+      column={column}
+      actions={actions}
+      attachmentSearchApplied={attachmentSearch?.applied === true}
+    />
   );
 
   const onSort = (key: string) => {
@@ -122,6 +125,18 @@ export function NoticeSearchScreen() {
   if (indexedAt) notes.push(`색인 ${fmtDisplayDatetime(indexedAt)} 기준`);
   if (criteria.beforeSpecRgstNo) notes.push(`사전규격 ${criteria.beforeSpecRgstNo} 연결 건`);
   if (criteria.detailProductCode) notes.push(`품명번호 ${criteria.detailProductCode}*`);
+  if (attachmentSearch?.scope === false) notes.push('첨부 검색 범위 꺼짐');
+  if (attachmentSearch?.skippedTerms?.length) {
+    notes.push(`첨부 검색 제외 낱말 ${attachmentSearch.skippedTerms.join(', ')}`);
+  }
+  if (
+    attachmentSearch?.indexedNotices != null &&
+    attachmentSearch.totalNotices != null
+  ) {
+    notes.push(
+      `첨부 색인 ${attachmentSearch.indexedNotices.toLocaleString()}/${attachmentSearch.totalNotices.toLocaleString()}건`,
+    );
+  }
   /*
    * 금액 조건은 **금액이 적힌 공고만** 볼 수 있다. 원본에 금액이 없는 공고(실측 2,180건,
    * 대부분 계획 단계와 예산을 공개하지 않는 누리장터 민간공고)는 조건을 거는 순간 통째로 빠진다.

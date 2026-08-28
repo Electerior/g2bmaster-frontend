@@ -322,32 +322,6 @@
   color: var(--muted);
 }
 
-/*
- * 마진율 칸. 금액 칸(.amt-pair)과 같은 2단 구성이다.
- *
- * **역마진만 색을 준다.** 이 팔레트에는 '긍정' 색이 없다 — --success 는 초록이 아니라
- * 잉크색(#4a5859)이고, 없는 색을 새로 들이면 이 표에서만 쓰는 규칙이 하나 늘어난다.
- * 어차피 이 열에서 눈에 걸려야 하는 것은 원가가 예산을 넘은 행이므로, 양수는 본문색으로 두고
- * 음수만 --danger 로 띄운다. 부호(+/−)는 셀이 글자로도 적으므로 색맹 접근성도 유지된다.
- */
-.margin-pair {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.margin-rate {
-  font-variant-numeric: tabular-nums;
-  font-weight: 600;
-}
-.margin-neg .margin-rate {
-  color: var(--danger);
-}
-.margin-pair em {
-  font-style: normal;
-  font-size: var(--fs-badge);
-  color: var(--muted);
-}
-
 .notice-name-cell {
   display: flex;
   flex-direction: column;
@@ -360,6 +334,31 @@
 }
 .notice-name-cell .bid-link:hover {
   border-bottom-color: var(--primary);
+}
+/* 첨부 전문검색의 결과·한계. 제목과 무관한 행이 섞인 이유와 미색인 상태를 글자로 구분한다. */
+.notice-match-flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+.notice-match-flag {
+  align-self: flex-start;
+  border-radius: 10px;
+  padding: 1px 6px;
+  font-size: var(--fs-badge-sm);
+  font-weight: 700;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+.notice-match-flag.attachment-only {
+  background: var(--bool-file-bg);
+  color: var(--bool-file-fg);
+}
+.notice-match-flag.attachment-unindexed {
+  border: 1px dashed var(--border);
+  color: var(--muted);
+  background: var(--surface-2);
 }
 /* 공고번호 — 공고명 아래 옅은 한 줄(별도 컬럼 대신). */
 .notice-no {
@@ -671,7 +670,7 @@ details.blocking-info[open] > summary {
 
 /* ─── 공고 통합 검색 표의 창 폭 대응 ──────────────────────────────────────────
  *
- * 이 표(.compact)는 열 열 개를 940px 하한으로, 공고명 하나를 420px 하한으로 들고 있었다.
+ * 이 표(.compact)는 아홉 개 열을 940px 하한으로, 공고명 하나를 420px 하한으로 들고 있었다.
  * 창을 좁혀도 둘 다 그대로라 가로 스크롤이 남고, 그 스크롤이 **공고명을 화면 밖으로
  * 밀어낸다** — 어느 공고의 행인지 모르는 채 금액과 마감일만 보게 된다.
  *
@@ -681,8 +680,8 @@ details.blocking-info[open] > summary {
  *
  * 덜어내는 순서는 "목록을 훑으며 고르는 데 쓰이는가"로 정했다. 공고일은 마감일시가 있으면
  * 판단에 거의 쓰이지 않아 먼저 빠지고, 지역은 값이 길어(`서울특별시,인천광역시,경기도`)
- * 행 높이를 가장 크게 키우므로 그다음이다. 마지막까지 남는 다섯은
- * 공고명 · 금액 · 마진율 · 마감일시 · ★ 다.
+ * 행 높이를 가장 크게 키우므로 그다음이다. 마지막까지 남는 넷은
+ * 공고명 · 금액 · 마감일시 · ★ 다.
  *
  * 하한을 단계마다 숫자로 깎지 않는 이유: 실제로 쓸 수 있는 폭은 창 폭이 아니라
  * 창 폭에서 탭 레일(132px)과 패널 여백을 뺀 값이라, 창 폭 기준으로 예산을 짜면 항상 어긋난다.
@@ -783,7 +782,7 @@ details.blocking-info[open] > summary {
 }
 
 @media (max-width: 620px) {
-  /* 남는 다섯: 공고명 · 금액 · 마진율 · 마감일시 · ★ */
+  /* 남는 넷: 공고명 · 금액 · 마감일시 · ★ */
   .data-table.compact .col-category {
     display: none;
   }

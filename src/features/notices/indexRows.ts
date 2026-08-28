@@ -7,7 +7,6 @@
  */
 import type { NoticeAmountKind, NoticeIndexItem, NoticeProduct } from '@/api/search';
 import type { SaveNoticeRequest } from '@/api/saved';
-import { fmtDisplayDatetime, fmtMoney } from '@/domain/format';
 
 /**
  * 금액 종류의 표기.
@@ -30,38 +29,6 @@ const AMOUNT_KIND_LABELS: Readonly<Record<NoticeAmountKind, string>> = {
 
 export function amountKindLabel(kind: NoticeAmountKind | null | undefined): string | null {
   return kind ? (AMOUNT_KIND_LABELS[kind] ?? null) : null;
-}
-
-/**
- * 마진율 표기. 소수 한 자리에 부호를 붙인다.
- *
- * <b>양수에 '+' 를 붙이는 것이 요점이다.</b> 이 표에서 마진은 음수가 흔하다(원가가 예산을
- * 넘는 공고 — 그것을 찾는 것이 이 열의 목적이기도 하다). 부호가 음수에만 있으면 스캔하는
- * 눈이 '30.0' 과 '-30.0' 을 같은 모양으로 읽는다.
- *
- * 서버가 이미 소수 둘째 자리까지 반올림해 주지만 표에서는 한 자리로 줄인다 — 0.01%p 는
- * 판단을 바꾸지 않고 자릿수만 늘려 다른 열과의 정렬을 흐린다.
- */
-export function marginRateLabel(rate: number): string {
-  return `${rate > 0 ? '+' : ''}${rate.toFixed(1)}%`;
-}
-
-/**
- * 마진율의 근거 한 줄(툴팁).
- *
- * 비율만 있으면 사용자가 그 수를 검증할 방법이 없다 — 분자·분모와 원가 출처를 함께 적는다.
- * `amountKind` 를 같이 적는 것과 같은 규약이다(값만 주고 근거를 숨기지 않는다).
- */
-export function marginBasisTitle(item: {
-  marginCost?: number | null;
-  marginBase?: number | null;
-  marginSource?: 'confirmed' | 'estimated' | null;
-  marginUpdatedAt?: string | null;
-}): string {
-  const source = item.marginSource === 'confirmed' ? '저장한 가격표(확정)' : '딜 분석 추정';
-  const parts = [`원가 ${fmtMoney(item.marginCost)} · 실추정가 ${fmtMoney(item.marginBase)}`, source];
-  if (item.marginUpdatedAt) parts.push(`${fmtDisplayDatetime(item.marginUpdatedAt)} 기준`);
-  return parts.join(' / ');
 }
 
 /**
@@ -123,12 +90,11 @@ export function productSummary(list: NoticeProduct[] | null | undefined): string
   return items.length === 1 ? first : `${first} 외 ${items.length - 1}건`;
 }
 
-/**
- * 행 키. 색인은 PK 가 공고번호 하나뿐이라 **한 공고에 행은 언제나 하나**다 —
- * 기존 4탭처럼 차수·출처를 섞어 만들 필요가 없다.
- */
+/** 행 키. 색인 PK 와 같은 `(id, source)` — 서로 다른 출처에서 공고번호가 겹칠 수 있다. */
 export function indexRowKey(item: NoticeIndexItem, index: number): string {
-  return item.id ? String(item.id) : `row-${index}`;
+  if (!item.id) return `row-${index}`;
+  const escapePart = (value: unknown) => String(value ?? '').replace(/[|]/g, '/');
+  return `${escapePart(item.id)}|${escapePart(item.source)}`;
 }
 
 /**

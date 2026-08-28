@@ -1,8 +1,7 @@
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
-import { ROUTES } from '@/routes/routePaths';
+import { ROUTES, TAB_ITEMS } from '@/routes/routePaths';
 import { AppTabs } from './AppTabs';
 
 function renderTabs(pathname: string) {
@@ -13,42 +12,43 @@ function renderTabs(pathname: string) {
   );
 }
 
-describe('트렌드 분석 인덱스', () => {
-  it('일반 화면에서는 트렌드 하위 인덱스를 접어 둔다', () => {
+describe('운영 탭만 노출', () => {
+  it('공고 조회와 저장 공고만 한 번씩 렌더한다', () => {
     renderTabs(ROUTES.noticeSearch);
 
-    expect(screen.getByRole('button', { name: '트렌드 분석' })).toHaveAttribute(
-      'aria-expanded',
-      'false',
-    );
-    expect(screen.queryByRole('link', { name: '물품 구매 트렌드' })).not.toBeInTheDocument();
+    expect(screen.getAllByRole('link').map((link) => link.textContent)).toEqual([
+      '공고 검색',
+      '입찰 결과',
+      '저장 공고',
+    ]);
   });
 
-  it('트렌드 분석을 누르면 세 하위 인덱스를 펼친다', async () => {
-    const user = userEvent.setup();
+  it.each([
+    '수주 데스크',
+    'AI 수주 데스크',
+    '단가 DB',
+    '가격 DB',
+    '하드웨어 스펙 검색',
+    '트렌드 분석',
+    '가격 분석',
+  ])('%s UI를 렌더하지 않는다', (label) => {
     renderTabs(ROUTES.noticeSearch);
-
-    await user.click(screen.getByRole('button', { name: '트렌드 분석' }));
-
-    expect(screen.getByRole('button', { name: '트렌드 분석' })).toHaveAttribute(
-      'aria-expanded',
-      'true',
-    );
-    expect(screen.getByRole('link', { name: '물품 구매 트렌드' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: '용역 트렌드' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: '공사 트렌드' })).toBeInTheDocument();
+    expect(screen.queryByText(label)).not.toBeInTheDocument();
   });
 
-  it('트렌드 화면에서는 현재 하위 인덱스가 보이도록 처음부터 펼친다', () => {
-    renderTabs(ROUTES.trendService);
+  it('삭제한 화면 경로를 탭 계약에서 제거한다', () => {
+    const paths = TAB_ITEMS.map((tab) => tab.path);
+    expect(paths).not.toContain('/deal-radar');
+    expect(paths).not.toContain('/spec-search');
+    expect(paths.some((path) => path.startsWith('/trends/'))).toBe(false);
+  });
+});
 
-    expect(screen.getByRole('button', { name: '트렌드 분석' })).toHaveAttribute(
-      'aria-expanded',
-      'true',
-    );
-    expect(screen.getByRole('link', { name: '용역 트렌드' })).toHaveAttribute(
-      'aria-current',
-      'page',
-    );
+describe('탭 경로 고유성', () => {
+  it('같은 경로를 두 번 렌더하지 않고 저장 공고는 정확히 한 번만 둔다', () => {
+    const paths = TAB_ITEMS.map((tab) => tab.path);
+
+    expect(new Set(paths).size).toBe(paths.length);
+    expect(TAB_ITEMS.filter((tab) => tab.path === ROUTES.saved)).toHaveLength(1);
   });
 });
