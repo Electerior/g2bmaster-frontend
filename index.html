@@ -101,6 +101,104 @@
     <meta name="twitter:title" content="G2B Masters - 나라장터·국방전자조달 입찰정보 통합 검색" />
     <meta name="twitter:description" content="나라장터·국방전자조달 공고를 통합 검색하고 수주기회를 빠르게 검토합니다." />
 
+    <!--
+      JSON-LD 그래프. 노드 넷 모두 **모든 라우트에서 참인 것만** 담는다 — SPA 는 15개 주소에
+      같은 정적 셸을 내보내므로, 한 주소에서만 참인 문장은 나머지 열넷에서 거짓 구조화 데이터가
+      된다. 라우트별 스키마를 여기 넣지 않은 이유가 그것이다: 정적 셸은 "지금 어느 주소인가"를
+      모른다. WebPage·BreadcrumbList(/notices → /notices/bid-result, /trends/*)·FAQPage(/beta)는
+      useSeoMeta 훅 위에서 후속 브랜치가 붙일 일이다 — 위 SEO 블록 주석의 "라우트별 동적 메타"
+      문단과 같은 이야기다.
+
+      ── SearchAction ─────────────────────────────────────────────────────────
+      urlTemplate 의 파라미터 이름은 지어낸 것이 아니라 실제로 동작하는 것이다. 통합 검색이
+      URL 에서 읽는 '모두 포함' 키워드의 이름은 `and` 뿐이다(useSearchCriteria 의 PARAM.and).
+      `q` 를 쓰면 안 된다 — 그건 옛 `/search` 의 이름이라 LegacyNoticeRedirect 가 `and` 로
+      바꿔 줄 뿐이고, `/notices?q=...` 로 곧장 들어오면 값이 읽히지 않아 **조건 없는 전체
+      목록**이 뜬다. 유효한 마크업이 사용자를 필터 풀린 화면으로 보내는, 눈에 안 띄는 사고다.
+      낱말이 여럿이어도 된다. 다만 그 이유는 두 단계에 걸쳐 있어 한쪽만 보면 틀린 결론이 난다:
+      화면의 파서는 콤마로만 가르고(useSearchCriteria.parseTerms), 공백을 가르는 것은 백엔드다
+      (NoticeSearchRequest.split 이 `[\s,]+`). 그래서 `?and=무선AP 구매` 는 화면에서 낱말 하나로
+      읽혔다가 백엔드에서 둘로 갈려 AND 로 걸린다 — 검색창에 그대로 친 것과 같은 결과다.
+
+      기대치는 정확히 적어 둔다 — 구글은 2024-11-21 자로 사이트링크 검색창 표시를 내렸다.
+      이 노드는 구글 리치 결과를 만들지 않고, 남는 값은 나머지 소비자(빙·LLM 크롤러)가 검색
+      진입점을 기계적으로 안다는 것뿐이다. 그래도 두는 건 참인 문장이고 비용이 0 이기 때문이다.
+      `query-input` 의 "required name=..." 도 schema.org Actions 규격의 단축 표기다.
+
+      ── Dataset ──────────────────────────────────────────────────────────────
+      이 서비스의 알맹이는 화면이 아니라 상류 셋(나라장터·누리장터·국방전자조달)을 한 색인으로
+      합친 코퍼스다. 이 타입은 일반 검색과 별개인 구글 데이터셋 검색 표면으로 들어간다.
+
+      **근거를 확인한 값만 적었다.** 구글이 요구하는 건 name·description 둘뿐이고 나머지는 전부
+      권장이다. 근거 없는 권장 필드는 이득이 아니라 수동 조치 위험이라 통째로 뺐다:
+
+        - temporalCoverage : 수집 범위가 **고정 시작일 없는 5년 롤링 창**이다. 백엔드의
+                             INDEX_HISTORY_DAYS 기본값이 1826(=5년)이고 백필이 호출 시점의
+                             `now - 1826일` 로 시작점을 매번 다시 계산한다(씨앗 상수도, 날짜를
+                             심는 마이그레이션도 없다). 게다가 국방전자조달은 상류가 과거를
+                             주지 않아(실측: 2026-05 이전 totalCount=0) 셋의 하한이 서로 다르다.
+                             ISO 8601 열린 구간은 시작일을 알아야 쓸 수 있는데 그게 없다.
+        - 갱신 주기        : 코드와 카피가 **다른 값을 말한다.** 스케줄러는 fixedDelay 5분이고
+                             국방은 30분, 낙찰정보는 10분이다. 게다가 공고 적재만 심야
+                             게이팅(23~07시 KST 에 6배)이 걸려 조달청 5분→30분, 국방 30분→3시간이
+                             되는데 낙찰정보 스케줄러에는 그 게이팅이 없다. 한편 /beta 의
+                             FEATURE_TABS 는 "매일 07:00 자동"이라고 말한다. 무엇이 사용자에게
+                             약속된 값인지 정해지기 전에는 어느 쪽도 선언하지 않는다.
+        - license          : 상류 이용 조건을 명시한 문서가 없다. 포털 메타의 "무료·이용허락범위
+                             제한 없음"은 라이선스 이름이 아니다. KOGL 유형 확인 전에는 못 쓴다.
+        - distribution     : 코퍼스를 통째로 내려받는 표면이 없다. 엑셀 내보내기가 아예 없다는
+                             뜻은 아니다 — src/api/export.ts 에 작업 생성·폴링·취소·다운로드가
+                             다 있다(아직 어느 화면도 부르지 않는다). 그게 배포본이 아닐 뿐이다:
+                             스냅샷을 떠서 LLM 분석을 돌리는 유료 작업이고, 결과 주소도
+                             `/api/export-jobs/{id}/download` 라는 작업 한 건짜리다. 남는 후보는
+                             `/api/search/notices` 인데 500건 상한(NOTICE_MAX_PER_PAGE)의 페이지
+                             검색 API 라 데이터셋의 배포본이라 부를 수 없고, 그것을 contentUrl 로
+                             적으면 public/robots.txt 의 `Disallow: /api/` 와 "여기서 받아라 /
+                             여기는 긁지 마라"를 동시에 선언하게 된다.
+        - 건수·dateModified : 손에 있는 실측치는 45,736건인데 2026-08-12 자이고
+                             (backend/docs/notice-search-index.md) 5년 백필은 그 뒤에 열렸으니
+                             이미 낡았다. 갱신 시각은 5분마다 바뀌므로 정적 파일에 박는 순간
+                             반드시 거짓이 된다 — 둘 다 살아 있는 값이라 정적 셸의 자리가 아니다.
+
+      채운 것들의 근거:
+        - creator/publisher   : 상류 원천이 아니라 **이 색인을 만든 주체**다. 공고를 낸 곳은 각
+                                발주기관이고, 그것을 모아 검색 가능한 코퍼스로 만든 게 이 회사다.
+        - isBasedOn           : 실제로 적재하는 상류 오퍼레이션의 공공데이터포털 데이터셋
+                                페이지 여섯이다 — 나라장터 입찰공고(BidPublicInfoService)·낙찰정보
+                                (ScsbidInfoService)·사전규격(HrcspSsstndrdInfoService)·발주계획
+                                (PrcrmntReqInfoService), 누리장터 민간입찰공고(PrvtBidNtceService),
+                                국방 군수품조달정보 입찰공고(BidPblancInfoService). 앞의 넷만 적었다가
+                                여섯으로 늘렸다: description 이 누리장터와 낙찰정보를 이름으로
+                                말하는데 근거 목록에 그 둘이 없으면 같은 그래프 안에서 말이
+                                어긋난다. 백엔드 BidNoticeIngestService.buildSources·
+                                BidResultIngestService 가 부르는 것과 하나씩 맞췄고, 여섯 주소
+                                모두 200 인 것을 확인했다. license 를 못 적는 대신 이용 조건이
+                                적힌 원본을 가리킨다.
+        - isAccessibleForFree : 오늘 기준 참이다 — 라우터에 로그인 관문이 없고, 백엔드 조회
+                                엔드포인트에 @RequireAppAuth 가 없다(앱 키가 가리는 것은 쓰기·비용
+                                경로다 — 저장 공고, 색인 수동 적재, 분석 작업. src/lib/apiClient.ts).
+                                **요금 모델이 정해지면 이 값부터 다시 본다.**
+        - variableMeasured·keywords 는 src/api/search.ts 의 NOTICE_CATEGORIES·
+                                BUSINESS_DIVISIONS·NOTICE_STATES 를 옮긴 것이다. 낙찰정보를 네
+                                단계와 나란히 적지 않은 건 그게 다섯 번째 단계가 아니기 때문이다 —
+                                '마감'은 입찰이 닫혔다는 뜻이고 결과는 별도 색인(bid_result)에 있다.
+
+      ── offers 를 뺀 이유 ─────────────────────────────────────────────────────
+      전에는 `"price": "0", "priceCurrency": "KRW"` 가 있었다. 그런데 /beta 의 문구는 "낙찰
+      시까지 수수료 0원"(Hero.tsx) — 무료가 아니라 성공보수다. 무료로 확인되는 건 "베타 기간과
+      정식 출시 후 6개월"이라는 **테스터 한정 혜택**뿐이다(landing.config.ts 의 BENEFITS[0]).
+      PriceSpecification 으로 옮기려면 숫자가 있어야 하는데 수수료율·정가·베타 종료일이 저장소
+      어디에도 없다. 가장 나쁜 게 틀린 가격이고 그다음이 지어낸 가격이므로 값이 생길 때까지
+      뺀다(Offer 는 WebApplication 필수 속성이 아니다). 되살릴 때 필요한 것: 부과 시점, 요율
+      또는 정액, 통화, 무료 구간의 유효기간.
+
+      ── Organization.sameAs ──────────────────────────────────────────────────
+      실재를 확인한 것만. 카카오톡 채널은 살아 있고("일렉테리어 카카오톡채널") 앱 헤더가 실제로
+      링크한다(AppHeader.tsx 의 CONTACT.kakao). apex 도메인은 같은 헤더의 CONTACT.siteShort 로
+      url 에 적은 www 판과 같은 사이트다 — 함께 선언해야 엔티티가 호스트별로 갈라지지 않는다.
+      링크드인·위키데이터는 넣지 않았다. 확인 못 한 sameAs 는 엔티티를 묶는 게 아니라 엉뚱한
+      곳에 묶을 위험만 만든다.
+    -->
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
@@ -112,7 +210,8 @@
             "url": "https://www.electerior.com/",
             "logo": "https://g2b-masters.electerior.co.kr/electerior-logo.svg",
             "email": "hello@electerior.com",
-            "telephone": "+82-10-5598-0054"
+            "telephone": "+82-10-5598-0054",
+            "sameAs": ["https://electerior.com/", "https://pf.kakao.com/_MPGYb"]
           },
           {
             "@type": "WebSite",
@@ -121,7 +220,15 @@
             "url": "https://g2b-masters.electerior.co.kr/",
             "inLanguage": "ko-KR",
             "publisher": { "@id": "https://www.electerior.com/#organization" },
-            "description": "나라장터·국방전자조달 입찰정보 통합 검색 서비스"
+            "description": "나라장터·국방전자조달 입찰정보 통합 검색 서비스",
+            "potentialAction": {
+              "@type": "SearchAction",
+              "target": {
+                "@type": "EntryPoint",
+                "urlTemplate": "https://g2b-masters.electerior.co.kr/notices?and={search_term_string}"
+              },
+              "query-input": "required name=search_term_string"
+            }
           },
           {
             "@type": "WebApplication",
@@ -132,13 +239,58 @@
             "operatingSystem": "Web",
             "inLanguage": "ko-KR",
             "creator": { "@id": "https://www.electerior.com/#organization" },
-            "offers": {
-              "@type": "Offer",
-              "price": "0",
-              "priceCurrency": "KRW"
-            },
             "keywords": "나라장터, G2B, 국방전자조달, 입찰공고, 사전규격, 발주계획, 입찰결과, 공공조달",
             "description": "나라장터와 국방전자조달의 입찰공고, 발주계획, 사전규격, 입찰결과를 통합 검색하고 수주기회 분석을 지원합니다."
+          },
+          {
+            "@type": "Dataset",
+            "@id": "https://g2b-masters.electerior.co.kr/#dataset",
+            "name": "나라장터·누리장터·국방전자조달 공공조달 공고 데이터셋",
+            "description": "대한민국 공공조달 공고를 나라장터(조달청), 누리장터, 국방전자조달(D2B, 방위사업청) 세 곳에서 모아 하나의 검색 색인으로 합친 데이터셋입니다. 한 건의 조달을 계획·사전규격·입찰·마감 네 단계로 이어 붙여 두었고, 낙찰정보(입찰결과)는 별도 색인으로 함께 제공합니다. 업무구분(물품·용역·공사·외자), 공고기관과 수요기관, 참가가능지역, 추정가격 구간, 공고일시와 입찰마감일시, 세부품명번호로 좁혀 볼 수 있습니다.",
+            "url": "https://g2b-masters.electerior.co.kr/notices",
+            "inLanguage": "ko-KR",
+            "creator": { "@id": "https://www.electerior.com/#organization" },
+            "publisher": { "@id": "https://www.electerior.com/#organization" },
+            "isAccessibleForFree": true,
+            "spatialCoverage": {
+              "@type": "Place",
+              "name": "대한민국",
+              "address": { "@type": "PostalAddress", "addressCountry": "KR" }
+            },
+            "isBasedOn": [
+              "https://www.data.go.kr/data/15129394/openapi.do",
+              "https://www.data.go.kr/data/15129397/openapi.do",
+              "https://www.data.go.kr/data/15129437/openapi.do",
+              "https://www.data.go.kr/data/15129468/openapi.do",
+              "https://www.data.go.kr/data/15129456/openapi.do",
+              "https://www.data.go.kr/data/15158416/openapi.do"
+            ],
+            "variableMeasured": [
+              "조달 생애주기 단계(계획·사전규격·입찰·마감)",
+              "업무구분(물품·용역·공사·외자)",
+              "공고 출처(나라장터·누리장터·국방전자조달)",
+              "공고 상태(정정·재·다시·취소)",
+              "공고기관·수요기관",
+              "참가가능지역",
+              "추정가격",
+              "공고일시·입찰마감일시",
+              "세부품명번호"
+            ],
+            "keywords": [
+              "나라장터",
+              "G2B",
+              "누리장터",
+              "국방전자조달",
+              "D2B",
+              "공공조달",
+              "입찰공고",
+              "발주계획",
+              "사전규격",
+              "입찰결과",
+              "낙찰정보",
+              "조달청",
+              "방위사업청"
+            ]
           }
         ]
       }

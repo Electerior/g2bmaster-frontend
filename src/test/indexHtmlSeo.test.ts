@@ -73,12 +73,46 @@ const ogUrl = () => captureOne(/<meta[^>]*property="og:url"[^>]*content="([^"]+)
 // property="og:image" 뒤의 닫는 따옴표까지 요구하므로 og:image:width 등에는 걸리지 않는다.
 const ogImage = () => captureOne(/<meta[^>]*property="og:image"[^>]*content="([^"]+)"/, 'og:image');
 
+/** `{ "@id": ... }` 한 줄짜리 교차참조. 그래프의 뼈대가 이것이다. */
+interface JsonLdRef {
+  '@id'?: string;
+}
+
+/** SearchAction 의 target — schema.org Actions 규격의 EntryPoint. */
+interface JsonLdEntryPoint {
+  '@type'?: string;
+  urlTemplate?: string;
+}
+
+interface JsonLdAction {
+  '@type'?: string;
+  target?: JsonLdEntryPoint;
+  'query-input'?: string;
+}
+
+/** 값이 사라지는 것도 회귀이므로 price 는 문자열·숫자 둘 다 받아 두고 비교할 때 문자열로 맞춘다. */
+interface JsonLdOffer {
+  '@type'?: string;
+  price?: string | number;
+  priceCurrency?: string;
+}
+
 /** JSON-LD 노드 중 이 시험이 보는 필드만. 나머지는 굳이 타입으로 묶지 않는다. */
 interface JsonLdNode {
   '@type'?: string;
   '@id'?: string;
   url?: string;
   logo?: string;
+  name?: string;
+  description?: string;
+  sameAs?: unknown;
+  inLanguage?: string;
+  /** Dataset 이 license 대신 세우는 근거 목록. 배열이 아닐 수도 있으니 좁히지 않는다. */
+  isBasedOn?: unknown;
+  potentialAction?: JsonLdAction;
+  creator?: JsonLdRef;
+  publisher?: JsonLdRef;
+  offers?: JsonLdOffer;
 }
 
 function jsonLdGraph(): JsonLdNode[] {
@@ -173,5 +207,128 @@ describe('index.html SEO 블록', () => {
     // 위 규칙의 의도된 예외. '남의 도메인을 전부 바꾼다'는 다음 사람의 일괄 치환에서
     // 이것까지 끌려가면 모회사 사이트와 조직 엔티티가 갈라진다.
     expect(jsonLdNode('Organization')['@id']).toBe(ORGANIZATION_ID);
+  });
+
+  it('WebSite 의 SearchAction 이 실제로 동작하는 검색 주소를 가리킨다', () => {
+    /*
+     * 여기서 지키는 것은 문법이 아니라 **주소가 진짜로 동작하는가**다.
+     *
+     * 통합 검색 화면이 URL 에서 읽는 '모두 포함' 키워드의 이름은 `and` 하나뿐이다
+     * (useSearchCriteria 의 PARAM.and). `q` 는 옛 `/search` 주소의 이름이고
+     * LegacyNoticeRedirect 가 `and` 로 바꿔 넘겨줄 뿐이라, `/notices?q=...` 로 곧장
+     * 들어오면 그 값은 **읽히지 않고 조건 없는 전체 목록**이 뜬다. 즉 target 을 `q` 로
+     * 적으면 마크업은 유효한데 사용자는 필터가 풀린 화면에 떨어진다 — 눈에 보이는 오류가
+     * 없어서 아무도 눈치채지 못하는 종류의 사고다.
+     *
+     * 화면이 파라미터 이름을 바꾸면(PARAM.and) 이 시험이 먼저 깨져야 한다.
+     */
+    const action = jsonLdNode('WebSite').potentialAction;
+    expect(action?.['@type']).toBe('SearchAction');
+
+    const template = action?.target?.urlTemplate ?? '';
+    expect(template.startsWith(`${PROD_ORIGIN}/`)).toBe(true);
+    expect(template).toContain('{search_term_string}');
+    expect(template).toContain('/notices?and={search_term_string}');
+    // 옛 이름으로 되돌아가면 조건이 통째로 무시된다.
+    expect(template).not.toMatch(/[?&]q=/);
+
+    // Actions 규격의 PropertyValueSpecification 단축 표기. 이게 없으면 자리표시자를
+    // 무엇으로 채워야 하는지 소비자가 알 수 없다.
+    expect(action?.['query-input']).toBe('required name=search_term_string');
+  });
+
+  it('Dataset 이 있고 creator·publisher 가 Organization 을 가리킨다', () => {
+    // 이 서비스의 알맹이는 화면이 아니라 코퍼스다. Dataset 노드는 일반 검색과 별개인
+    // 구글 데이터셋 검색 표면으로 들어가므로, 조용히 사라지면 그 표면을 통째로 잃는다.
+    const dataset = jsonLdNode('Dataset');
+    expect(dataset['@id']).toBe(`${PROD_ORIGIN}/#dataset`);
+
+    // 코퍼스를 만든 주체는 상류 발주기관이 아니라 이 색인을 만든 회사다.
+    expect(dataset.creator?.['@id']).toBe(ORGANIZATION_ID);
+    expect(dataset.publisher?.['@id']).toBe(ORGANIZATION_ID);
+
+    // 구글이 Dataset 에서 실제로 요구하는 것은 이 둘뿐이고, description 은 50자 이상이어야
+    // 한다. 나머지(temporalCoverage·license·distribution)는 근거를 확인하지 못해 비워 둔
+    // 것이므로 여기서 강제하지 않는다 — 근거가 생기면 그때 채운다.
+    expect(dataset.name).toBeTruthy();
+    expect((dataset.description ?? '').length).toBeGreaterThanOrEqual(50);
+
+    // 이 파일의 본래 임무 — 식별자가 다시 남의 도메인으로 흘러가지 않는지. 노드가 늘었으니
+    // 잠글 자리도 함께 는다.
+    expect(dataset.url?.startsWith(`${PROD_ORIGIN}/`)).toBe(true);
+    expect(dataset.inLanguage).toBe('ko-KR');
+  });
+
+  it('Dataset.isBasedOn 이 실제로 적재하는 상류 여섯을 절대 URL 로 가리킨다', () => {
+    /*
+     * license 를 못 적었기 때문에 isBasedOn 이 그 자리를 대신한다 — 이용 조건이 적힌 원본을
+     * 가리켜 두는 것이다. 그래서 개수와 형태를 잠근다.
+     *
+     * 여섯인 이유: description 이 나라장터·누리장터·국방전자조달 셋과 낙찰정보를 이름으로
+     * 말하는데, 근거 목록이 그보다 좁으면 같은 그래프 안에서 말이 어긋난다. 백엔드의
+     * BidNoticeIngestService.buildSources(입찰공고·발주계획·사전규격·누리장터)와
+     * BidResultIngestService(낙찰정보), D2bClient(국방)가 실제로 부르는 것과 하나씩 맞췄다.
+     *
+     * 상류를 새로 붙이면 여기부터 깨져야 한다 — 코퍼스가 넓어졌는데 근거가 안 따라오면
+     * Dataset 이 조용히 낡는다.
+     */
+    const sources = jsonLdNode('Dataset').isBasedOn;
+    expect(Array.isArray(sources)).toBe(true);
+
+    const entries = sources as unknown[];
+    expect(entries).toHaveLength(6);
+    for (const entry of entries) {
+      expect(typeof entry).toBe('string');
+      // 공공데이터포털의 데이터셋 상세 주소 형태. 오퍼레이션 문서가 아니라 데이터셋 페이지여야
+      // 이용 조건이 함께 붙는다.
+      expect(String(entry)).toMatch(/^https:\/\/www\.data\.go\.kr\/data\/\d+\/openapi\.do$/);
+    }
+    // 같은 주소를 두 번 적으면 개수만 채워지고 근거는 늘지 않는다.
+    expect(new Set(entries.map(String)).size).toBe(entries.length);
+  });
+
+  it('Organization.sameAs 는 배열이고 전부 절대 URL 이다', () => {
+    /*
+     * sameAs 는 "이 회사가 저기에도 있다"는 선언이라, 상대 경로나 오타난 주소가 섞이면
+     * 엔티티를 묶는 게 아니라 엉뚱한 곳에 묶거나 아무것도 하지 않는다. 값 하나를 손으로
+     * 덧붙이다 스킴을 빠뜨리는 게 가장 흔한 실수라 형태만 잠근다 — 어떤 링크를 넣을지는
+     * 사람이 정하고, 확인 못 한 링크는 애초에 넣지 않는 게 규칙이다(index.html 주석).
+     */
+    const sameAs = jsonLdNode('Organization').sameAs;
+    expect(Array.isArray(sameAs)).toBe(true);
+
+    const entries = sameAs as unknown[];
+    expect(entries.length).toBeGreaterThan(0);
+    for (const entry of entries) {
+      expect(typeof entry).toBe('string');
+      expect(String(entry)).toMatch(/^https:\/\//);
+      expect(() => new URL(String(entry))).not.toThrow();
+    }
+  });
+
+  it('무료(price 0)를 주장하는 offers 가 그래프 어디에도 없다', () => {
+    /*
+     * 예전에는 WebApplication 에 `price: "0", priceCurrency: "KRW"` 가 있었다. 그런데
+     * /beta 의 문구는 "낙찰 시까지 수수료 0원" — 무료가 아니라 성공보수라는 뜻이다.
+     * 요율도 정가도 저장소 어디에도 없어서 PriceSpecification 으로 옮길 수가 없었고,
+     * 틀린 가격을 남기는 것이 최악이라 offers 를 뺐다.
+     *
+     * 단언이 둘인 데 뜻이 있다.
+     *
+     *  (1) 0원 금지는 **영구 규칙**이다. 성공보수 모델을 무료로 선언하는 것은 그냥 거짓이고,
+     *      틀린 구조화 데이터는 없는 것보다 나쁘다(수동 조치 위험).
+     *  (2) "지금은 offers 가 아예 없다"는 **현재 상태 잠금**이다. 요율·정가·베타 종료일이
+     *      생겨서 offers 를 되살릴 때는 이 줄을 함께 지우고 (1)만 남겨라. 그때 시험이
+     *      깨지는 것은 사고가 아니라, 가격을 다시 적는 사람에게 근거를 확인시키는 장치다.
+     *      되살릴 때 필요한 것: 부과 시점, 요율 또는 정액, 통화, 무료 구간의 유효기간.
+     */
+    const offers = jsonLdGraph()
+      .map((node) => node.offers)
+      .filter((offer): offer is JsonLdOffer => offer !== undefined);
+
+    // (1) 영구 규칙.
+    expect(offers.filter((offer) => String(offer.price) === '0')).toEqual([]);
+    // (2) 현재 상태 잠금 — 되살릴 때 함께 지울 줄.
+    expect(offers).toEqual([]);
   });
 });
