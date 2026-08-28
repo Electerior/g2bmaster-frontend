@@ -52,6 +52,22 @@ describe('구글 시트 접수', () => {
     expect(fetchMock.mock.calls[0][0]).toBe('https://script.example.test/exec');
   });
 
+  /*
+   * 접수가 정원을 넘으면 스크립트는 음수 대신 1 을 준다. 그런데 그 스크립트는 이 저장소가
+   * 아니라 Apps Script 편집기에서 따로 배포되므로, 재배포 전에는 옛 계산(0)이 그대로 온다.
+   * 랜딩이 "0개사 남음"으로 마감된 것처럼 보이는 일을 막으려면 받는 쪽에서도 막아야 한다.
+   */
+  it.each([
+    ['0 을 받아도', 0],
+    ['음수를 받아도', -3],
+  ])('%s 1개사 남음에서 멈춘다', async (_label, remaining) => {
+    fetchMock.mockResolvedValue(
+      json({ total: 50, remaining, deadline: '2026-08-31T23:59:59+09:00', open: false }),
+    );
+
+    await expect(fetchBetaStatus()).resolves.toMatchObject({ total: 50, remaining: 1 });
+  });
+
   it('오류 페이지가 오면 다시 부르고, 재시도는 같은 requestId 를 보낸다', async () => {
     fetchMock
       .mockResolvedValueOnce(errorPage())

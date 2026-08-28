@@ -24,15 +24,22 @@ var CONFIG = {
   /** 접수 탭 이름. 없으면 만든다. */
   SHEET_NAME: '시트1',
 
-  /** 화면에 내거는 정원. "20개사만 받습니다" 문구와 슬롯 막대에 쓰인다. */
-  TOTAL: 20,
+  /** 화면에 내거는 정원. "50개사만 받습니다" 문구와 슬롯 막대에 쓰인다. */
+  TOTAL: 50,
 
   /**
    * 실제로 받는 수. 잔여 자리는 이 수에서 시트 행 개수를 뺀 값이다.
-   * TOTAL 과 다른 이유: 20개사가 전체 규모이고 이번 회차에 실제로 받는 건 12개사다.
-   * 잔여가 0 이 되면 open:false 가 되어 프론트 폼이 잠긴다.
+   *
+   * TOTAL(50) 과 다른 이유: 50 은 화면에 내거는 규모이고, 이번 회차에 실제로 받는 건
+   * 20개사다. 잔여는 20 에서 이미 들어온 건수를 뺀 값이 된다.
+   *
+   * 여기에 "20 − 지금 등록수" 같은 계산된 수를 넣지 않는다. 뺄셈은 status_ 가 매번
+   * 시트를 세어 하므로, 미리 빼 두면 두 번 빠져 받는 수가 절반으로 줄고, 그 값은
+   * 넣은 순간부터 낡는다. 여기에는 "총 몇 개사를 받을 것인가"만 적는다.
+   *
+   * 잔여가 0 이 되어도 폼은 잠기지 않는다 — MIN_REMAINING 주석 참고.
    */
-  CAPACITY: 12,
+  CAPACITY: 20,
 
   /** ISO-8601, offset 포함. 이 시각을 지나면 open:false. */
   DEADLINE: '2026-08-31T23:59:59+09:00',
@@ -40,6 +47,12 @@ var CONFIG = {
   /** 한 필드가 이보다 길면 거절한다. 폼을 통한 대량 주입을 막는 최소 방어다. */
   MAX_FIELD: 200,
 };
+
+/**
+ * 화면에 내는 잔여 자리의 바닥. 프론트(src/api/beta.ts)도 같은 값으로 한 번 더 막는다 —
+ * 이 스크립트를 재배포하기 전이라도 랜딩에 0 이 뜨지 않게 하려는 것이다.
+ */
+var MIN_REMAINING = 1;
 
 /**
  * 시트 열 정의.
@@ -82,10 +95,18 @@ function doGet() {
   return json(status_());
 }
 
+/**
+ * 잔여 자리는 1 아래로 내려가지 않는다.
+ *
+ * 접수가 CAPACITY 를 넘어도 랜딩에 "0개사 남음"이나 음수를 띄우지 않고 "1개사 남음"에서
+ * 멈춘다. 마감은 날짜가 정한다 — 자리 수로 폼을 잠그지 않는다. 그래서 open 에서 잔여
+ * 조건을 뺐다. 접수 자체는 계속 받고, 실제로 몇 개사를 뽑을지는 시트를 보고 사람이
+ * 정한다(원래도 CAPACITY 와 TOTAL 이 다른 수였던 이유와 같다).
+ */
 function status_() {
   var rows = countRows_();
-  var remaining = Math.max(0, CONFIG.CAPACITY - rows);
-  var open = remaining > 0 && new Date().getTime() < new Date(CONFIG.DEADLINE).getTime();
+  var remaining = Math.max(MIN_REMAINING, CONFIG.CAPACITY - rows);
+  var open = new Date().getTime() < new Date(CONFIG.DEADLINE).getTime();
   return {
     total: CONFIG.TOTAL,
     remaining: remaining,
@@ -187,7 +208,36 @@ function appendSignup_(body) {
   var row = new Array(width).fill('');
   for (var k = 0; k < placed.length; k++) row[placed[k].col - 1] = placed[k].value;
 
-  sheet.appendRow(row);
+  sheet.getRange(nextRow_(), 1, 1, width).setValues([row]);
+}
+
+/**
+ * 다음 접수가 들어갈 행 번호.
+ *
+ * appendRow() 를 쓰지 않는다. 그것은 getLastRow() 가 가리키는 자리에 쓰는데, 그 값은
+ * 서식만 남은 칸이나 누가 실수로 남긴 문자 하나까지 "내용"으로 센다. 실제로 업종 열
+ * 13 행에 문자 하나가 남아 있어서, 일곱 번째 접수가 8 행이 아니라 14 행에 들어가 표
+ * 한가운데가 여섯 줄 비었다.
+ *
+ * countRows_ 와 같은 기준 — 이메일 열 — 을 쓴다. 그 열은 접수가 있으면 반드시 차 있고
+ * 없으면 반드시 비어 있어서, 다른 열에 남은 흔적에 흔들리지 않는다.
+ *
+ * 마지막 접수 다음이 아니라 '첫 빈 자리'를 고른다. 그래야 이미 벌어진 공백이 다음
+ * 접수부터 저절로 메워지고, 운영자가 중간 행을 지웠을 때도 그 자리가 다시 쓰인다.
+ * 대신 그동안은 접수 시각 순서와 행 순서가 어긋난다 — 공백이 다 메워지면 맞춰진다.
+ */
+function nextRow_() {
+  var sheet = sheet_();
+  var col = columnIndex_(sheet, EMAIL_HEADER);
+  var last = sheet.getLastRow();
+  if (last < 2) return 2;
+
+  // values[0] 이 2 행이므로 값 위치 i 의 행 번호는 i + 2 다.
+  var values = sheet.getRange(2, col, last - 1, 1).getValues();
+  for (var i = 0; i < values.length; i++) {
+    if (String(values[i][0]).trim() === '') return i + 2;
+  }
+  return last + 1;
 }
 
 /**

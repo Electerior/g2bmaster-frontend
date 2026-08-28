@@ -182,8 +182,22 @@ async function callSheet<T>(payload?: unknown): Promise<T> {
   }
 }
 
-export function fetchBetaStatus(): Promise<BetaStatus> {
-  return SHEET_URL ? callSheet<BetaStatus>() : get<BetaStatus>('/api/beta/status');
+/**
+ * 화면에 내는 잔여 자리의 바닥.
+ *
+ * 접수가 정원을 넘어도 "0개사 남음"이나 음수를 띄우지 않고 "1개사 남음"에서 멈춘다.
+ *
+ * 접수처(docs/beta-signup.gs)도 같은 값으로 막지만 여기서 한 번 더 막는다. 그쪽은 이
+ * 저장소에서 빌드되는 코드가 아니라 Apps Script 편집기에 붙여 넣고 따로 배포하는
+ * 코드다 — 재배포가 하루 늦어도 랜딩이 약속한 숫자는 지켜져야 한다.
+ */
+const MIN_REMAINING = 1;
+
+export async function fetchBetaStatus(): Promise<BetaStatus> {
+  const status = await (SHEET_URL
+    ? callSheet<BetaStatus>()
+    : get<BetaStatus>('/api/beta/status'));
+  return { ...status, remaining: Math.max(MIN_REMAINING, status.remaining) };
 }
 
 /**
@@ -247,8 +261,9 @@ export function useBetaSignup() {
       const previous = queryClient.getQueryData<BetaStatus>(betaKeys.status());
       queryClient.setQueryData<BetaStatus>(betaKeys.status(), (prev) => {
         if (!prev) return prev;
-        const remaining = Math.max(0, prev.remaining - 1);
-        return { ...prev, remaining, open: prev.open && remaining > 0 };
+        // 바닥이 1 이라 잔여 수로는 폼이 잠기지 않는다. 마감은 날짜만 정한다.
+        const remaining = Math.max(MIN_REMAINING, prev.remaining - 1);
+        return { ...prev, remaining, open: prev.open };
       });
       return { previous };
     },
