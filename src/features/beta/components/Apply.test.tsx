@@ -20,7 +20,7 @@ beforeEach(() => mutate.mockReset());
 it('서버로 요청을 전달하면 즉시 접수 완료를 표시하고 실패하면 오류로 복귀한다', () => {
   render(
     <Apply
-      status={{ total: 20, remaining: 12, deadline: '2026-08-31T23:59:59+09:00', open: true }}
+      status={{ total: 20, remaining: 14, deadline: '2026-08-31T23:59:59+09:00', open: true }}
       countdown="3일"
     />,
   );
