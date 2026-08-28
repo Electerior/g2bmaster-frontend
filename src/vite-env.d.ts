@@ -16,6 +16,14 @@ interface ImportMetaEnv {
    * 로컬 첨부 색인을 읽는 scan-attachments 는 이 플래그의 대상이 아니다.
    */
   readonly VITE_AI_ENABLED?: string;
+  /**
+   * 베타 접수를 받는 구글 Apps Script 웹앱 주소(docs/beta-signup.gs).
+   *
+   * 보통 설정하지 않는다 — 기본 주소가 src/api/beta.ts 에 있어 /beta 랜딩은 그것으로 돈다.
+   * 여기에 다른 주소를 주면 그쪽이 이기고, 빈 문자열을 명시하면 Spring 의 /api/beta/* 로
+   * 돌아간다. 자세한 판단 근거는 api/beta.ts 의 DEFAULT_SHEET_URL 주석 참고.
+   */
+  readonly VITE_BETA_SHEET_URL?: string;
 }
 
 interface ImportMeta {

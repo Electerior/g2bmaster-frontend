@@ -26,6 +26,20 @@ const Apply = forwardRef<HTMLElement, Props>(function Apply({ status, countdown 
   const set = (k: keyof typeof EMPTY) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
 
+  /**
+   * 낙관적 반영 — 네트워크를 기다리지 않고 성공 카드를 먼저 띄운다.
+   *
+   * 접수처가 구글 Apps Script 라 왕복이 아무리 빨라도 2초, 나쁠 때 10~20초다. 그 시간을
+   * 사용자에게 떠넘기면 다 채워 놓고 창을 닫는다. 그래서 브라우저 검증만 통과하면 즉시
+   * 성공으로 넘기고, 실제 전송은 뒤에서 돌린다. 화면 반응은 렌더 한 프레임이다.
+   *
+   * 실패하면 되돌린다. 성공 카드(.ok)는 폼 카드를 덮는 오버레이라 되돌리면 입력값이 그대로
+   * 다시 보이고, 잔여 자리도 useBetaSignup 이 캐시를 원래대로 돌려놓는다.
+   *
+   * 감수하는 것: 3번 다 실패하는 0.3% 미만의 경우에 "접수됨"을 봤다가 오류로 바뀐다.
+   * 그 반대(모두가 2~20초를 기다리는 것)가 훨씬 비싸다고 판단했다. 중복 이메일도 뒤늦게
+   * 바뀌지만, 그때 뜨는 문구가 "이미 신청되었으니 안내를 기다리라"는 것이라 결과는 같다.
+   */
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!e.currentTarget.checkValidity()) {
@@ -33,7 +47,6 @@ const Apply = forwardRef<HTMLElement, Props>(function Apply({ status, countdown 
       return;
     }
 
-    // 요청을 전달하는 즉시 완료 화면을 보여 주고, 실제 실패 시 폼과 오류로 복귀한다.
     setState({ status: 'success' });
 
     signup.mutate(
@@ -140,6 +153,10 @@ const Apply = forwardRef<HTMLElement, Props>(function Apply({ status, countdown 
               </p>
             )}
 
+            {/*
+              전송 중에도 문구를 바꾸지 않는다. 성공 카드가 이미 폼을 덮고 있어 이 버튼은
+              보이지 않고, 되돌아왔을 때는 다시 누를 수 있어야 한다.
+            */}
             <button type="submit" className="btn" style={{ width: '100%' }} disabled={locked}>
               {locked ? '모집이 마감되었습니다' : '베타 신청하기'}
             </button>
