@@ -192,39 +192,21 @@ const config: ViteConfigWithTest = {
   },
   build: {
     outDir: 'dist',
+    sourcemap: true,
     /**
-     * 프로덕션 소스맵은 만들지 않는다. 켜 두면 dist 에 `index-*.js.map` 이 같이 나가고,
-     * 번들 끝의 `//# sourceMappingURL` 때문에 정적 호스팅에서 그대로 공개된다. 실제로
-     * 운영 도메인에서 `/assets/index-*.js.map` 이 200 으로 2.9MB 내려받혔다 — 이유는 두 가지다.
+     * 청크 이름표(dist/.vite/manifest.json).
      *
-     * 1. 소스 공개: 맵 안에 TypeScript 원문이 통째로 들어간다. 한국어 설계 주석까지 그대로다.
-     * 2. 대역폭: 2.9MB. 앱 번들 전체보다 몇 배 크다.
+     * 빌드 뒤에 도는 /beta 프리렌더(scripts/prerender-beta.mjs)가 이것을 읽는다. 그 단계는
+     * 정적 HTML 안에 랜딩 청크의 CSS 링크와 modulepreload 를 직접 써 넣어야 하는데,
+     * 파일 이름에 콘텐츠 해시가 박혀 있어(landing-CRKkmEkO.css) 빌드 전에는 알 수 없다.
+     * dist/assets 를 훑어 이름으로 짐작하는 방법도 있지만, 그러면 청크를 어떻게 가르느냐
+     * (chore/vite-build-hardening 의 manualChunks)에 따라 조용히 틀린 파일을 링크하게 된다.
+     * manifest 는 "이 모듈이 어느 파일이 됐고 무엇을 함께 필요로 하는가"를 vite 가 직접
+     * 적어 주는 유일한 출처다.
      *
-     * 나중에 에러 리포터(Sentry 등)를 붙여 스택 트레이스를 원문으로 복원해야 하면
-     * `false` 대신 `'hidden'` 을 쓴다. 맵 파일은 만들되 번들에 `//# sourceMappingURL` 참조를
-     * 남기지 않으므로, 맵을 리포터에만 업로드하고 정적 호스팅에서는 빼면 된다.
+     * 산출된 manifest.json 은 프리렌더가 다 쓰고 나서 지운다 — 배포물에 남길 이유가 없다.
      */
-    sourcemap: false,
-    rollupOptions: {
-      output: {
-        /*
-         * 벤더 분리 규칙은 위 vendorChunk 참고. 자르는 축은 "얼마나 자주 바뀌느냐"다 —
-         * 앱 코드는 하루에도 몇 번 바뀌지만 react 는 몇 달에 한 번 바뀐다. 한 청크에 섞여 있으면
-         * 앱 한 줄 고칠 때마다 파일 해시가 바뀌어 방문자가 react 까지 다시 받는다.
-         */
-        manualChunks: vendorChunk,
-      },
-    },
-    /*
-     * chunkSizeWarningLimit 은 일부러 건드리지 않는다. 한도를 올리는 건 번들이 작아지는 게 아니라
-     * 경고만 사라지는 것이고, 그러면 다음에 앱 청크가 다시 커져도 아무도 모른다.
-     *
-     * 벤더를 갈라 지금은 모든 청크가 한도 아래지만, 앱 청크가 여전히 160KB 대인 건
-     * 라우터(`src/routes/router.tsx`)가 화면 14개를 전부 정적 import 하기 때문이다. 방문자는
-     * 어느 화면을 보든 트렌드 차트·시스템 대시보드·베타 랜딩 코드까지 다 받는다.
-     * 진짜 해법은 라우트 단위 코드 스플릿(React.lazy + Suspense)이고, **별도 브랜치에서 진행 예정**이다.
-     * 이 파일은 그때 손댈 필요가 없다 — 동적 import 는 rollup 이 알아서 청크로 가른다.
-     */
+    manifest: true,
   },
   test: {
     environment: 'jsdom',
