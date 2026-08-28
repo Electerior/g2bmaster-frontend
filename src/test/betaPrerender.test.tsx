@@ -24,6 +24,7 @@ import { QueryClient } from '@tanstack/react-query';
 import { BrowserRouter } from 'react-router-dom';
 import { act } from '@testing-library/react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { FALLBACK_STATUS } from '@/features/beta/landing.config';
 import { BetaStandalone } from '@/features/beta/standalone';
 import { renderBetaBody } from '@/features/beta/prerender';
 import {
@@ -154,8 +155,19 @@ describe('/beta 프리렌더 — 시각에 의존하는 값', () => {
   });
 
   it('잔여 자리는 서버 응답이 아니라 대체값의 출발점(정원)에서 시작한다', () => {
-    // useCountDown 은 정원에서 출발해 실제 잔여까지 굴러떨어진다. 첫 렌더는 정원이다.
-    expect(body).toContain('잔여 <b>50<!-- -->개사</b>');
+    /*
+     * useCountUp 은 정원에서 출발해 실제 잔여까지 굴러떨어진다. 첫 렌더는 정원이다.
+     *
+     * 정원 값을 **여기 적지 않고 설정에서 읽는다.** 처음에는 50 을 문자열로 박아 뒀는데,
+     * 그 사이 랜딩이 정원을 20 으로 줄이면서(feat/price-ui 의 "베타 랜딩 — 정원 20개사")
+     * 이 시험만 옛 숫자를 들고 남아 깨졌다. 값이 두 곳에 있으면 언젠가 갈라진다는 것이
+     * 이 감사 전체의 주제다 — 시험이라고 예외가 아니다.
+     *
+     * 이 시험이 지키려는 것은 숫자 20 이 아니라 **"서버 응답이 아니라 대체값에서 출발한다"**는
+     * 규칙이다. 프리렌더 시점에는 /api/beta 응답이 없으므로 그것이 유일하게 옳은 출발점이고,
+     * 브라우저의 첫 렌더도 같은 값이라 이어받기가 어긋나지 않는다.
+     */
+    expect(body).toContain(`잔여 <b>${FALLBACK_STATUS.total}<!-- -->개사</b>`);
   });
 });
 
@@ -249,12 +261,36 @@ describe('/beta 프리렌더 — 문서 조립', () => {
    * 형태여야 하고, 산출 파일을 dist/beta/index.html 이 아니라 dist/beta.html 로 낸 이유도
    * 이것이다(디렉터리로 내면 서버가 /beta/ 를 서빙한다). docs/beta-prerender.md 참고.
    */
-  it('canonical·hreflang·og:url 이 모두 정확히 https://…/beta 다', () => {
+  it('canonical·og:url 이 모두 정확히 https://…/beta 다', () => {
     expect(BETA_URL).toBe('https://g2b-masters.electerior.co.kr/beta');
     expect(html).toContain(`<link rel="canonical" href="${BETA_URL}" />`);
-    expect(html).toContain(`<link rel="alternate" hreflang="ko-KR" href="${BETA_URL}" />`);
     expect(html).toContain(`<meta property="og:url" content="${BETA_URL}" />`);
     expect(html).not.toContain(`${BETA_URL}/"`);
+  });
+
+  /*
+   * hreflang 은 결과물에 **없어야 한다.** 단일 로케일 사이트에서 대안이 하나뿐인 hreflang 은
+   * 신호가 0 이고, 셸에 남아 있으면 14개 주소가 "내 ko-KR 대안은 사이트 루트"라고 선언하는
+   * 자기참조 위반이 된다(findings/hreflang.md). fix/seo-hreflang-drop 이 셸에서 지웠고,
+   * 여기서는 그 브랜치가 아직 안 들어온 상태에서 이 단계가 돌더라도 결과가 같도록
+   * 프리렌더가 직접 걷어낸다.
+   *
+   * 아래는 두 가지를 함께 본다: 셸에 태그가 있든 없든 산출물에는 없다는 것.
+   *
+   * 문자열 'hreflang' 이 아니라 **태그**를 찾는다. 셸의 <head> 주석이 그 낱말을 설명문에
+   * 쓰고 있어서(왜 지웠는지가 거기 적혀 있다) 단순 포함 검사로는 주석에 걸린다.
+   */
+  const HREFLANG_TAG = /<link[^>]*\bhreflang\b[^>]*>/;
+
+  it('hreflang 은 셸에 있든 없든 결과물에 남지 않는다', () => {
+    expect(html).not.toMatch(HREFLANG_TAG);
+
+    const shellWithTag = SHELL.replace(
+      '<link rel="canonical"',
+      '<link rel="alternate" hreflang="ko-KR" href="https://g2b-masters.electerior.co.kr/" />\n    <link rel="canonical"',
+    );
+    expect(shellWithTag).toMatch(HREFLANG_TAG);
+    expect(buildBetaDocument({ shell: shellWithTag, body: '<p>본문</p>' })).not.toMatch(HREFLANG_TAG);
   });
 
   it('본문과 표식이 #root 안으로 들어간다', () => {
