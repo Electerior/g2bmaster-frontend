@@ -72,19 +72,12 @@ describe('public/sitemap.xml', () => {
     expect(unknown).toEqual([]);
   });
 
-  it('ACTION-PLAN 1.3 이 지정한 8개 주소를 모두 담는다', () => {
+  it('공개 화면 셋을 모두 담는다', () => {
     // 화면을 늘렸다고 아무 주소나 흘러들어오거나, 반대로 조용히 빠지는 것을 함께 막는다.
+    // ACTION-PLAN 1.3 은 8개를 지정했지만, 그 뒤 화면이 공고 중심으로 정리되면서
+    // 단가 DB·트렌드 셋·스펙 검색이 없어졌다. 남은 공개 주소는 이 셋이다.
     expect(locsOf(sitemap).map((loc) => loc.slice(ORIGIN.length)).sort()).toEqual(
-      [
-        ROUTES.beta,
-        ROUTES.noticeSearch,
-        ROUTES.bidResult,
-        ROUTES.specSearch,
-        ROUTES.priceDb,
-        ROUTES.trendProduct,
-        ROUTES.trendService,
-        ROUTES.trendConstruction,
-      ].sort(),
+      [ROUTES.beta, ROUTES.noticeSearch, ROUTES.bidResult].sort(),
     );
   });
 
@@ -92,13 +85,7 @@ describe('public/sitemap.xml', () => {
     // noindex 로 처리할 화면들이다. 사이트맵에 올리면 "색인해 달라"와 "색인하지 마라"를
     // 동시에 말하는 셈이라 신호가 서로 부딪힌다.
     const locs = locsOf(sitemap);
-    for (const path of [
-      ROUTES.saved,
-      ROUTES.system,
-      ROUTES.analysisLab,
-      ROUTES.company,
-      ROUTES.officers,
-    ]) {
+    for (const path of [ROUTES.saved, ROUTES.system]) {
       expect(locs).not.toContain(`${ORIGIN}${path}`);
     }
   });

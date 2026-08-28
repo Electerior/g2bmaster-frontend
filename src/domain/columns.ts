@@ -1,10 +1,8 @@
 /*
  * 화면별 컬럼 정의 — 원본 public/app.js 의 `TABS`(2~120행)를 그대로 옮긴 것.
  *
- * 원본은 이 표 하나로 탭 라벨 · 엔드포인트 · 컬럼 · 화면 종류(deal/saved/trend)를 전부
- * 결정했다. 라우터가 생긴 뒤에도 컬럼과 라벨은 여전히 한곳에 있어야 하므로 표는 유지하되,
- * "이 탭은 표인가 딜인가 트렌드인가"를 boolean 플래그 대신 판별 가능한 union 으로 바꿨다.
- * 원본의 `cfg?.deal` / `cfg?.saved` / `cfg?.trend` 분기는 전부 이 union 의 `kind` 로 대체된다.
+ * 원본은 이 표 하나로 탭 라벨 · 엔드포인트 · 컬럼을 전부 결정했다. 라우터가 생긴 뒤에도
+ * 컬럼과 라벨은 한곳에 있어야 하므로 운영 중인 조회 화면 정의만 유지한다.
  */
 
 /**
@@ -52,6 +50,12 @@ export type CellFmt =
   | 'spec-cross'
   | 'save-star'
   | 'close-dday'
+  /*
+   * 금액 + 그 금액의 종류. 'money' 와 나눈 이유는 이 칸에 성격이 다른 금액이 섞이기 때문이다 —
+   * 추정가격·배정예산(예산이라 추정가격보다 크다)·기준금액(투찰 상한)·기초예비가격.
+   * 종류를 적지 않으면 사용자가 비교할 수 없는 값을 비교하게 되고, 화면만 보고는 알 방법이 없다.
+   */
+  | 'amount-kind'
   | 'opportunity-pending';
 
 export interface ColumnDef {
@@ -67,13 +71,6 @@ export interface ColumnDef {
   sortKey?: string | null;
 }
 
-/** 트렌드 화면 설정 — 원본 TABS[*].trend. */
-export interface TrendConfig {
-  title: string;
-  itemLabel: string;
-  quickKeywords: readonly string[];
-}
-
 /** 라우트가 고르는 화면 식별자. 원본 state.tab 의 값과 같은 문자열을 쓴다. */
 export type ScreenKind =
   | 'notice-search'
@@ -81,13 +78,7 @@ export type ScreenKind =
   | 'pre-spec'
   | 'bid-announce'
   | 'bid-result'
-  | 'deal-radar'
-  | 'saved-notices'
-  | 'spec-search'
-  | 'price-db'
-  | 'product-trend'
-  | 'service-trend'
-  | 'construction-trend';
+  | 'saved-notices';
 
 interface ScreenBase {
   label: string;
@@ -96,11 +87,7 @@ interface ScreenBase {
 
 export type ScreenConfig =
   | (ScreenBase & { kind: 'table'; columns: readonly ColumnDef[] })
-  | (ScreenBase & { kind: 'deal' })
-  | (ScreenBase & { kind: 'saved' })
-  | (ScreenBase & { kind: 'trend'; trend: TrendConfig })
-  | (ScreenBase & { kind: 'spec-search' })
-  | (ScreenBase & { kind: 'price-db' });
+  | (ScreenBase & { kind: 'saved' });
 
 export const SCREENS: Readonly<Record<ScreenKind, ScreenConfig>> = {
   /*
@@ -137,7 +124,10 @@ export const SCREENS: Readonly<Record<ScreenKind, ScreenConfig>> = {
       // 공고기관과 수요기관이 다른 건이 흔하다(조달청 대행) — 다를 때 둘 다 보여준다.
       { label: '기관', key: 'noticeInstitutionName', fmt: 'institutions', sortKey: null },
       { label: '지역', key: 'region', fmt: 'region', sortKey: null },
-      { label: '추정가격', key: 'estimatedPrice', fmt: 'money', sortKey: 'amount' },
+      // '추정가격'이 아니라 '금액'이다 — 추정가격 키는 나라장터 입찰·마감·계획에만 있고,
+      // 사전규격·누리장터·D2B 는 배정예산·기준금액·기초예비가격으로 온다. 서버가 고른 하나를
+      // 그리고(`amount`), 그것이 어느 금액인지를 셀이 함께 적는다('amount-kind').
+      { label: '금액', key: 'amount', fmt: 'amount-kind', sortKey: 'amount' },
       { label: '공고일', key: 'createdDate', fmt: 'datetime', sortKey: 'created' },
       // 마감일시 셀 안에 D-DAY 배지를 함께 그린다 — 별도 컬럼을 두면 계획 단계에서 둘 다 빈다.
       { label: '마감일시', key: 'closeDate', fmt: 'close-dday', sortKey: 'close' },
@@ -234,91 +224,19 @@ export const SCREENS: Readonly<Record<ScreenKind, ScreenConfig>> = {
       { label: '개찰일시', key: 'rlOpengDt', fmt: 'datetime' },
     ],
   },
-  // 공고 소스를 재사용한다 — 점수 게이트를 통과한 건만 딜 분석으로 넘긴다.
-  'deal-radar': {
-    kind: 'deal',
-    label: 'AI 수주 데스크',
-    endpoint: '/api/bid-announce',
-  },
   // 담아 둔 공고. 여기서는 G2B API 를 부르지 않는다 — 저장된 것만 훑는다.
   'saved-notices': {
     kind: 'saved',
     label: '저장 공고',
     endpoint: '/api/saved-notices',
   },
-  // 원본 버그 수정: renderSpecSearchPanel() 은 구현돼 있었지만 TABS 에 항목이 없어
-  // 탭을 누르면 cfg === undefined 로 TypeError 가 났다. 여기서 정식 항목으로 등록한다.
-  'spec-search': {
-    kind: 'spec-search',
-    label: '하드웨어 스펙 검색',
-    endpoint: '/api/search/titles',
-  },
-  // 물품 시세 카탈로그. G2B 를 부르지 않고 price_catalog 만 조회·수정한다(Contract B).
-  'price-db': {
-    kind: 'price-db',
-    label: '단가 DB',
-    endpoint: '/api/price-catalog',
-  },
-  'product-trend': {
-    kind: 'trend',
-    label: '물품 구매 트렌드',
-    endpoint: '/api/trends/product',
-    trend: {
-      title: '물품 구매 트렌드',
-      itemLabel: '물품',
-      quickKeywords: [
-        'PC',
-        '노트북',
-        '모니터',
-        '서버',
-        'GPU',
-        '프린터',
-        '복합기',
-        '태블릿',
-        '전자칠판',
-        '네트워크',
-      ],
-    },
-  },
-  'service-trend': {
-    kind: 'trend',
-    label: '용역 트렌드',
-    endpoint: '/api/trends/service',
-    trend: {
-      title: '용역 트렌드',
-      itemLabel: '용역',
-      quickKeywords: ['AI', '데이터', '클라우드', '유지보수', '보안', '컨설팅', '교육', '플랫폼'],
-    },
-  },
-  'construction-trend': {
-    kind: 'trend',
-    label: '공사 트렌드',
-    endpoint: '/api/trends/construction',
-    trend: {
-      title: '공사 트렌드',
-      itemLabel: '공사',
-      quickKeywords: [
-        '건축',
-        '토목',
-        '전기',
-        '정보통신',
-        '소방',
-        '기계설비',
-        '실내건축',
-        '조경',
-        '유지보수',
-        '철거',
-      ],
-    },
-  },
 };
 
 /**
  * 팬아웃 검색(요청마다 나라장터를 훑는 쪽) 표 화면.
  *
- * 통합 검색으로 갈아 끼운 뒤 실제로 라우팅되는 것은 `bid-result` 하나다. 나머지 셋은
- * 컬럼 정의와 엔드포인트가 남아 있다 — AI 수주 데스크가 `/api/bid-announce` 를 그대로 쓰고,
- * 되돌릴 때 다시 짜지 않기 위해서다.
+ * 통합 검색으로 갈아 끼운 뒤 실제 표 라우트는 `bid-result` 하나다. 나머지 셋은 옛 공유 링크와
+ * 팬아웃 응답 호환을 위해 컬럼 정의만 유지한다.
  */
 export type NoticeTableKind = 'bid-plan' | 'pre-spec' | 'bid-announce' | 'bid-result';
 

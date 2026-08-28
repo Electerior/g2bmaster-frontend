@@ -10,6 +10,8 @@
  * 그래서 축마다 **자기 필터만 뺀** 질의를 하나씩 더 보낸다. 다른 축의 조건은 남기므로
  * "지금 걸린 나머지 조건 안에서 이 축을 바꾸면 몇 건인가"라는, 칩이 원래 답해야 하는
  * 질문에 맞는 수가 된다. 추가 요청은 그 축에 필터가 실제로 걸렸을 때만 나간다.
+ * 상태 축은 예외다. 기본 목록에서 취소를 제외하더라도 '취소' 뱃지의 진입 건수는 보여야 하므로
+ * 상태 필터가 없어도 상태 축 질의를 한 번 더 보낸다.
  *
  * 단계 축에는 서버 쪽 짝이 있다: '마감 전만' + 단계 미지정이면 백엔드가 목록을 입찰 문서로
  * 좁히므로(`BidNoticeQueryBuilder.activeOnly`), 단계를 뺀 이 질의에는 그 스코프가 붙어
@@ -35,14 +37,14 @@ const AXIS_VALUE: Record<FacetAxis, (criteria: SearchCriteria) => string> = {
 };
 
 function useAxisFacets(criteria: SearchCriteria, axis: FacetAxis): NoticeFacets | undefined {
-  const active = AXIS_VALUE[axis](criteria) !== '';
+  const active = axis === 'state' || AXIS_VALUE[axis](criteria) !== '';
   const query = useMemo(() => buildNoticeFacetQuery(criteria, axis), [criteria, axis]);
   return useNoticeIndexFacets(query, { enabled: active }).data;
 }
 
 /**
- * 네 축의 건수. 필터가 안 걸린 축은 목록과 같은 조건의 기본 응답에서 가져오므로
- * 요청은 평소 한 번이고, 좁힌 축의 수만큼만 늘어난다.
+ * 네 축의 건수. 필터가 안 걸린 축은 목록과 같은 조건의 기본 응답에서 가져온다.
+ * 상태 축은 취소 진입 건수를 위해 항상 별도 조회하고, 나머지는 좁힌 축의 수만큼만 늘어난다.
  */
 export function useNoticeFacetBars(criteria: SearchCriteria): NoticeFacets {
   const baseQuery = useMemo(() => buildNoticeFacetQuery(criteria), [criteria]);

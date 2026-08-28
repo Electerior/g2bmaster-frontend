@@ -70,6 +70,8 @@ export interface NoticeIndexQuery {
   notTerms?: string;
   category?: NoticeCategory;
   state?: NoticeState;
+  /** 해당 예외 상태만 제외한다. 상태가 없는 일반 공고는 유지된다. */
+  excludeState?: NoticeState;
   division?: BusinessDivision;
   /** 포함 검색. 지역 제한 없는 공고(전국)가 **함께** 나온다 — 계약 §4.3. */
   region?: string;
@@ -112,15 +114,39 @@ export interface NoticeProduct {
   name?: string;
 }
 
-/** 세부 가격 표. 값이 없는 칸은 아예 오지 않는다. */
+/**
+ * 세부 가격 표. 값이 없는 칸은 아예 오지 않는다.
+ *
+ * **소스마다 담기는 칸이 다르다.** 적재기가 일부러 나눠 담기 때문이다 — 누리장터엔 예가·추정가격
+ * 개념이 없고 기준금액(`referenceAmount`, 투찰 상한)이, D2B 목록에는 기초예비가격
+ * (`basicExpectedPrice`)이 온다. 개념이 다른 금액을 한 칸에 합치면 비교할 수 없는 숫자가 같은
+ * 이름으로 보인다. 그래서 "얼마짜리 공고인가"를 하나로 물어야 하는 자리(목록의 금액 칸,
+ * 금액 필터·정렬)는 이 표가 아니라 {@link NoticeIndexItem.amount} 를 쓴다.
+ */
 export interface NoticePriceDetail {
   assignedBudget?: number;
   estimatedPrice?: number;
+  /** 누리장터 기준금액(투찰 상한). 추정가격과 개념이 다르다. */
+  referenceAmount?: number;
+  /** D2B 기초예비가격. 추정가격이 아니다. */
+  basicExpectedPrice?: number;
   unitPrice?: number;
   quantity?: number;
   unit?: string;
   vat?: number;
 }
+
+/**
+ * 목록의 금액 칸이 보여 주는 금액의 종류.
+ *
+ * 서버가 추정가격 → 배정예산 → 기준금액 → 기초예비가격 순으로 하나를 고른다(생성 컬럼
+ * `filter_amount` 의 COALESCE 와 같은 순서 — **금액 필터·정렬이 본 값이 곧 그 값이다**).
+ */
+export type NoticeAmountKind =
+  | 'estimatedPrice'
+  | 'assignedBudget'
+  | 'referenceAmount'
+  | 'basicExpectedPrice';
 
 /** 첨부파일. **문자열이 아니라 값**으로 온다 — 화면이 JSON.parse 를 부를 일이 없다. */
 export interface NoticeAttachment {
@@ -141,6 +167,12 @@ export interface NoticeAttachment {
 export interface NoticeIndexItem {
   /** 공고번호. 계획은 조달요청번호, 사전규격은 사전규격등록번호다. */
   id: string;
+  /**
+   * 공고 출처(`G2B`/`NURI`/`D2B`). **공고번호만으로는 행이 특정되지 않는다** — 누리장터가
+   * 나라장터와 같은 발번 형식을 쓰는 것이 실측으로 확인돼 색인 PK 가 `(id, source)` 다.
+   * 그래서 서버로 되돌려 보내는 요청(딜 분석 등)에는 이 값을 함께 싣는다.
+   */
+  source?: string | null;
   noticeOrder?: string | null;
   noticeName?: string | null;
   category?: NoticeCategory | null;
@@ -179,13 +211,73 @@ export interface NoticeIndexItem {
   /** 전문검색일 때만. */
   relevance?: number;
 
+  /**
+   * 검색어가 걸린 위치. 첨부 검색 스코프를 타지 않은 질의에는 오지 않는다.
+   * `attachment` 만 있으면 제목·공고본문이 아니라 첨부 본문에서 찾은 결과다.
+   */
+  matchedIn?: Array<'notice' | 'attachment'>;
+  /**
+   * 이 공고의 첨부 본문 색인이 끝났는가. `false` 는 미일치가 아니라 아직 판단할 수 없다는 뜻이다.
+   */
+  attachmentIndexed?: boolean;
+
   /** 남은 **일수**(시각이 아니라). 마감이 없는 계획 단계는 오지 않는다. */
   dday?: number | null;
-  /** `priceDetail.estimatedPrice` 를 꺼내 둔 것(정렬·표시용). */
+  /** `priceDetail.estimatedPrice` 를 꺼내 둔 것. **나라장터 입찰·마감·계획에만 있다.** */
   estimatedPrice?: number | null;
+
+  /**
+   * 금액 필터·정렬이 실제로 본 금액. 어느 후보도 없으면 오지 않는다.
+   *
+   * `estimatedPrice` 와 다르다 — 추정가격이 없는 공고(사전규격·누리장터·D2B)는 배정예산이나
+   * 기준금액·기초예비가격으로 내려가 채워진다. **목록의 금액 칸은 이것을 그린다.**
+   * 추정가격만 그리면 금액을 아는 공고 12,000여 건이 '-' 로 보이고, 금액 조건을 걸었을 때
+   * 그 공고들이 왜 사라졌는지도 화면에서 설명되지 않는다.
+   */
+  amount?: number | null;
+  /** 위 `amount` 가 어느 금액인가. 화면은 값과 이 라벨을 **함께** 적는다. */
+  amountKind?: NoticeAmountKind | null;
+
+  /**
+   * 마진율(%). **원가를 아는 공고에만 온다.**
+   *
+   * 칸이 없는 것은 '마진 0'이 아니라 '아직 원가를 모른다'는 뜻이다 — 그 둘을 같은 모양으로
+   * 그리면 분석하지 않은 공고가 '남는 게 없는 공고'로 보인다. 화면은 반드시 갈라 적는다.
+   *
+   * `(실추정가 − 원가) / 실추정가`, 실추정가 `= amount × 1.1`. 대표 금액은 부가세 별도이고
+   * 원가는 부가세 포함이라 분모에서 맞춘다(백엔드 `V20260814132535`).
+   */
+  marginRate?: number | null;
+  /** 마진율의 분자에서 뺀 원가(원, 부가세 포함). */
+  marginCost?: number | null;
+  /** 마진율의 분모 — 실추정가. 서버가 계산해 내려준다(화면이 1.1 을 곱하지 않는다). */
+  marginBase?: number | null;
+  /**
+   * 원가의 출처. `confirmed` 는 사람이 가격표를 저장한 것, `estimated` 는 딜 분석의 추정이다.
+   * **확정이 추정을 이긴다**(서버 규칙). 화면이 둘을 구분해야 추정값을 확정처럼 믿지 않는다.
+   */
+  marginSource?: 'confirmed' | 'estimated' | null;
+  /** 원가를 마지막으로 반영한 시각(ISO). 시세는 움직이므로 언제 것인지가 값의 일부다. */
+  marginUpdatedAt?: string | null;
 }
 
-export type NoticeSearchResponse = PageEnvelope<NoticeIndexItem>;
+export interface NoticeAttachmentSearchMeta {
+  /** 이 엔드포인트가 첨부 본문을 검색 범위에 넣도록 설정돼 있는가. */
+  scope: boolean;
+  /** 이번 질의가 실제로 첨부 본문을 검색했는가. 검색어가 없거나 모두 건너뛰면 false 다. */
+  applied: boolean;
+  /** 제외 낱말을 첨부 본문에도 적용했는가. */
+  excludeApplied: boolean;
+  /** 한 글자 등 첨부 전문색인이 처리할 수 없어 공고 본문에서만 적용한 낱말. */
+  skippedTerms: string[];
+  /** 첨부 검색 커버리지. 스코프가 꺼져 있으면 두 값이 생략될 수 있다. */
+  totalNotices?: number;
+  indexedNotices?: number;
+}
+
+export type NoticeSearchResponse = PageEnvelope<NoticeIndexItem> & {
+  meta?: { attachmentSearch?: NoticeAttachmentSearchMeta };
+};
 
 export interface NoticeFacetBucket {
   value: string;
@@ -251,8 +343,16 @@ export function fetchNoticeIndexStatus(): Promise<NoticeIndexStatus> {
 }
 
 /** 상세 한 건. 색인에 없으면 404 + `{ error: '색인에 없는 공고입니다: …' }`. */
-export function fetchNoticeDetail(id: string): Promise<NoticeIndexItem> {
-  return get<NoticeIndexItem>(`/api/search/notices/${encodeURIComponent(id)}`);
+export function fetchNoticeDetail(
+  id: string,
+  source?: string | null,
+): Promise<NoticeIndexItem> {
+  const base = `/api/search/notices/${encodeURIComponent(id)}`;
+  const normalizedSource = String(source ?? '').trim();
+  const suffix = normalizedSource
+    ? `?${toSearchParams({ source: normalizedSource }).toString()}`
+    : '';
+  return get<NoticeIndexItem>(`${base}${suffix}`);
 }
 
 /* ─── 쿼리 훅 ─────────────────────────────────────────────────────────────── */
@@ -262,7 +362,8 @@ export const noticeIndexKeys = {
   search: (q: NoticeIndexQuery) => ['notice-index', 'search', q] as const,
   facets: (q: NoticeIndexQuery) => ['notice-index', 'facets', q] as const,
   status: () => ['notice-index', 'status'] as const,
-  detail: (id: string) => ['notice-index', 'detail', id] as const,
+  detail: (id: string, source?: string | null) =>
+    ['notice-index', 'detail', id, String(source ?? '').trim()] as const,
 };
 
 export function useNoticeIndexSearch(query: NoticeIndexQuery, options: { enabled?: boolean } = {}) {
@@ -295,10 +396,10 @@ export function useNoticeIndexStatus() {
   });
 }
 
-export function useNoticeDetail(id: string | null) {
+export function useNoticeDetail(id: string | null, source?: string | null) {
   return useQuery({
-    queryKey: noticeIndexKeys.detail(id ?? ''),
-    queryFn: () => fetchNoticeDetail(id as string),
+    queryKey: noticeIndexKeys.detail(id ?? '', source),
+    queryFn: () => fetchNoticeDetail(id as string, source),
     enabled: Boolean(id),
     staleTime: 5 * 60_000,
   });

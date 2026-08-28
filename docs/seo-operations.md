@@ -104,7 +104,7 @@ Cloudflare 대시보드 → 해당 존(`electerior.co.kr`) → **Security → Bo
 4. **`ClaudeBot` 해제 후보.** 같은 논리. 검색·인용 경로다.
 
 5. 풀더라도 범위를 좁힐 수 있다. AI 에이전트에게는 `/beta` 와 앞으로 생길 콘텐츠 페이지만
-   `Allow` 하고 데이터 화면(`/notices`, `/price-db`, `/trends/*`)은 닫아 두는 방식이다.
+   `Allow` 하고 데이터 화면(`/notices`, `/notices/bid-result`)은 닫아 두는 방식이다.
    인용해 갈 만한 산문은 어차피 랜딩과 콘텐츠 쪽에 있고, 데이터 화면은 제품 그 자체다.
 
 ### 순서
