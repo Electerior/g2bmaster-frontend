@@ -12,7 +12,7 @@
  * 조회 훅을 함께 태우므로, 규칙이 그 경로 위에서도 성립하는지는 별개의 사실이다.
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render } from '@testing-library/react';
+import { render, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -49,15 +49,32 @@ const { ROUTES, LEGACY_NOTICE_ROUTES } = await import('@/routes/routePaths');
 const { ROUTE_META, NOT_FOUND_META } = await import('./routeMeta');
 const { SITE_ORIGIN } = await import('./siteOrigin');
 
-function renderAt(path: string) {
+/**
+ * 그 주소로 앱을 띄우고, **훅이 head 를 세울 때까지 기다린다.**
+ *
+ * 기다림이 필요한 이유가 있다. perf/route-code-split 이 라우트를 React.lazy 로 가르면
+ * 첫 렌더는 Suspense 대체 화면이고, 그 화면은 useSeoMeta() 를 부르지 않는다. 즉 head 는
+ * 아직 index.html 의 범용 메타 그대로다 — 렌더 직후에 단언하면 열다섯 주소가 전부
+ * "메타가 안 세워졌다"로 깨진다. 이 브랜치만 돌 때는 라우터가 정적 import 라 첫 렌더에
+ * 이미 화면이 있어서 증상이 없고, 두 브랜치를 합쳐야 드러난다.
+ *
+ * 기다리는 신호는 document.title 이다. beforeEach 가 매번 빈 문자열로 지우므로,
+ * 비어 있지 않다는 것은 곧 "이 라우트의 훅이 실제로 돌았다"는 뜻이다. 표에 있는
+ * 열다섯과 404 모두 title 이 비지 않으므로 신호가 새지 않는다.
+ */
+async function renderAt(path: string) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
+  const utils = render(
     <QueryClientProvider client={client}>
       <MemoryRouter initialEntries={[path]}>
         <AppRouter />
       </MemoryRouter>
     </QueryClientProvider>,
   );
+  await waitFor(() => {
+    expect(document.title, `${path}: 아직 훅이 head 를 세우지 않았다`).not.toBe('');
+  });
+  return utils;
 }
 
 const meta = (selector: string, attr = 'content') =>
@@ -98,8 +115,8 @@ beforeEach(() => {
 describe('화면이 실제로 자기 라우트의 메타를 세운다', () => {
   for (const path of Object.values(ROUTES)) {
     const expected = ROUTE_META[path];
-    it(`${path}`, () => {
-      renderAt(path);
+    it(`${path}`, async () => {
+      await renderAt(path);
       expect(document.title).toBe(expected.title);
       expect(description()).toBe(expected.description);
       expect(canonical()).toBe(`${SITE_ORIGIN}${path}`);
@@ -136,8 +153,8 @@ describe('필터 상태는 문서가 아니다 (ACTION-PLAN 1.6)', () => {
    * 훅 단위로도 보고 있지만(useSeoMeta.test.tsx) 거기서는 가짜 화면이 훅만 부른다.
    * 여기서는 진짜 NoticeSearchScreen 이 조회 훅과 함께 도는 위에서 같은 규칙을 확인한다.
    */
-  it('감사가 본 그 주소에서도 canonical 은 맨 /notices 다', () => {
-    renderAt('/notices?from=2026-07-28&to=2026-08-27&mode=item&cat=입찰');
+  it('감사가 본 그 주소에서도 canonical 은 맨 /notices 다', async () => {
+    await renderAt('/notices?from=2026-07-28&to=2026-08-27&mode=item&cat=입찰');
     expect(canonical()).toBe(`${SITE_ORIGIN}${ROUTES.noticeSearch}`);
     expect(canonical()).not.toContain('?');
     expect(canonical()).not.toContain('cat=');
@@ -147,9 +164,9 @@ describe('필터 상태는 문서가 아니다 (ACTION-PLAN 1.6)', () => {
     expect(description()).toBe(ROUTE_META[ROUTES.noticeSearch].description);
   });
 
-  it('/notices 만의 규칙이 아니다 — 다른 화면의 쿼리도 버린다', () => {
+  it('/notices 만의 규칙이 아니다 — 다른 화면의 쿼리도 버린다', async () => {
     // pathname 만 쓰는 규칙이라 화면과 무관하게 성립해야 한다.
-    renderAt('/trends/product?and=GPU&page=3&sort=amount');
+    await renderAt('/trends/product?and=GPU&page=3&sort=amount');
     expect(canonical()).toBe(`${SITE_ORIGIN}${ROUTES.trendProduct}`);
     expect(meta('meta[property="og:url"]')).toBe(canonical());
   });
@@ -164,8 +181,8 @@ describe('옛 주소 네 개 (ACTION-PLAN 2.1)', () => {
    * 이것이 유일한 방어선이다.
    */
   for (const legacy of LEGACY_NOTICE_ROUTES) {
-    it(`${legacy.path} → /notices`, () => {
-      renderAt(`${legacy.path}?q=노트북`);
+    it(`${legacy.path} → /notices`, async () => {
+      await renderAt(`${legacy.path}?q=노트북`);
       expect(canonical()).toBe(`${SITE_ORIGIN}${ROUTES.noticeSearch}`);
       expect(meta('meta[property="og:url"]')).toBe(canonical());
       expect(document.title).toBe(ROUTE_META[ROUTES.noticeSearch].title);
@@ -176,8 +193,8 @@ describe('옛 주소 네 개 (ACTION-PLAN 2.1)', () => {
 });
 
 describe('표 밖의 주소', () => {
-  it('404 화면은 noindex 이고 canonical 을 두지 않는다', () => {
-    renderAt('/이런-주소는-없다');
+  it('404 화면은 noindex 이고 canonical 을 두지 않는다', async () => {
+    await renderAt('/이런-주소는-없다');
     expect(document.title).toBe(NOT_FOUND_META.title);
     expect(canonical()).toBeNull();
     // 존재하지 않는 주소를 공유 카드의 주소로 삼을 수도 없다.
