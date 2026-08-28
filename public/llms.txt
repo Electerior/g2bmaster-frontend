@@ -1,0 +1,33 @@
+# G2B Masters
+
+> 나라장터(국가종합전자조달)와 국방전자조달(D2B)의 입찰공고를 한 화면에서 검색하는 공공조달 정보 서비스. 발주계획·사전규격·입찰·마감을 단계로 나눠 한 목록에서 훑고, 낙찰 결과와 품목별 발주 동향까지 같은 데이터 위에서 확인한다. 만든 곳은 일렉테리어 그룹(Electerior Group)이고, 현재 베타 테스터를 모집하는 단계다.
+
+이 파일이 있는 이유: 이전에는 `/llms.txt` 가 404 가 아니라 **200 과 함께 앱의 빈 HTML 셸**을 돌려줬다. 마크다운으로도 오류로도 파싱되지 않는 응답이라 깨끗한 404 보다 나쁘다. 그래서 최소한으로 유효한 파일을 둔다.
+
+여기에는 **실제로 존재하는 주소만** 적는다. 가이드·데이터 방법론 같은 읽을거리는 아직 없다. 생기면 이 파일에 추가한다 — 없는 페이지를 미리 적어 두지 않는다.
+
+## 랜딩
+
+- [베타 테스터 모집](https://g2b-masters.electerior.co.kr/beta): 이 서비스가 담당자 대신 하는 일(공고 수집·맞춤 선별·첨부파일 요약·낙찰 데이터 대조), 알파 테스트 결과, 수수료 정책을 설명한다. 이 사이트에서 산문이 있는 유일한 페이지다.
+
+## 앱 화면
+
+아래는 읽을거리가 아니라 데이터를 조회하는 대화형 도구다. 내용은 필터 상태에 따라 바뀌므로 인용할 고정된 문장이 없다.
+
+- [공고 검색](https://g2b-masters.electerior.co.kr/notices): 나라장터·국방전자조달 공고를 단계(계획·사전규격·입찰·마감)·품목·지역·금액·기간으로 검색한다. 이 앱의 기본 진입점이다.
+- [입찰 결과](https://g2b-masters.electerior.co.kr/notices/bid-result): 낙찰업체·낙찰금액·낙찰률·개찰일시를 조회한다.
+- [단가 DB](https://g2b-masters.electerior.co.kr/price-db): 물품 시세 카탈로그. 품목별 단가를 조회한다.
+- [물품 구매 트렌드](https://g2b-masters.electerior.co.kr/trends/product): 물품 발주 규모와 시기를 품목별·기관별로 본다.
+- [용역 트렌드](https://g2b-masters.electerior.co.kr/trends/service): 용역 발주 동향.
+- [공사 트렌드](https://g2b-masters.electerior.co.kr/trends/construction): 공사 발주 동향.
+
+## Optional
+
+- [하드웨어 스펙 검색](https://g2b-masters.electerior.co.kr/spec-search): 아직 구현되지 않은 화면이다. 지금 열면 '준비 중' 한 줄만 나온다. 인용할 내용이 없으니 건너뛰어도 된다.
+
+## 참고
+
+- 이 사이트는 JavaScript 로 그리는 SPA 다. JS 를 실행하지 않고 위 주소들을 가져오면 본문이 비어 있는 HTML 셸이 온다. 지금 이 사이트에서 JS 없이 읽을 수 있는 산문은 이 파일이 사실상 전부다.
+- `/api/` 이하는 제품의 백엔드이며 robots.txt 에서 Disallow 돼 있다. 크롤 대상이 아니다.
+- 사이트맵: https://g2b-masters.electerior.co.kr/sitemap.xml
+- 문의: hello@electerior.com
