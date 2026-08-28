@@ -3,7 +3,42 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="icon" type="image/svg+xml" href="/electerior-logo.svg" />
+    <!--
+      아이콘 세트. **선언 순서와 sizes 가 실제로 브라우저 선택을 바꾸므로** 줄을 섞지 마라.
+
+      여기에는 원래 `/electerior-logo.svg` 한 줄만 있었다. 그 파일은
+      `viewBox="0 0 192 42"` — 4.57:1 가로 워드마크다. 정사각 16×16 탭 슬롯에 넣으면
+      레터박스되어 글자가 읽히지 않는 조각으로 눌린다. 나쁜 자산이 아니라 이 슬롯에
+      맞지 않는 자산이었다. 그래서 아이콘 슬롯에서만 빼고 파일은 남긴다 — 아래 JSON-LD 의
+      Organization "logo" 가 그 워드마크를 가리키고, schema.org 의 logo 는 정사각 마크가
+      아니라 실제 로고 락업을 원하므로 그쪽에서는 그 파일이 정답이다.
+
+      순서의 근거:
+      1) favicon.ico 를 먼저 둔다. type 을 붙이지 않아 아주 오래된 클라이언트도 걸러내지
+         않고, sizes 에는 파일이 **실제로 담고 있는** 세 프레임(16·32·48)을 적는다.
+         선언과 실물이 갈라지는 것이 이번 감사의 근본 원인이라, 여기서 거짓말하지 않는다.
+      2) SVG 를 그 뒤에 둔다. 조건이 같으면 마지막 후보를 고르는 브라우저가 있어서,
+         뒤에 있어야 벡터가 이긴다. `sizes="any"` 는 "어느 크기로도 늘어난다"는 선언이라
+         위의 16·32·48 후보를 제치는 근거가 된다. SVG 를 모르는 브라우저는
+         type="image/svg+xml" 을 보고 이 줄을 건너뛰고 1) 로 떨어진다.
+      3) apple-touch-icon 은 iOS 홈 화면용. 180×180 불투명이다 — iOS 는 알파를 검게
+         합성하므로 투명 배경을 쓰면 안 되고, 모서리는 iOS 가 직접 깎으므로 우리가
+         둥글리지 않는다.
+      4) mask-icon 은 사파리 고정 탭 전용이고 단색 실루엣만 받는다(색은 color 속성).
+      5) manifest 는 안드로이드·데스크톱 설치용. 아이콘 목록이 그 안에 또 있다.
+
+      래스터는 전부 **불투명 정사각 풀블리드**다. 모서리를 미리 둥글리지 않는 이유는,
+      둥근 모서리가 투명해지면 안드로이드 maskable 마스크가 그 자리를 잘라 낼 때
+      배경이 비치는 홈이 생기기 때문이다. 둥글리기는 그것을 원하는 쪽(iOS·안드로이드)이
+      각자 한다.
+
+      선언과 실물의 일치는 src/test/appIcons.test.ts 가 잠근다.
+    -->
+    <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" sizes="any" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180" />
+    <link rel="mask-icon" href="/mask-icon.svg" color="#1f56a7" />
+    <link rel="manifest" href="/site.webmanifest" />
 
     <!--
       본문 폰트. 랜딩(/beta)과 앱 화면이 모두 이것을 쓴다 — tokens.css 의 --font-sans 도

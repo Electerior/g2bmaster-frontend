@@ -1,0 +1,45 @@
+{
+  "id": "/",
+  "name": "G2B Masters - 나라장터·국방전자조달 입찰정보 통합 검색",
+  "short_name": "G2B Masters",
+  "description": "G2B Masters는 나라장터·국방전자조달 입찰공고, 발주계획, 사전규격, 입찰결과를 통합 검색하고 품목·자격·수주기회 분석을 지원하는 일렉테리어 그룹의 공공조달 정보 서비스입니다.",
+  "lang": "ko-KR",
+  "dir": "ltr",
+  "start_url": "/notices",
+  "scope": "/",
+  "display": "standalone",
+  "theme_color": "#1f56a7",
+  "background_color": "#f5f7fa",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
