@@ -6,6 +6,7 @@
  * 없어서 흰 화면" 상태를 거치게 되고, 그 상태에서는 셸이 맞는지 확인할 수 없기 때문이다.
  */
 import { useEffect } from 'react';
+import { PanelTitle } from '@/components/layout/PanelTitle';
 
 interface ScreenPlaceholderProps {
   title: string;
@@ -21,7 +22,7 @@ export function ScreenPlaceholder({ title, description }: ScreenPlaceholderProps
 
   return (
     <section className="panel" aria-label={title}>
-      <h2 className="panel-title">{title}</h2>
+      <PanelTitle>{title}</PanelTitle>
       <div className="empty-msg">
         준비 중
         {description ? (

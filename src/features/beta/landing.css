@@ -195,7 +195,7 @@
 .beta-landing .side-item s{text-decoration:none;font-family:var(--mono);font-size:11px;color:var(--tx-3)}
 .beta-landing .app-main{padding:24px 26px;display:flex;flex-direction:column;gap:13px;text-align:left}
 .beta-landing .app-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:6px}
-.beta-landing .app-head h4{margin:0;font-size:14px;font-weight:800;letter-spacing:-.02em}
+.beta-landing .app-head strong{margin:0;font-size:14px;font-weight:800;letter-spacing:-.02em}
 .beta-landing .app-head span{font-family:var(--mono);font-size:11px;color:var(--tx-3)}
 .beta-landing .row{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;
   padding:16px 18px;border:1px solid var(--line);border-radius:11px;background:rgba(255,255,255,.025)}

@@ -137,7 +137,7 @@
   gap: 12px;
   min-width: 0;
 }
-.app-header h1 {
+.app-header .app-title {
   color: #fff;
   font-size: var(--fs-h1);
   font-weight: 700;
