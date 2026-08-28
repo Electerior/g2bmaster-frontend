@@ -1,14 +1,14 @@
 /*
- * 라우트 표 — 화면 14개 + 기본 리다이렉트 + 404.
+ * 라우트 표 — 운영 중인 조회 화면 + 기본 리다이렉트 + 404.
  *
  * 모든 화면은 App(셸) 아래에 중첩된다. 셸을 매 화면이 각자 그리면 탭을 옮길 때마다
  * 헤더·배너가 언마운트됐다 다시 붙어 스크롤과 포커스가 튄다.
  *
- * 화면은 대부분 React.lazy 다. 전부 정적으로 가져오면 화면 15개가 번들 하나로 뭉쳐
- * (실측 593kB), index.html 의 <body> 가 비어 있는 이 앱에서는 그 덩어리가 다 내려와
- * 파싱될 때까지 아무것도 그려지지 않는다. 즉 번들 크기가 곧 첫 그림까지의 시간이다.
- * 특히 /beta 만 보러 온 방문자가 트렌드·시스템·단가 DB·저장함(마크다운 렌더러 포함)까지
- * 받아 갈 이유가 없다.
+ * 셸 안쪽 화면 중 진입점이 아닌 것은 React.lazy 다. 전부 정적으로 가져오면 화면이
+ * 번들 하나로 뭉치는데, index.html 의 <body> 가 비어 있는 이 앱에서는 그 덩어리가
+ * 다 내려와 파싱될 때까지 아무것도 그려지지 않는다. 즉 번들 크기가 곧 첫 그림까지의
+ * 시간이다. 특히 /beta 만 보러 온 방문자가 시스템 대시보드와 저장함(마크다운 렌더러
+ * 포함)까지 받아 갈 이유가 없다.
  *
  * 화면 파일들은 default export 가 없어서(named export 다) lazy 안에서 한 번 풀어 준다.
  * 화면 쪽에 default export 를 새로 만들지 않는 이유는, import 방식은 라우트 표의 사정이지
@@ -41,37 +41,18 @@ import { DEFAULT_ROUTE, LEGACY_NOTICE_ROUTES, ROUTES } from './routePaths';
  * App(셸)도 정적이다. 셸을 lazy 로 하면 화면 청크는 셸이 도착해 <Outlet/> 을 그린 뒤에야
  * 요청되므로 앱 라우트마다 직렬 왕복이 둘이 된다.
  */
-const AnalysisLabScreen = lazy(() =>
-  import('./AnalysisLabScreen').then((m) => ({ default: m.AnalysisLabScreen })),
-);
 const BetaLandingScreen = lazy(() =>
   import('./BetaLandingScreen').then((m) => ({ default: m.BetaLandingScreen })),
-);
-const CompanyProfileScreen = lazy(() =>
-  import('./CompanyProfileScreen').then((m) => ({ default: m.CompanyProfileScreen })),
-);
-const DealRadarScreen = lazy(() =>
-  import('./DealRadarScreen').then((m) => ({ default: m.DealRadarScreen })),
 );
 const NoticeTableScreen = lazy(() =>
   import('./NoticeTableScreen').then((m) => ({ default: m.NoticeTableScreen })),
 );
-const OfficerDirectoryScreen = lazy(() =>
-  import('./OfficerDirectoryScreen').then((m) => ({ default: m.OfficerDirectoryScreen })),
-);
-const PriceDatabaseScreen = lazy(() =>
-  import('./PriceDatabaseScreen').then((m) => ({ default: m.PriceDatabaseScreen })),
-);
 const SavedNoticesScreen = lazy(() =>
   import('./SavedNoticesScreen').then((m) => ({ default: m.SavedNoticesScreen })),
-);
-const SpecSearchScreen = lazy(() =>
-  import('./SpecSearchScreen').then((m) => ({ default: m.SpecSearchScreen })),
 );
 const SystemDashboardScreen = lazy(() =>
   import('./SystemDashboardScreen').then((m) => ({ default: m.SystemDashboardScreen })),
 );
-const TrendScreen = lazy(() => import('./TrendScreen').then((m) => ({ default: m.TrendScreen })));
 
 /**
  * 셸 안쪽 대기 자리.
@@ -80,7 +61,7 @@ const TrendScreen = lazy(() => import('./TrendScreen').then((m) => ({ default: m
  * 그래서 실제 화면들과 같은 `.panel` 상자를 그대로 쓴다 — 상자의 기하가 같으면 청크가
  * 도착해 내용이 바뀌어도 레일과 패널의 경계가 움직이지 않는다(.app-shell-body 의
  * align-items:stretch 가 패널을 레일 높이까지 늘려 두므로 짧은 화면에서도 마찬가지다).
- * 안쪽 문구는 이 저장소가 이미 쓰는 패널 대기 표시(PanelNotice = 원본 .trend-loading)다.
+ * 안쪽 문구는 이 저장소가 이미 쓰는 패널 대기 표시(PanelNotice)다.
  */
 function ScreenFallback() {
   return (
@@ -92,7 +73,7 @@ function ScreenFallback() {
 
 /**
  * 화면 청크를 기다리는 경계. 셸과 화면 사이(= <Outlet/> 자리)에 딱 하나만 둔다.
- * 화면마다 각자 Suspense 를 두면 경계가 15개로 늘고, 셸을 감싸면 청크가 올 때마다
+ * 화면마다 각자 Suspense 를 두면 경계가 화면 수만큼 늘고, 셸을 감싸면 청크가 올 때마다
  * 헤더까지 다시 그려진다.
  */
 function ScreenSuspense() {
@@ -169,23 +150,8 @@ export function AppRouter() {
           {/* 낙찰 결과는 색인에 없다(색인은 공고까지다) — 팬아웃 API 를 그대로 쓴다. */}
           <Route path={ROUTES.bidResult} element={<NoticeTableScreen kind="bid-result" />} />
 
-          {/* 탭이지만 표가 아닌 화면들 */}
-          <Route path={ROUTES.dealRadar} element={<DealRadarScreen />} />
+          {/* 저장한 공고를 다시 보는 화면 */}
           <Route path={ROUTES.saved} element={<SavedNoticesScreen />} />
-          <Route path={ROUTES.specSearch} element={<SpecSearchScreen />} />
-
-          {/* 단가 DB — 물품 시세 카탈로그(price_catalog) 조회·수정·AI 적재. */}
-          <Route path={ROUTES.priceDb} element={<PriceDatabaseScreen />} />
-
-          {/* 트렌드 3종 — 셋이 같은 컴포넌트라 청크도 하나이고, 한 번 받으면 나머지 둘은 공짜다. */}
-          <Route path={ROUTES.trendProduct} element={<TrendScreen kind="product" />} />
-          <Route path={ROUTES.trendService} element={<TrendScreen kind="service" />} />
-          <Route path={ROUTES.trendConstruction} element={<TrendScreen kind="construction" />} />
-
-          {/* 원본에서 검색 모드였던 것들 — 이제 각자 주소를 가진다 */}
-          <Route path={ROUTES.company} element={<CompanyProfileScreen />} />
-          <Route path={ROUTES.officers} element={<OfficerDirectoryScreen />} />
-          <Route path={ROUTES.analysisLab} element={<AnalysisLabScreen />} />
 
           {/* 원본에서 별도 페이지였던 것 */}
           <Route path={ROUTES.system} element={<SystemDashboardScreen />} />

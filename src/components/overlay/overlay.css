@@ -44,8 +44,8 @@
 .drawer {
   position: fixed;
   /*
-   * Floating 글래스모피즘 패널 — 화면 가장자리에서 살짝 띄운다(inset). 위/아래/오른쪽에
-   * 여백을 두고 네 모서리를 둥글려, 창에 붙은 서랍이 아니라 화면 위에 떠 있는 카드가 된다.
+   * 화면 가장자리에서 살짝 띄운 불투명 상세 패널. 위/아래/오른쪽에 여백을 두고
+   * 네 모서리를 둥글려, 창에 붙은 서랍이 아니라 독립된 카드로 보이게 한다.
    */
   top: 16px;
   right: 16px;
@@ -53,14 +53,12 @@
   width: var(--drawer-width);
   max-height: calc(100vh - 32px);
   border-radius: 20px;
-  /*
-   * 글래스모피즘 — 다만 배경은 흐리지 않는다(뒤 목록을 선명히 유지). 블러 대신 살짝 투명한
-   * 흰 유리 틴트 + 밝은 테두리 + 안쪽 상단 하이라이트로 '유리질'을 내고, 바깥 다층 그림자로
-   * 떠 있는 느낌을 준다. 텍스트가 많으므로 배경 없이도 읽히게 충분히 불투명하게.
-   */
+  /* 순백색 불투명 표면 — 뒤 목록의 색이나 내용이 패널에 비치지 않는다. */
   background: var(--panel-glass-bg);
   border: 1px solid var(--panel-glass-edge);
   box-shadow: var(--panel-glass-shadow);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   z-index: var(--z-drawer);
   display: flex;
   flex-direction: column;
@@ -199,7 +197,7 @@
   font-size: var(--fs-table);
   font-weight: 600;
   cursor: pointer;
-  box-shadow: 0 4px 14px -4px rgba(26, 79, 160, 0.55);
+  box-shadow: 0 4px 14px -4px rgba(50, 55, 59, 0.5);
   transition:
     background 0.18s ease,
     box-shadow 0.18s ease,
@@ -207,7 +205,7 @@
 }
 .drawer-save-btn:hover:not(:disabled) {
   background: var(--primary-dark);
-  box-shadow: 0 6px 18px -4px rgba(26, 79, 160, 0.6);
+  box-shadow: 0 6px 18px -4px rgba(50, 55, 59, 0.55);
   transform: translateY(-1px);
 }
 .drawer-save-btn:active:not(:disabled) {
@@ -264,7 +262,7 @@
   gap: 2px;
   padding: 8px 11px;
   border-radius: 10px;
-  background: rgba(120, 140, 175, 0.06);
+  background: rgba(74, 88, 89, 0.06);
   border: 1px solid var(--panel-glass-divider);
   min-width: 0;
 }
@@ -299,7 +297,7 @@
 .meta-productlist {
   padding: 10px 12px;
   border-radius: 10px;
-  background: rgba(120, 140, 175, 0.06);
+  background: rgba(74, 88, 89, 0.06);
   border: 1px solid var(--panel-glass-divider);
 }
 .meta-productlist-label {
@@ -483,15 +481,15 @@
   border: 1px solid var(--panel-glass-divider);
   border-radius: 12px;
   /* 패널 위에 얹히는 옅은 카드 — 배경을 흐리지 않으므로 은은한 틴트로 층만 구분한다. */
-  background: rgba(120, 140, 175, 0.06);
+  background: rgba(74, 88, 89, 0.06);
   padding: 10px 12px;
   transition: background 0.2s ease;
 }
 .collapsible:hover {
-  background: rgba(120, 140, 175, 0.1);
+  background: rgba(74, 88, 89, 0.1);
 }
 .collapsible[open] {
-  background: rgba(120, 140, 175, 0.05);
+  background: rgba(74, 88, 89, 0.05);
 }
 .collapsible > summary {
   cursor: pointer;
@@ -561,8 +559,8 @@
   gap: 6px;
   padding: 5px 8px;
   border-radius: 6px;
-  background: var(--blue-soft);
-  color: var(--primary);
+  background: var(--theme-almond-silk);
+  color: var(--theme-on-light);
   font-size: var(--fs-meta);
   line-height: 1.3;
 }

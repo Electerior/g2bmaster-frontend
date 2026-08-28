@@ -56,9 +56,6 @@ export interface SearchCriteria {
   /** 다른 탭에서 공고번호를 들고 넘어왔을 때. 이 값이 있으면 키워드는 무시된다. */
   crossBidNtceNo: string;
   insttNm: string;
-  corpNm: string;
-  brnNo: string;
-  officerInsttNm: string;
   sortKey: string;
   sortDir: SortDir;
   mode: SearchMode;
@@ -100,9 +97,6 @@ const PARAM = {
   bidType: 'type',
   crossNo: 'ntceNo',
   instt: 'instt',
-  corp: 'corp',
-  brn: 'brn',
-  officer: 'officer',
   sortKey: 'sort',
   sortDir: 'dir',
   mode: 'mode',
@@ -139,9 +133,6 @@ export const DEFAULT_CRITERIA: SearchCriteria = {
   bidType: '',
   crossBidNtceNo: '',
   insttNm: '',
-  corpNm: '',
-  brnNo: '',
-  officerInsttNm: '',
   sortKey: '',
   sortDir: 'asc',
   mode: 'keyword',
@@ -215,9 +206,6 @@ export function criteriaFromParams(params: URLSearchParams): SearchCriteria {
     bidType,
     crossBidNtceNo: params.get(PARAM.crossNo) ?? '',
     insttNm: params.get(PARAM.instt) ?? '',
-    corpNm: params.get(PARAM.corp) ?? '',
-    brnNo: params.get(PARAM.brn) ?? '',
-    officerInsttNm: params.get(PARAM.officer) ?? '',
     sortKey: params.get(PARAM.sortKey) ?? '',
     sortDir: params.get(PARAM.sortDir) === 'desc' ? 'desc' : 'asc',
     mode: searchModeLayout(params.get(PARAM.mode) ?? '').mode,
@@ -257,9 +245,6 @@ export function criteriaToParams(criteria: SearchCriteria): URLSearchParams {
   setIf(PARAM.bidType, criteria.bidType, !criteria.bidType);
   setIf(PARAM.crossNo, criteria.crossBidNtceNo, !criteria.crossBidNtceNo);
   setIf(PARAM.instt, criteria.insttNm, !criteria.insttNm);
-  setIf(PARAM.corp, criteria.corpNm, !criteria.corpNm);
-  setIf(PARAM.brn, criteria.brnNo, !criteria.brnNo);
-  setIf(PARAM.officer, criteria.officerInsttNm, !criteria.officerInsttNm);
   if (criteria.sortKey) {
     params.set(PARAM.sortKey, criteria.sortKey);
     params.set(PARAM.sortDir, criteria.sortDir);
@@ -292,28 +277,22 @@ export function looksLikeNoticeNo(value: string): boolean {
 }
 
 /**
- * 블로킹 조항 판정이 의미있는 검색인가 — 공고/발주계획/사전규격 + 낙찰자·담당자 조회 제외.
- * (낙찰자=과거 낙찰결과, 담당자=연락처 조회라 입찰 여부 판단 대상이 아님.)
+ * 블로킹 조항 판정이 의미있는 검색인가 — 공고/발주계획/사전규격에만 적용한다.
  * 원본 isBlockingRelevant(app.js:1197).
  */
-export function isBlockingRelevant(kind: ScreenKind, mode: SearchMode): boolean {
-  if (mode === 'corp' || mode === 'officer') return false;
+export function isBlockingRelevant(kind: ScreenKind): boolean {
   return kind === 'bid-plan' || kind === 'pre-spec' || kind === 'bid-announce';
 }
 
 /**
- * 백엔드에 첨부 전수조사 표면(`POST /api/scan-attachments`)이 아직 없다.
- * 첨부 파싱(HWP/PDF/ZIP)이 미착수라 컨트롤러 자체가 없다 —
- * `g2bmaster-backend/docs/porting-status.md` 의 "첨부 파싱 ❌ 미착수".
+ * `POST /api/scan-attachments` 는 로컬 첨부 색인을 읽는 경로로 이미 있다. 그러나 통합 GET
+ * 검색에는 `fileKeywords` 만으로 후보 전체를 좁히는 전역 file-only 필터 계약이 아직 없다.
+ * 여기만 단순히 켜면 URL 의 `?file=...` 조건과 GET 결과 집합이 서로 다른 의미를 갖게 된다.
  *
- * 검색창은 이미 이 기능을 '준비 중'으로 막아 두었지만(`SearchHeader`),
- * **막은 것은 입력이지 조건이 아니다** — 조건의 단일 출처는 URL 이라 예전에 공유된 링크나
- * 손으로 붙인 `?file=...` 이 그대로 살아 있다. 그 상태로 아래가 참이 되면 화면은
- * 없는 엔드포인트를 부르고, 404 로 스캔이 실패한 자리를 `rows = scan.data?.rows ?? []`
- * 가 **빈 표**로 그린다 — 검색은 멀쩡히 성공했는데 결과가 0건으로 보인다.
- *
- * 백엔드가 이 표면을 내면 `true` 로 되돌린다. 그때 되살아나야 하는 것은 아래 함수의
- * 원래 판정과 `buildQuery` 의 `fileScan=true`(캐시 우회) 둘이다.
+ * 검색창은 이미 이 기능을 '준비 중'으로 막아 두었지만(`SearchHeader`), **막은 것은 입력이지
+ * 조건이 아니다** — 조건의 단일 출처는 URL 이라 예전에 공유된 링크나 손으로 붙인 조건이
+ * 그대로 살아 있다. GET·POST 가 같은 전역 후보 계약을 갖출 때 아래 판정과 `fileScan=true`
+ * (캐시 우회)를 함께 되살린다.
  */
 export const ATTACHMENT_SCAN_READY = false;
 
@@ -323,7 +302,7 @@ export const ATTACHMENT_SCAN_READY = false;
  */
 export function shouldScanAttachments(criteria: SearchCriteria, kind: ScreenKind): boolean {
   if (!ATTACHMENT_SCAN_READY) return false;
-  return criteria.fileKeywords.length > 0 || isBlockingRelevant(kind, criteria.mode);
+  return criteria.fileKeywords.length > 0 || isBlockingRelevant(kind);
 }
 
 /**
@@ -384,7 +363,6 @@ export function buildQuery(
   if (criteria.toDate) query.toDate = toG2bDate(criteria.toDate);
   if (queryNo) query.bidNtceNo = queryNo;
   if (criteria.insttNm) query.insttNm = criteria.insttNm;
-  if (criteria.corpNm) query.corpNm = criteria.corpNm;
   if (criteria.bidType) query.bidType = criteria.bidType;
   if (criteria.sortKey) {
     query.sortKey = criteria.sortKey;
@@ -405,7 +383,7 @@ export function buildQuery(
 /**
  * 지금 모드에서 키워드 조건이 실제로 걸리는가.
  *
- * 발주기관·낙찰자·담당자 모드에서는 키워드 입력줄이 화면에서 사라진다. 그때 URL 에 남아 있던
+ * 발주기관 모드에서는 키워드 입력줄이 화면에서 사라진다. 그때 URL 에 남아 있던
  * 낱말을 그대로 질의에 실으면 **보이지 않는 조건**이 결과를 깎는다 — 사용자는 왜 0건인지
  * 알 방법이 없다. 기존 buildQuery 의 `keywordMode` 판정과 같은 취지이고, 판정 근거를
  * 모드 목록이 아니라 "그 줄이 보이는가"(searchModeLayout)로 둔 것만 다르다.
@@ -463,7 +441,12 @@ export function buildNoticeIndexQuery(
   }
 
   if (criteria.category) query.category = criteria.category;
-  if (criteria.noticeState) query.state = criteria.noticeState;
+  if (criteria.noticeState) {
+    query.state = criteria.noticeState;
+  } else {
+    // 기본 목록은 실제 검토 대상에 집중한다. 취소 공고는 상태 '취소'를 눌렀을 때만 조회한다.
+    query.excludeState = '취소';
+  }
   if (criteria.bidType) query.division = criteria.bidType;
   if (criteria.region) query.region = criteria.region;
   if (criteria.insttNm) query.insttNm = criteria.insttNm;
@@ -514,6 +497,8 @@ export function buildNoticeFacetQuery(
   delete query.sort;
   delete query.dir;
   if (omit) delete query[omit];
+  // 상태 축의 건수는 취소를 포함한 전체 예외 상태에서 세야 '취소' 진입 뱃지가 사라지지 않는다.
+  if (omit === 'state') delete query.excludeState;
   return query;
 }
 

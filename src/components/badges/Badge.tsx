@@ -6,7 +6,6 @@
  * 색이 한곳에 있어야 세 곳이 갈라지지 않는다.
  */
 import type { ReactNode } from 'react';
-import type { PriceStatusBadge as PriceBadgeData } from '@/domain/priceStatus';
 import { calcDday, opportunityGrade, type DdayInfo } from '@/domain/format';
 import './badges.css';
 
@@ -16,7 +15,7 @@ const TYPE_CLASS: Readonly<Record<string, string>> = {
   물품: 'type-goods',
   용역: 'type-service',
   공사: 'type-works',
-  // 외자(수입 조달)는 색인 검색·수주 데스크에만 나온다. 회색 fallback 대신 전용 색을 준다.
+  // 외자(수입 조달)는 색인 검색에 나온다. 회색 fallback 대신 전용 색을 준다.
   외자: 'type-foreign',
 };
 
@@ -171,19 +170,5 @@ export function ReqTags({ value }: ReqTagsProps) {
         <ReqTag key={`${tag}-${i}`}>{tag}</ReqTag>
       ))}
     </div>
-  );
-}
-
-/* ─── 단가 조회 상태 ─────────────────────────────────────────────────────── */
-
-interface PriceStatusBadgeProps {
-  badge: PriceBadgeData;
-}
-
-export function PriceStatusBadge({ badge }: PriceStatusBadgeProps) {
-  return (
-    <span className={`price-status tone-${badge.tone}`} title={badge.title}>
-      {badge.label}
-    </span>
   );
 }

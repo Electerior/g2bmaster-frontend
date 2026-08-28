@@ -10,9 +10,10 @@ interface ImportMetaEnv {
    */
   readonly VITE_APP_API_KEY?: string;
   /**
-   * AI 요약·분석 계열(bid-summary·item-summary·scan-attachments)을 부를지.
-   * 'true' 일 때만 호출한다 — 백엔드 AI 저장소·첨부 파싱이 이식되기 전에는 500 이 나므로
-   * 기본(미설정)은 꺼짐이다. 백엔드 g2b.ai.enabled 와 짝. 자세한 건 api/config.ts 참고.
+   * 공고 단순 요약(POST /api/notice-summary)을 부를지.
+   * 'true'일 때만 호출하며 백엔드 g2b.ai.enabled와 짝을 이룬다. 기본(미설정)은 꺼짐이다.
+   * LLM 장애는 HTTP 200 aiFallback 응답으로 처리한다. 자세한 건 api/config.ts 참고.
+   * 로컬 첨부 색인을 읽는 scan-attachments 는 이 플래그의 대상이 아니다.
    */
   readonly VITE_AI_ENABLED?: string;
   /**

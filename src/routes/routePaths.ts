@@ -1,7 +1,5 @@
 /*
- * 라우트 표. 원본은 탭(state.tab, 10개)과 검색 모드(state.searchMode, 6개)라는 직교하는
- * 두 선택자로 화면이 결정됐고, corp/officer/upload 모드는 탭과 무관하게 결과 영역을
- * 가로챘다. React 에서는 그 조합을 전부 URL 로 편다 — 화면 하나 = 주소 하나.
+ * 라우트 표. 운영 중인 공고 조회·저장 화면과 독립 화면만 URL 로 관리한다.
  */
 import type { ScreenKind } from '@/domain/columns';
 import { SCREENS } from '@/domain/columns';
@@ -14,16 +12,7 @@ export const ROUTES = {
    */
   noticeSearch: '/notices',
   bidResult: '/notices/bid-result',
-  dealRadar: '/deal-radar',
   saved: '/saved',
-  specSearch: '/spec-search',
-  priceDb: '/price-db',
-  trendProduct: '/trends/product',
-  trendService: '/trends/service',
-  trendConstruction: '/trends/construction',
-  company: '/company',
-  officers: '/officers',
-  analysisLab: '/analysis-lab',
   system: '/system',
   /**
    * 베타 모집 랜딩. 탭도 검색도 없는 독립 페이지라 TAB_ITEMS 에 넣지 않는다.
@@ -73,52 +62,26 @@ export interface TabItem {
   label: string;
   kind: ScreenKind;
   /*
-   * 아이콘 필드는 두지 않는다. 한때 좁은 화면에서 라벨 대신 글리프를 보였는데(🔍 🏁 🤖 …)
-   * 아홉 개가 세로로 늘어서면 '용역 트렌드'와 '공사 트렌드'를 구분할 수 없었다.
-   * 지금은 폭에 상관없이 라벨을 글자 그대로 쓴다 — layout.css @media(max-width:760px) 참고.
+   * 아이콘 필드는 두지 않는다. 폭과 상관없이 화면 이름을 글자 그대로 쓴다 —
+   * layout.css @media(max-width:760px) 참고.
    */
-  /**
-   * 화면 속은 아직 ScreenPlaceholder('준비 중')다 — 대응 API 는 백엔드에 있으나 화면 구현이
-   * 다음 웨이브다. 탭에서 숨기지 않고 «준비» 배지로 표시한다: 숨기면 로드맵이 안 보이고,
-   * 아무 표시 없이 두면 클릭한 뒤에야 준비 중임을 알게 된다.
-   */
-  notReady?: boolean;
 }
 
 /**
- * 폴더 탭 스트립. 원본 10개에서 공고 표 셋이 '공고 검색' 하나로 합쳐져 8개다.
+ * 폴더 탭 스트립. 공고 조회와 저장 목록만 노출한다.
  * 라벨은 SCREENS 에서 가져온다 — 탭 이름과 화면 제목이 갈라지면 안 된다.
  */
 export const TAB_ITEMS: readonly TabItem[] = [
   { path: ROUTES.noticeSearch, kind: 'notice-search', label: SCREENS['notice-search'].label },
   { path: ROUTES.bidResult, kind: 'bid-result', label: SCREENS['bid-result'].label },
-  // AI 수주 데스크는 이제 실제 화면이다 — 준비 배지를 떼었다.
-  { path: ROUTES.dealRadar, kind: 'deal-radar', label: SCREENS['deal-radar'].label },
   { path: ROUTES.saved, kind: 'saved-notices', label: SCREENS['saved-notices'].label },
-  { path: ROUTES.priceDb, kind: 'price-db', label: SCREENS['price-db'].label },
-  {
-    path: ROUTES.specSearch,
-    kind: 'spec-search',
-    label: SCREENS['spec-search'].label,
-    notReady: true,
-  },
-  { path: ROUTES.trendProduct, kind: 'product-trend', label: SCREENS['product-trend'].label },
-  { path: ROUTES.trendService, kind: 'service-trend', label: SCREENS['service-trend'].label },
-  {
-    path: ROUTES.trendConstruction,
-    kind: 'construction-trend',
-    label: SCREENS['construction-trend'].label,
-  },
 ];
 
 /**
  * 탭 스트립을 감출 라우트.
- * - /analysis-lab : 올린 파일 하나를 보는 화면이라 공고 검색 도구가 남아 있으면 오해를 부른다
- *   (원본 searchModeLayout('upload').searchUi === false 와 같은 이유).
- * - /system       : 원본에서 아예 별도 페이지(system.html)였다.
- * 낙찰자/담당자 조회(/company, /officers)는 원본에서도 탭을 유지했으므로 그대로 둔다.
+ * - /system: 원본에서 아예 별도 페이지(system.html)였다.
  */
-const TABLESS_ROUTES: readonly string[] = [ROUTES.analysisLab, ROUTES.system];
+const TABLESS_ROUTES: readonly string[] = [ROUTES.system];
 
 export function showsTabs(pathname: string): boolean {
   return !TABLESS_ROUTES.includes(pathname);

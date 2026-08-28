@@ -5,13 +5,13 @@
  *  달고 있었다. 옛 렌더러가 통째로 남아 있던 것이라 이식하지 않는다.)
  */
 import { useQuery } from '@tanstack/react-query';
-import { isAiEnabled, summarizeItem, type BidPlanItem } from '@/api';
+import { isAiEnabled, summarizeNotice, type BidPlanItem } from '@/api';
 import { Drawer, DrawerHeader, DrawerMeta } from '@/components/overlay/Drawer';
 import { loadCompanyProfile } from '@/domain/storage';
 import { collectFileEntries, firstPageUrl, PAGE_URL_KEYS } from '../rows';
 import { RawFieldsBlock, SpecContentBlock } from './meta';
 import { buildMetaRows, datetimeText, emailLink, moneyText, pick, telLink } from './metaValues';
-import { AiFallbackNote, ParsedFiles, SourceLabel, SummaryBody, SummaryState } from './summaryParts';
+import { AiFallbackNote, ParsedFiles, SummaryBody, SummaryState } from './summaryParts';
 
 interface PlanDrawerProps {
   item: BidPlanItem;
@@ -19,13 +19,13 @@ interface PlanDrawerProps {
 }
 
 export function PlanDrawer({ item, onClose }: PlanDrawerProps) {
-  // AI 요약(POST /api/item-summary)은 백엔드 이식 전이라 호출하면 500 이다 — 플래그로 게이트한다.
+  // 계획·사전규격·입찰공고는 같은 단일 요약 표면을 쓴다.
   const aiEnabled = isAiEnabled();
   const summary = useQuery({
-    queryKey: ['item-summary', 'bid-plan', pick(item.prcrmntReqNo, item.orderPlanUntyNo, item.bidNtceNo)],
+    queryKey: ['notice-summary', 'bid-plan', pick(item.prcrmntReqNo, item.orderPlanUntyNo, item.bidNtceNo)],
     enabled: aiEnabled,
     queryFn: () =>
-      summarizeItem({
+      summarizeNotice({
         // 원본 runItemAnalysis 의 entityType 판정 그대로 — 조달요청 > 사전규격 > 공고 순.
         entityType: item.prcrmntReqNo ? 'procurement_request' : item.bidNtceNo ? 'bid_notice' : '',
         prcrmntReqNo: String(item.prcrmntReqNo ?? ''),
@@ -40,7 +40,6 @@ export function PlanDrawer({ item, onClose }: PlanDrawerProps) {
         companyProfile: loadCompanyProfile(),
         fileEntries: collectFileEntries(item),
         rawFields: item,
-        deep: true,
       }),
     staleTime: Infinity,
   });
@@ -121,28 +120,23 @@ export function PlanDrawer({ item, onClose }: PlanDrawerProps) {
         </DrawerMeta>
 
         <div className="drawer-section">
-          <div className="drawer-section-label">✨ AI 분석</div>
+          <div className="drawer-section-label">✨ AI 요약</div>
           <div className="drawer-summary">
             {!aiEnabled ? (
               <div className="summary-text muted">
-                AI 요약은 백엔드 연동 준비 중입니다. 준비되면 이 자리에 첨부문서 기반 요약이 표시됩니다.
+                AI 요약이 비활성화되어 있습니다. VITE_AI_ENABLED=true로 켤 수 있습니다.
               </div>
             ) : (
               <SummaryState
                 isPending={summary.isPending}
                 error={summary.error}
                 onRetry={() => void summary.refetch()}
-                pendingText="AI 분석 중... 규격서 자동 수집 중입니다."
+                pendingText="AI 요약 중... 잠시만 기다려 주세요."
               >
                 {data ? (
                   <>
-                    <SourceLabel>
-                      {data.source === 'auto-file'
-                        ? `첨부파일 자동 분석: ${data.parsedFileCount}/${data.fileEntryCount}개 본문 추출`
-                        : '첨부파일 본문 추출 실패: API 기본정보 기반 분석'}
-                    </SourceLabel>
                     <AiFallbackNote flags={data} />
-                    <SummaryBody summary={data.summary} />
+                    {data.summary ? <SummaryBody summary={data.summary} /> : null}
                     <ParsedFiles parsedFiles={data.parsedFiles} />
                   </>
                 ) : null}

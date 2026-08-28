@@ -3,8 +3,8 @@
  *
  * 파일 내 키워드 검색이나 '입찰 불가 조항 자동 제외' 가 켜져 있으면, 서버는 페이지 하나가
  * 아니라 **후보 전체**(pageNo=0)를 주고 화면이 그것을 50건씩 잘라 스캔 API 로 보낸다.
- * 한 번에 다 보내면 서버가 수백 개의 PDF·HWPX 를 동시에 열게 되고, 그 요청은 타임아웃 안에
- * 못 끝난다 — 잘라 보내는 것이 요점이다.
+ * 현재 POST 는 파일을 다시 내려받지 않고 로컬 첨부 색인을 조회한다. 그래도 후보 배열과 SQL
+ * `IN` 목록을 무한히 키우지 않도록 50건 경계를 유지한다.
  *
  * 스캔 결과는 두 가지다.
  *  - matches   : 키워드가 걸린 행 → 표 아래에 발췌 행이 붙는다
@@ -13,7 +13,7 @@
  */
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { isAiEnabled, scanAttachments, type DecoratedRow, type NoticeSearchQuery } from '@/api';
+import { scanAttachments, type DecoratedRow, type NoticeSearchQuery } from '@/api';
 import type { NoticeTableKind } from '@/domain/columns';
 import { collectFileEntries, rowKeyForItem, type ScannedRow } from './rows';
 
@@ -36,6 +36,8 @@ export interface ScanOutcome {
   scanned: number;
   total: number;
   cacheHits: number;
+  /** 후보 중 첨부 본문 색인이 아직 끝나지 않아 일치 여부를 판단하지 못한 공고 수. */
+  notIndexed: number;
 }
 
 interface UseAttachmentScanArgs {
@@ -71,10 +73,9 @@ export function useAttachmentScan({
       excludeBlockingClauses,
       scanBlocking,
     ],
-    // 스캔(POST /api/scan-attachments)은 첨부 파싱에 의존한다 — 백엔드 이식 전이라 호출하면
-    // 500 이다. AI 플래그가 꺼져 있으면 아예 돌리지 않는다(그 컨트롤 자체도 '준비 중'이다).
-    enabled: enabled && isAiEnabled() && Array.isArray(items),
-    // 스캔은 서버에서 파일을 여는 작업이라 값이 비싸다. 조건이 그대로면 다시 돌리지 않는다.
+    // 이 POST 는 이미 추출된 로컬 첨부 색인만 읽는다. LLM 을 호출하지 않으므로 AI 플래그와 무관하다.
+    enabled: enabled && Array.isArray(items),
+    // 같은 후보·키워드의 로컬 전문검색을 되풀이하지 않도록 결과를 유지한다.
     staleTime: Infinity,
     queryFn: async (): Promise<ScanOutcome> => {
       const source = items ?? [];
@@ -90,20 +91,27 @@ export function useAttachmentScan({
         __rowId: rowKeyForItem(item, index, kind),
       }));
 
-      const scans = withIds.map((item) => ({
-        id: String(item.__rowId ?? ''),
-        fileEntries: collectFileEntries(item),
-        bidNtceNo: String(item.bidNtceNo ?? item.bfSpecRgstNo ?? item.prdctClfcNo ?? ''),
-        bidNtceSqNo: String(item.bidNtceSqNo ?? item.bidNtceOrd ?? '000'),
-        _type: String(item._type ?? ''),
-        _tab: kind,
-        _version: String(item.chgDt ?? item.rgstDt ?? ''),
-      }));
+      const scans = withIds.map((item) => {
+        const sourceName = String(item.source ?? item._source ?? '').trim();
+        return {
+          id: String(item.__rowId ?? ''),
+          fileEntries: collectFileEntries(item),
+          bidNtceNo: String(item.bidNtceNo ?? item.bfSpecRgstNo ?? item.prdctClfcNo ?? ''),
+          bidNtceSqNo: String(item.bidNtceSqNo ?? item.bidNtceOrd ?? '000'),
+          ...(sourceName ? { source: sourceName } : {}),
+          _type: String(item._type ?? ''),
+          _tab: kind,
+          _version: String(item.chgDt ?? item.rgstDt ?? ''),
+        };
+      });
 
       const matches = new Map<string, { matchedKeywords: string[]; excerpt: string }>();
       const exclusions = new Map<string, { reasons: string[]; excerpt: string }>();
+      // 미색인 행은 "불일치"가 아니라 아직 판단 불가다. 응답의 요청 row id 로 정확히 보존한다.
+      const notIndexedIds = new Set<string>();
       let scanned = 0;
       let cacheHits = 0;
+      let notIndexed = 0;
 
       for (let offset = 0; offset < scans.length; offset += CHUNK_SIZE) {
         const chunk = scans.slice(offset, offset + CHUNK_SIZE);
@@ -129,8 +137,11 @@ export function useAttachmentScan({
             excerpt: exclusion.excerpt ?? '',
           });
         }
+        const chunkNotIndexed = Math.max(0, Number(data.notIndexed ?? 0));
+        for (const id of data.notIndexedIds ?? []) notIndexedIds.add(String(id));
         scanned += Number(data.scanned ?? 0);
         cacheHits += Number(data.cacheHits ?? 0);
+        notIndexed += chunkNotIndexed;
       }
       setProgress(null);
 
@@ -148,9 +159,13 @@ export function useAttachmentScan({
         return next;
       });
 
-      const rows = excludeBlockingClauses
-        ? decorated.filter((item) => !exclusions.has(String(item.__rowId ?? '')))
-        : decorated;
+      const rows = decorated.filter((item) => {
+        const id = String(item.__rowId ?? '');
+        if (excludeBlockingClauses && exclusions.has(id)) return false;
+        if (!fileKeywords.length) return true;
+        // 파일 키워드 검색은 일치 행만 남긴다. 단, 미색인 행은 거짓 음성을 막기 위해 유지한다.
+        return matches.has(id) || notIndexedIds.has(id);
+      });
 
       const reasonCounts = new Map<string, number>();
       for (const exclusion of exclusions.values()) {
@@ -169,6 +184,7 @@ export function useAttachmentScan({
         scanned,
         total,
         cacheHits,
+        notIndexed,
       };
     },
   });

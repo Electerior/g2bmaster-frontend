@@ -5,7 +5,7 @@
  * ApiError)까지 흉내 내야 하는데, 그건 이 테스트가 확인하려는 것이 아니다.
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { NoticeIndexItem } from '@/api/search';
@@ -24,6 +24,7 @@ const { NoticeSearchScreen } = await import('./NoticeSearchScreen');
 /** 조달청 대행 + 지역 있음 + 마감 있음. */
 const DELEGATED: NoticeIndexItem = {
   id: 'R26BK01638523',
+  source: 'G2B',
   noticeName: '2026년 노트북 및 모니터 구매',
   category: '입찰',
   businessDivision: '물품',
@@ -36,12 +37,49 @@ const DELEGATED: NoticeIndexItem = {
   officerContact: '033-249-1234',
   dday: 37,
   estimatedPrice: 45000000,
+  amount: 45000000,
+  amountKind: 'estimatedPrice',
   bodyPreview: '노트북컴퓨터 모니터 일반경쟁 적격심사',
+  matchedIn: ['attachment'],
+  attachmentIndexed: true,
+  // 사람이 가격표를 저장해 원가가 확정된 공고. 실추정가 49,500,000 − 원가 35,000,000 → 29.29%
+  marginRate: 29.29,
+  marginCost: 35000000,
+  marginBase: 49500000,
+  marginSource: 'confirmed',
+  marginUpdatedAt: '2026-08-14T13:40:00',
+};
+
+/**
+ * 사전규격 — **추정가격 키가 아예 없다.** 원본이 배정예산만 주기 때문이고, 이 계통이 색인의
+ * 12,000건이 넘는다(전체의 24%). 서버가 배정예산을 골라 `amount`/`amountKind` 로 내려준다.
+ *
+ * 이 행이 표에서 '-' 로 보이던 것이 금액 필터가 전체의 28%를 조용히 버리던 버그의 얼굴이다 —
+ * 금액을 아는 공고인데 화면에는 금액이 없는 것처럼 보이고, 금액 조건을 걸면 통째로 사라졌다.
+ */
+const SPEC: NoticeIndexItem = {
+  id: '20260801234-00',
+  noticeName: '초등학교 급식기구 구매 사전규격',
+  category: '사전규격',
+  businessDivision: '물품',
+  region: '부산광역시',
+  noticeInstitutionName: '부산광역시교육청',
+  createdDate: '2026-08-01T09:00:00',
+  priceDetail: { assignedBudget: 29920000 },
+  amount: 29920000,
+  amountKind: 'assignedBudget',
+  // 딜 분석이 추정한 원가가 예산을 넘은 역마진 건 — 이 열이 찾아내려는 행이다.
+  marginRate: -21.6,
+  marginCost: 40000000,
+  marginBase: 32912000,
+  marginSource: 'estimated',
+  marginUpdatedAt: '2026-08-14T13:41:00',
 };
 
 /** 계획 단계 — 마감이 없어 dday·closeDate 필드가 아예 오지 않는다. 지역은 빈 문자열(전국). */
 const PLAN: NoticeIndexItem = {
   id: '20260715001',
+  source: 'G2B',
   noticeName: '스마트캠퍼스 통합관제 시스템 구축 발주계획',
   category: '계획',
   businessDivision: '용역',
@@ -50,9 +88,12 @@ const PLAN: NoticeIndexItem = {
   demandInstitutionName: '한국전자통신연구원',
   createdDate: '2026-07-15T09:00:00',
   estimatedPrice: 1200000000,
+  amount: 1200000000,
+  amountKind: 'estimatedPrice',
+  attachmentIndexed: false,
 };
 
-/** 취소 공고 — 결과에 남기되 눈에 띄어야 한다. */
+/** 취소 공고 — 기본 목록에서는 빠지고 상태 '취소'를 고른 경우에만 나온다. */
 const CANCELLED: NoticeIndexItem = {
   id: 'R26BK01600001',
   noticeName: '청사 냉난방기 교체공사',
@@ -66,9 +107,21 @@ const CANCELLED: NoticeIndexItem = {
   closeDate: '2026-07-01T11:00:00',
   dday: -36,
   estimatedPrice: 88000000,
+  amount: 88000000,
+  amountKind: 'estimatedPrice',
 };
 
-const ITEMS = [DELEGATED, PLAN, CANCELLED];
+/** 일반 마감 공고 — 취소 제외가 지난 공고까지 빼지 않는지와 D-DAY 표시에 쓴다. */
+const CLOSED: NoticeIndexItem = {
+  ...CANCELLED,
+  id: 'R26BK01600002',
+  noticeName: '청사 승강기 유지보수 용역',
+  state: undefined,
+};
+
+// SPEC(사전규격)은 추정가격이 없고 배정예산만 있는 행이다 — 금액 칸이 amount 를 그리는지
+// 확인하는 데 쓴다. 그 축과 취소 제외 축은 서로 무관하므로 한 목록에 함께 둔다.
+const ITEMS = [DELEGATED, PLAN, CLOSED, CANCELLED, SPEC];
 
 function respond(url: string) {
   if (url.startsWith('/api/search/notices/status')) {
@@ -84,6 +137,7 @@ function respond(url: string) {
     const params = new URLSearchParams(url.split('?')[1] ?? '');
     const pickedCategory = params.get('category');
     const pickedRegion = params.get('region');
+    const excludedState = params.get('excludeState');
     return Promise.resolve({
       category: [
         { value: '입찰', count: 604 },
@@ -96,10 +150,36 @@ function respond(url: string) {
         { value: '강원특별자치도', count: 12 },
         { value: '경기도,인천광역시', count: 5 },
       ].filter((bucket) => !pickedRegion || bucket.value.includes(pickedRegion)),
-      state: [{ value: '취소', count: 3 }],
+      state: excludedState ? [] : [{ value: '취소', count: 3 }],
     });
   }
-  return Promise.resolve({ items: ITEMS, totalCount: 3, pageNo: 1, numOfRows: 20 });
+  const params = new URLSearchParams(url.split('?')[1] ?? '');
+  const state = params.get('state');
+  const excludeState = params.get('excludeState');
+  const items = state === '취소'
+    ? ITEMS.filter((item) => item.state === '취소')
+    : excludeState === '취소'
+      ? ITEMS.filter((item) => item.state !== '취소')
+      : ITEMS;
+  const terms = [params.get('andTerms'), params.get('orTerms'), params.get('notTerms')]
+    .flatMap((value) => String(value ?? '').split(','))
+    .filter(Boolean);
+  return Promise.resolve({
+    items,
+    totalCount: items.length,
+    pageNo: 1,
+    numOfRows: 20,
+    meta: {
+      attachmentSearch: {
+        scope: true,
+        applied: terms.some((term) => term.length >= 2),
+        excludeApplied: Boolean(params.get('notTerms')),
+        skippedTerms: terms.filter((term) => term.length < 2),
+        totalNotices: 45_736,
+        indexedNotices: 1_225,
+      },
+    },
+  });
 }
 
 function renderScreen(search = '') {
@@ -126,6 +206,44 @@ describe('NoticeSearchScreen', () => {
     expect(urls.some((u) => u.startsWith('/api/search/notices?'))).toBe(true);
     expect(urls.some((u) => u.startsWith('/api/search/notices/facets?'))).toBe(true);
     expect(urls.some((u) => u.includes('/api/bid-announce'))).toBe(false);
+  });
+
+  it('첨부에서만 걸린 행과 첨부 미색인 행을 구분해 표시한다', async () => {
+    renderScreen('?and=노트북');
+    expect(await screen.findByText('첨부 일치')).toHaveAttribute(
+      'title',
+      expect.stringContaining('첨부 본문에서 검색어가 일치'),
+    );
+    expect(screen.getByText('첨부 미색인')).toHaveAttribute(
+      'title',
+      expect.stringContaining('일치 여부를 판단할 수 없습니다'),
+    );
+  });
+
+  it('첨부 검색 범위와 건너뛴 낱말·색인 커버리지를 상태 줄에 알린다', async () => {
+    renderScreen('?and=차');
+    expect(await screen.findByText('첨부 검색 제외 낱말 차')).toBeInTheDocument();
+    expect(screen.getByText('첨부 색인 1,225/45,736건')).toBeInTheDocument();
+  });
+
+  it('서버가 첨부 스코프를 끈 경우 상태 줄에서 숨기지 않는다', async () => {
+    get.mockImplementation(async (url: string) => {
+      const data = await respond(url);
+      if (!url.startsWith('/api/search/notices?')) return data;
+      return {
+        ...data,
+        meta: {
+          attachmentSearch: {
+            scope: false,
+            applied: false,
+            excludeApplied: false,
+            skippedTerms: [],
+          },
+        },
+      };
+    });
+    renderScreen('?and=노트북');
+    expect(await screen.findByText('첨부 검색 범위 꺼짐')).toBeInTheDocument();
   });
 
   it('지역이 빈 공고를 전국으로 적는다', async () => {
@@ -156,10 +274,77 @@ describe('NoticeSearchScreen', () => {
     ).toHaveLength(1);
   });
 
-  it('취소 공고를 지우지 않고 표시만 한다', async () => {
+  /*
+   * 금액 칸은 `estimatedPrice` 가 아니라 `amount` 를 그린다.
+   *
+   * 추정가격 키를 가진 공고는 나라장터 입찰·마감·계획뿐이다. 추정가격만 그리면 사전규격
+   * 12,000여 건과 누리장터·D2B 가 **금액을 아는데도** '-' 로 보이고, 같은 이유로 금액 조건이
+   * 그 행들을 통째로 버리던 것이 원래 버그였다. 화면과 필터가 같은 값을 봐야 설명이 성립한다.
+   */
+  it('추정가격이 없는 사전규격도 금액을 보여준다', async () => {
+    renderScreen();
+    await screen.findByText('초등학교 급식기구 구매 사전규격');
+    expect(screen.getByText('29,920,000원')).toBeInTheDocument();
+  });
+
+  /*
+   * 값만 주면 배정예산(예산이라 추정가격보다 크다)과 추정가격이 한 칸에서 같은 것처럼 보인다.
+   * 비교할 수 없는 숫자를 나란히 세우는 셈이고, 화면만 보고는 알아챌 방법이 없다.
+   */
+  it('그 금액이 어느 금액인지 행마다 적는다', async () => {
     const { container } = renderScreen();
+    await screen.findByText('초등학교 급식기구 구매 사전규격');
+
+    const kinds = [...container.querySelectorAll('.amt-pair em')].map((el) => el.textContent);
+    expect(kinds).toContain('배정예산');
+    expect(kinds).toContain('추정가격');
+    // 값과 종류는 같은 셀 안에 함께 있어야 한다 — 떨어져 있으면 어느 행의 설명인지 알 수 없다.
+    const specAmount = screen.getByText('29,920,000원').closest('.amt-pair');
+    expect(within(specAmount as HTMLElement).getByText('배정예산')).toBeInTheDocument();
+  });
+
+  /*
+   * 금액 조건은 금액이 적힌 공고만 볼 수 있다 — 원본에 금액이 없는 2,180건은 조건을 거는 순간
+   * 빠진다. 적지 않으면 "그 금액대 공고가 없다"와 구분되지 않는다(첨부 색인 범위를 화면에
+   * 적는 것과 같은 이유다). 줄일 수 있는 손실이 아니므로 숨기지 않고 말한다.
+   */
+  it('금액 조건을 걸면 금액 미공개 공고가 빠진다고 알린다', async () => {
+    renderScreen('?min=1000000');
+    await screen.findByText('2026년 노트북 및 모니터 구매');
+    expect(screen.getByText(/금액 미공개 공고 제외/)).toBeInTheDocument();
+  });
+
+  it('금액 조건이 없으면 그 안내를 띄우지 않는다', async () => {
+    renderScreen();
+    await screen.findByText('2026년 노트북 및 모니터 구매');
+    expect(screen.queryByText(/금액 미공개 공고 제외/)).not.toBeInTheDocument();
+  });
+
+  it('기본 목록에서는 취소를 제외하고 취소 뱃지를 누르면 그 공고만 정상 행으로 보여준다', async () => {
+    const { container } = renderScreen();
+    await screen.findByText('청사 승강기 유지보수 용역');
+    expect(screen.queryByText('청사 냉난방기 교체공사')).not.toBeInTheDocument();
+
+    const initialListUrl = get.mock.calls
+      .map(([url]) => url as string)
+      .find((url) => url.startsWith('/api/search/notices?'))!;
+    expect(new URLSearchParams(initialListUrl.split('?')[1]).get('excludeState')).toBe('취소');
+
+    const stateFilter = await screen.findByLabelText('상태 필터');
+    fireEvent.click(within(stateFilter).getByRole('button', { name: /취소/ }));
+
     await screen.findByText('청사 냉난방기 교체공사');
-    expect(container.querySelectorAll('.cancelled-row')).toHaveLength(1);
+    await waitFor(() =>
+      expect(screen.queryByText('청사 승강기 유지보수 용역')).not.toBeInTheDocument(),
+    );
+    expect(container.querySelectorAll('.cancelled-row')).toHaveLength(0);
+
+    const listUrls = get.mock.calls
+      .map(([url]) => url as string)
+      .filter((url) => url.startsWith('/api/search/notices?'));
+    const selectedParams = new URLSearchParams(listUrls.at(-1)!.split('?')[1]);
+    expect(selectedParams.get('state')).toBe('취소');
+    expect(selectedParams.get('excludeState')).toBeNull();
   });
 
   it('패싯 건수를 필터 칩에 붙인다', async () => {
@@ -195,14 +380,16 @@ describe('NoticeSearchScreen', () => {
     expect(await screen.findByRole('option', { name: /경기도,인천광역시/ })).toBeInTheDocument();
   });
 
-  it('필터가 없으면 패싯을 한 번만 부른다', async () => {
+  it('필터가 없어도 기본 패싯과 취소 진입 건수용 상태 패싯을 각각 부른다', async () => {
     renderScreen();
     await screen.findByText('2026년 노트북 및 모니터 구매');
     await waitFor(() => expect(screen.getByLabelText('단계 필터')).toBeInTheDocument());
     const facetUrls = get.mock.calls
       .map(([url]) => url as string)
       .filter((u) => u.startsWith('/api/search/notices/facets'));
-    expect(new Set(facetUrls).size).toBe(1);
+    expect(new Set(facetUrls).size).toBe(2);
+    expect(facetUrls.some((url) => url.includes('excludeState='))).toBe(true);
+    expect(facetUrls.some((url) => !url.includes('excludeState='))).toBe(true);
   });
 
   it('URL 조건을 질의로 옮긴다 — 날짜는 YYYY-MM-DD 그대로', async () => {
@@ -220,6 +407,66 @@ describe('NoticeSearchScreen', () => {
     expect(params.get('activeOnly')).toBe('true');
     // 고르지 않은 정렬은 보내지 않는다 — 서버가 관련도/최신을 정한다.
     expect(params.get('sort')).toBeNull();
+  });
+
+  it('가격 분석 결과인 마진 열·값·정렬을 렌더하지 않는다', async () => {
+    renderScreen();
+    await screen.findByText('2026년 노트북 및 모니터 구매');
+
+    // 백엔드 응답에 마진 필드가 남아 있어도 UI에는 노출하지 않는다.
+    expect(screen.queryByRole('columnheader', { name: /마진율/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: /마진율/ })).not.toBeInTheDocument();
+    expect(screen.queryByText('+29.3%')).not.toBeInTheDocument();
+    expect(screen.queryByText('미분석')).not.toBeInTheDocument();
+  });
+
+  /*
+   * 정렬 선택기 — 표 머리글이 닿지 못하는 두 경우를 덮는다.
+   * ① 관련도순은 대응하는 열이 없다. ② 좁은 화면에서는 열이 접힌다(공고일이 1180px 아래에서 숨는다).
+   */
+  describe('정렬 선택기', () => {
+    it('고르지 않았을 때 실제로 걸린 정렬을 적는다 — 검색어가 없으면 공고일순', async () => {
+      renderScreen();
+      await screen.findByText('2026년 노트북 및 모니터 구매');
+      expect(screen.getByRole('combobox', { name: /정렬/ })).toHaveValue('');
+      expect(screen.getByRole('option', { name: '기본 — 공고일순' })).toBeInTheDocument();
+    });
+
+    it('검색어가 있으면 관련도순이라고 적는다 — 이 정렬에는 대응하는 열이 없다', async () => {
+      renderScreen('?and=노트북');
+      await screen.findByText('2026년 노트북 및 모니터 구매');
+      expect(screen.getByRole('option', { name: '기본 — 관련도순' })).toBeInTheDocument();
+    });
+
+    it('열이 접혀도 그 정렬을 고를 수 있다 — 공고일은 좁은 화면에서 머리글이 사라진다', async () => {
+      renderScreen();
+      await screen.findByText('2026년 노트북 및 모니터 구매');
+      get.mockClear();
+
+      fireEvent.change(screen.getByRole('combobox', { name: /정렬/ }), {
+        target: { value: 'created' },
+      });
+
+      const listUrl = get.mock.calls
+        .map(([url]) => url as string)
+        .find((u) => u.startsWith('/api/search/notices?'))!;
+      expect(new URLSearchParams(listUrl.split('?')[1]).get('sort')).toBe('created');
+    });
+
+    it("'기본' 으로 되돌리면 sort 를 아예 보내지 않는다 — 서버의 조건부 기본값이 살아야 한다", async () => {
+      renderScreen('?sort=close&dir=asc');
+      await screen.findByText('2026년 노트북 및 모니터 구매');
+      get.mockClear();
+
+      fireEvent.change(screen.getByRole('combobox', { name: /정렬/ }), { target: { value: '' } });
+
+      const listUrl = get.mock.calls
+        .map(([url]) => url as string)
+        .find((u) => u.startsWith('/api/search/notices?'))!;
+      const params = new URLSearchParams(listUrl.split('?')[1]);
+      expect(params.get('sort')).toBeNull();
+      expect(params.get('dir')).toBeNull();
+    });
   });
 
   it('정렬할 수 없는 컬럼은 머리글을 버튼으로 그리지 않는다', async () => {
