@@ -16,7 +16,67 @@ import { metaForPath, NOT_FOUND_META, type RouteMeta } from './routeMeta';
 import { canonicalUrlFor } from './siteOrigin';
 
 /**
- * index.html 이 정적으로 달아 둔 robots 값.
+ * robots 지시어 어휘.
+ *
+ * 값을 갖는 형태(`max-snippet:-1`)는 콜론 앞부분만 본다. 이 목록은 "이 meta 태그가 색인
+ * 지시인가"를 판별하는 데만 쓰이므로, 빠진 낱말이 있어도 태그 하나를 못 알아볼 뿐
+ * 엉뚱한 태그를 건드리지는 않는다.
+ */
+const ROBOTS_DIRECTIVES: readonly string[] = [
+  'all',
+  'index',
+  'noindex',
+  'follow',
+  'nofollow',
+  'none',
+  'noarchive',
+  'nosnippet',
+  'indexifembedded',
+  'notranslate',
+  'noimageindex',
+  'nositelinkssearchbox',
+  'nopagereadaloud',
+  'max-snippet',
+  'max-image-preview',
+  'max-video-preview',
+  'unavailable_after',
+];
+
+/** content 가 robots 지시어로만 이루어져 있는가. */
+function looksLikeRobotsContent(content: string): boolean {
+  const tokens = content
+    .split(',')
+    .map((token) => token.trim().toLowerCase())
+    .filter(Boolean);
+  if (tokens.length === 0) return false;
+  return tokens.every((token) => ROBOTS_DIRECTIVES.includes(token.split(':')[0].trim()));
+}
+
+/**
+ * 정적 head 에서 색인 지시를 담고 있는 meta[name] 을 전부 찾는다.
+ *
+ * **이름 목록을 여기 박아 두지 않는 것이 요점이다.** `['robots','googlebot','naverbot']`
+ * 이라고 적으면 그것은 index.html 의 복사본이고, 저쪽에 `bingbot` 이나 `yeti` 가 한 줄
+ * 늘어나는 날 이 파일만 모르는 채로 남는다 — 이 감사의 근본 원인이 정확히 "같은 사실이 두
+ * 곳에 적혀 한쪽만 고쳐진" 것이었다. 그래서 이름이 아니라 **내용의 생김새**로 찾는다.
+ *
+ * description·keywords·author·viewport·theme-color 는 이 검사를 통과하지 못한다.
+ * 이름이 `robots` 인 태그만은 내용과 무관하게 담는다 — 그 이름 자체가 용도의 선언이다.
+ */
+function readStaticRobotsTags(): ReadonlyMap<string, string> {
+  const found = new Map<string, string>();
+  if (typeof document === 'undefined') return found;
+  for (const tag of document.head.querySelectorAll<HTMLMetaElement>('meta[name][content]')) {
+    const content = tag.getAttribute('content') ?? '';
+    if (tag.name.toLowerCase() === 'robots' || looksLikeRobotsContent(content)) {
+      found.set(tag.name, content);
+    }
+  }
+  return found;
+}
+
+/**
+ * index.html 이 정적으로 달아 둔 색인 지시 — 태그 이름 → 그 이름에 선언된 값.
  *
  * 하드코딩하지 않고 모듈이 처음 평가될 때 문서에서 읽는다. 이 모듈이 평가되는 시점은
  * `<script type="module">` 실행 시점이라 head 는 이미 파싱돼 있고, 앱은 아직 아무것도
@@ -27,13 +87,22 @@ import { canonicalUrlFor } from './siteOrigin';
  * max-video-preview:-1` 인데, 그 문자열을 여기 복사해 두면 한쪽만 고쳐지는 날이 온다
  * (이 감사의 근본 원인이 정확히 그 종류의 사고였다). 읽어 두면 두 곳이 갈라질 수 없다.
  *
- * 태그가 아예 없으면 `null` 이고, 그때는 되돌릴 때 태그를 **지운다**. robots 태그가 없는
- * 것이 곧 "색인 허용"이라 그것으로 충분하다.
+ * 표에 이름이 없으면(=정적 head 에 그 태그가 없으면) 되돌릴 때 태그를 **지운다**.
+ * robots 태그가 없는 것이 곧 "색인 허용"이라 그것으로 충분하다.
  */
-const STATIC_ROBOTS: string | null =
-  typeof document === 'undefined'
-    ? null
-    : (document.querySelector('meta[name="robots"]')?.getAttribute('content') ?? null);
+const STATIC_ROBOTS_TAGS: ReadonlyMap<string, string> = readStaticRobotsTags();
+
+/**
+ * 이 훅이 값을 책임지는 색인 지시 태그의 이름들.
+ *
+ * `robots` 는 정적 head 에 없더라도 언제나 포함한다 — 색인 제외 라우트에서 새로 만들어야
+ * 하는 태그가 그것이고, 크롤러별 태그는 없으면 만들 이유가 없다(크롤러별 태그가 없으면
+ * 그 크롤러도 일반 `robots` 를 읽는다).
+ */
+const MANAGED_ROBOTS_NAMES: readonly string[] = [
+  'robots',
+  ...[...STATIC_ROBOTS_TAGS.keys()].filter((name) => name.toLowerCase() !== 'robots'),
+];
 
 /** name= 또는 property= 로 식별되는 meta 태그를 찾거나 만든다. */
 function setMetaTag(attr: 'name' | 'property', key: string, content: string): void {
@@ -66,7 +135,7 @@ function removeLinkTag(rel: string): void {
 }
 
 /**
- * robots 를 세운다. `null` 이면 정적 기본값으로 되돌린다.
+ * 색인 지시를 세운다. `null` 이면 정적 기본값으로 되돌린다.
  *
  * **여기가 이 파일에서 제일 조심할 곳이다.** noindex 는 심는 것보다 지우는 것이 중요하다:
  * /saved 에서 심은 noindex 가 /notices 로 넘어간 뒤에도 남아 있으면, 저장 공고를 한 번
@@ -82,11 +151,27 @@ function removeLinkTag(rel: string): void {
  *     부르는 것을 잊었더라도 남는 값은 '색인 허용'이다 — 두 실패 방향 중 덜 위험한 쪽이다
  *     (/saved 가 잘못 색인되는 것은 되돌릴 수 있지만, 사이트 전체가 색인에서 빠지는 것은
  *     발견하는 데 몇 주가 걸린다).
+ *
+ * 그리고 **robots 는 태그 하나가 아니다.** index.html 은 같은 말을 세 이름에 적어 두었다:
+ *
+ *   <meta name="robots"    content="index,follow,max-snippet:-1,…">
+ *   <meta name="googlebot" content="index,follow">
+ *   <meta name="naverbot"  content="index,follow">
+ *
+ * 첫 줄만 갈아 끼우면 /saved 의 head 는 "색인하지 마라(robots)"와 "색인하라(googlebot ·
+ * naverbot)"를 동시에 말하는 문서가 된다. 구글은 이 충돌의 해석을 문서로 정해 두었다 —
+ * 크롤러별 규칙이 여럿이면 **부정 규칙의 합집합**을 쓰므로, index·follow 는 부정 규칙이
+ * 아니어서 구글에 한해서는 noindex 가 살아남는다. 문제는 나머지다. 이 서비스의 주 시장인
+ * 네이버는 그런 해석 규칙을 밝힌 적이 없고, 자기 이름이 붙은 태그를 더 구체적인 지시로
+ * 읽어도 이상하지 않다. 어느 쪽으로 해석되든 한 head 안에 서로 반대되는 말을 남겨 둘 이유가
+ * 없으므로, 정적 head 에 존재하는 색인 지시 태그 전부를 함께 움직인다.
  */
 function applyRobots(value: string | null): void {
-  const effective = value ?? STATIC_ROBOTS;
-  if (effective === null) removeMetaTag('name', 'robots');
-  else setMetaTag('name', 'robots', effective);
+  for (const name of MANAGED_ROBOTS_NAMES) {
+    const effective = value ?? STATIC_ROBOTS_TAGS.get(name) ?? null;
+    if (effective === null) removeMetaTag('name', name);
+    else setMetaTag('name', name, effective);
+  }
 }
 
 interface ResolvedMeta {
