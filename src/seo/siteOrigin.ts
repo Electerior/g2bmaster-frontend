@@ -28,6 +28,25 @@ export const SITE_ORIGIN = 'https://g2b-masters.electerior.co.kr';
  * 조용히 잘못된 canonical 을 내보내는 것보다 낫다.
  */
 export function canonicalUrlFor(pathname: string): string {
+  return absoluteUrl(pathname);
+}
+
+/**
+ * public/ 자산 하나를 이 사이트의 절대 URL 로.
+ *
+ * 하는 일은 canonicalUrlFor 와 같지만 이름을 갈라 둔다. 부르는 쪽이 다르기 때문이다 —
+ * 이쪽은 문서의 대표 주소가 아니라 **파일의 주소**를 만든다. 한 이름으로 겸하면 언젠가
+ * canonical 규칙(쿼리를 버린다·끝 슬래시를 뗀다)이 자산 주소에도 그대로 적용된다는 사실이
+ * 잊히고, 그때 쿼리가 필요한 자산이 생기면 조용히 잘려 나간다.
+ *
+ * og:image 가 이 함수를 쓰는 이유는 하나다. **OG 소비자는 상대 경로를 해석하지 않는다.**
+ * 카카오톡·페이스북·X 크롤러에게 `/og/beta.png` 를 주면 이미지가 아예 뜨지 않는다.
+ */
+export function assetUrlFor(path: string): string {
+  return absoluteUrl(path);
+}
+
+function absoluteUrl(pathname: string): string {
   const raw = pathname.split('?')[0].split('#')[0];
   const withSlash = raw.startsWith('/') ? raw : `/${raw}`;
   // 끝의 '/' 는 떼되 루트는 남긴다 — '/notices' 와 '/notices/' 가 서로 다른 대표 주소로

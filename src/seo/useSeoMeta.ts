@@ -12,7 +12,13 @@
  */
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { metaForPath, NOT_FOUND_META, type RouteMeta } from './routeMeta';
+import {
+  metaForPath,
+  NOT_FOUND_META,
+  resolveOgImage,
+  type OgImage,
+  type RouteMeta,
+} from './routeMeta';
 import { canonicalUrlFor } from './siteOrigin';
 
 /**
@@ -174,24 +180,108 @@ function applyRobots(value: string | null): void {
   }
 }
 
+/**
+ * 이 훅이 값을 책임지는 공유 카드 태그 — [속성 종류, 이름] 쌍.
+ *
+ * robots 쪽이 이름 목록을 박아 두지 않은 것과 대비된다. 저쪽에서 이름을 박으면 그것은
+ * index.html 이 무엇을 적어 두었는가의 복사본이지만(그 파일에 `bingbot` 이 한 줄 늘면
+ * 이쪽만 모르게 된다), 여기 적힌 여섯은 index.html 의 선택이 아니라 **OpenGraph·Twitter
+ * 규격이 정한 이름**이다. 규격은 index.html 을 고쳐도 바뀌지 않는다.
+ *
+ * 복사하면 안 되는 것은 이름이 아니라 **값**이고, 값은 아래 STATIC_IMAGE_TAGS 가 문서에서
+ * 읽는다. 기본 카드 주소(/og-image.png)를 이 파일에 적어 두었다면 그것이야말로 이 감사의
+ * 근본 원인 — 같은 사실이 두 곳에 적혀 한쪽만 고쳐지는 것 — 을 그대로 재현하는 일이다.
+ *
+ * twitter:image 는 정적 head 에 없다. 없으면 X 는 og:image 로 물러나므로 기본 상태에서
+ * 필요가 없었고, 카드가 있는 라우트에서만 만들었다가 떠날 때 다시 지운다.
+ */
+const MANAGED_IMAGE_TAGS: ReadonlyArray<readonly ['name' | 'property', string]> = [
+  ['property', 'og:image'],
+  ['property', 'og:image:width'],
+  ['property', 'og:image:height'],
+  ['property', 'og:image:alt'],
+  ['name', 'twitter:image'],
+  ['name', 'twitter:image:alt'],
+];
+
+/**
+ * index.html 이 정적으로 달아 둔 공유 카드 — 태그 이름 → 값.
+ *
+ * STATIC_ROBOTS_TAGS 와 같은 시점, 같은 이유로 읽는다. 카드가 없는 라우트로 돌아갈 때
+ * 되돌릴 값을 이 파일이 알고 있으면 안 된다. 표에 이름이 없으면(=정적 head 에 그 태그가
+ * 없으면) 되돌릴 때 태그를 **지운다**.
+ */
+const STATIC_IMAGE_TAGS: ReadonlyMap<string, string> = readStaticImageTags();
+
+function readStaticImageTags(): ReadonlyMap<string, string> {
+  const found = new Map<string, string>();
+  if (typeof document === 'undefined') return found;
+  for (const [attr, key] of MANAGED_IMAGE_TAGS) {
+    const content = document.head
+      .querySelector<HTMLMetaElement>(`meta[${attr}="${key}"]`)
+      ?.getAttribute('content');
+    if (content != null) found.set(key, content);
+  }
+  return found;
+}
+
+/**
+ * 공유 카드를 세운다. `null` 이면 정적 기본 카드로 되돌린다.
+ *
+ * applyRobots 와 같은 구조이고, 같은 사고를 막는다: /beta 에서 심은 모집 카드가 그 다음
+ * 라우트까지 따라가면, 랜딩을 한 번 들른 방문자가 공유한 /notices 링크에 '베타 테스터
+ * 모집' 카드가 붙는다. 화면에는 아무 증상이 없고, 공유된 뒤 상대방 화면에서만 드러난다.
+ *
+ * 그래서 여기도 두 겹이다 — 훅이 도는 **모든** 라우트에서 여섯 태그를 명시적으로 쓰고,
+ * effect 정리에서도 기본 카드로 되돌린다. 다음 화면이 훅을 부르는 것을 잊었을 때 남는
+ * 값이 '범용 제품 카드'인 쪽이 '남의 라우트 카드'보다 낫다.
+ */
+function applyOgImage(image: OgImage | null): void {
+  const resolved = image ? resolveOgImage(image) : null;
+  const routeValues: Readonly<Record<string, string>> = resolved
+    ? {
+        'og:image': resolved.url,
+        'og:image:width': resolved.width,
+        'og:image:height': resolved.height,
+        'og:image:alt': resolved.alt,
+        'twitter:image': resolved.url,
+        'twitter:image:alt': resolved.alt,
+      }
+    : {};
+
+  for (const [attr, key] of MANAGED_IMAGE_TAGS) {
+    const effective = routeValues[key] ?? STATIC_IMAGE_TAGS.get(key) ?? null;
+    if (effective === null) removeMetaTag(attr, key);
+    else setMetaTag(attr, key, effective);
+  }
+}
+
 interface ResolvedMeta {
   title: string;
   description: string;
   robots: string | null;
   /** 절대 URL. `null` 이면 canonical 과 og:url 을 아예 두지 않는다(404). */
   canonical: string | null;
+  /** 라우트 전용 카드. `null` 이면 정적 head 의 기본 카드로 되돌린다. */
+  image: OgImage | null;
 }
 
 /** 실제로 <head> 를 쓰는 부분. React 와 무관하므로 테스트에서 단독으로도 부를 수 있다. */
-export function applySeoMeta({ title, description, robots, canonical }: ResolvedMeta): void {
+export function applySeoMeta({
+  title,
+  description,
+  robots,
+  canonical,
+  image,
+}: ResolvedMeta): void {
   document.title = title;
   setMetaTag('name', 'description', description);
 
   /*
    * og:* 와 twitter:* 는 제목·설명을 그대로 재사용한다. 카카오톡·페이스북·X 미리보기가
    * 라우트와 무관하게 같은 문구를 보이던 것이 문제였지, 채널별로 다른 문구가 필요한 것은
-   * 아니었다. og:image · og:type · og:site_name · twitter:card 는 라우트마다 달라질 이유가
-   * 없어 index.html 의 정적 값을 그대로 둔다(/beta 전용 카드는 ACTION-PLAN 3.4 의 몫이다).
+   * 아니었다. og:type · og:site_name · og:locale · twitter:card 는 라우트마다 달라질 이유가
+   * 없어 index.html 의 정적 값을 그대로 둔다.
    */
   setMetaTag('property', 'og:title', title);
   setMetaTag('property', 'og:description', description);
@@ -199,6 +289,7 @@ export function applySeoMeta({ title, description, robots, canonical }: Resolved
   setMetaTag('name', 'twitter:description', description);
 
   applyRobots(robots);
+  applyOgImage(image);
 
   if (canonical) {
     setLinkTag('canonical', canonical);
@@ -254,11 +345,19 @@ export function useSeoMeta(explicit?: RouteMeta): void {
     meta.canonicalPath === null ? null : canonicalUrlFor(meta.canonicalPath ?? pathname);
 
   /*
-   * 의존성은 전부 원시값이다. 호출부가 매 렌더 새 객체를 넘겨도(NOT_FOUND_META 는 모듈
-   * 상수지만 규칙으로 강제되지는 않는다) 값이 같으면 effect 가 다시 돌지 않는다.
+   * 카드만 원시값이 아니다. 나머지 넷은 값이 같으면 effect 가 다시 돌지 않지만, 이것은
+   * 참조로 비교된다 — 표에서 오는 카드는 모듈 상수라 라우트가 그대로면 참조도 그대로이고
+   * (경유지의 스프레드도 필드를 복사할 뿐 카드 객체 자체는 같은 것을 가리킨다), 인자로
+   * 받은 메타가 매 렌더 새 카드를 만드는 경우에만 effect 가 한 번 더 돈다. 그때 하는 일이
+   * 같은 값을 다시 쓰는 것이라 화면에도 head 에도 차이가 없다.
    */
+  const image = meta.image ?? null;
+
   useEffect(() => {
-    applySeoMeta({ title, description, robots, canonical });
-    return () => applyRobots(null);
-  }, [title, description, robots, canonical]);
+    applySeoMeta({ title, description, robots, canonical, image });
+    return () => {
+      applyRobots(null);
+      applyOgImage(null);
+    };
+  }, [title, description, robots, canonical, image]);
 }
