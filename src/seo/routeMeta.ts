@@ -90,31 +90,26 @@ export interface RouteMeta {
  * 그림은 scripts/og-cards.py 가 그리고, 문구가 어느 코드에서 왔는지도 그 파일에 적혀 있다.
  * 여기서는 크기와 alt 만 선언한다.
  *
- * ⚠ **프리렌더(feat/beta-prerender · PR #24)와 만나면 할 일이 있다.**
+ * ⚠ **이 카드를 읽는 곳은 둘이다.** 훅(useSeoMeta)과 /beta 프리렌더.
  *
- * 이 훅은 브라우저에서만 돈다. /beta 는 그 브랜치에서 빌드 때 dist/beta.html 로 미리
- * 그려지고, 카카오톡·페이스북 크롤러는 JS 를 실행하지 않은 그 정적 head 를 읽는다 —
- * 즉 **프리렌더 산출물의 head 에 이 카드가 들어가지 않으면 이 브랜치는 /beta 에 대해
- * 아무 효과가 없다.** 정작 카드가 필요한 단 하나의 주소에서.
+ * 훅은 브라우저에서만 돈다. 그런데 /beta 는 빌드 때 dist/beta.html 로 미리 그려지고,
+ * 카카오톡·페이스북 스크래퍼는 JS 를 실행하지 않은 그 정적 head 를 읽는다 — 즉 프리렌더
+ * 산출물의 head 에 이 카드가 들어가지 않으면 카드는 정작 필요한 단 하나의 주소에서
+ * 아무 효과가 없다. 한동안 실제로 그런 상태였다(PR #24 와 PR #28 이 형제였다).
  *
- * 그쪽 src/features/beta/prerenderDocument.ts 는 지금 og:image 를 일부러 셸에서 물려받고
- * 있고("여기서 값을 다시 박으면 그쪽이 고쳐도 이 파일만 옛 값으로 남는다"), 그 주석이
- * 가리키는 "그쪽"이 이 파일이다. 머지한 사람이 할 일:
+ * 지금은 src/features/beta/prerenderDocument.ts 가 이 표를 직접 읽는다. BETA_META 도
+ * SITE_ORIGIN 도 그쪽 지역 상수가 아니라 `ROUTE_META[ROUTES.beta]` 와 `@/seo/siteOrigin`
+ * 이고, 카드 여섯 태그의 값은 아래 resolveOgImage() 를 통과한 것 하나뿐이다. **여기를
+ * 고치면 화면과 정적 문서가 함께 바뀐다.**
  *
- *   1. prerenderDocument.ts 의 BETA_META·SITE_ORIGIN 지역 상수를 지우고
- *      `ROUTE_META[ROUTES.beta]` 와 `@/seo/siteOrigin` 을 쓴다(그 파일 29~43행의 이관 계획).
- *   2. buildBetaDocument 에 치환을 넷 더한다. 값은 반드시 이 파일의
- *      `resolveOgImage(ROUTE_META[ROUTES.beta].image!)` 에서 가져온다 — 문자열을 다시
- *      적으면 카드 주소가 두 곳에 살게 된다.
- *        meta[property=og:image]        → resolved.url
- *        meta[property=og:image:alt]    → resolved.alt
- *        meta[name=twitter:image]       → resolved.url   (셸에 없으므로 새로 넣어야 한다.
- *                                          replaceExactlyOnce 가 아니라 </head> 앞 삽입)
- *        meta[name=twitter:image:alt]   → resolved.alt   (위와 같음)
- *      og:image:width·height 는 셸의 값이 이미 1200×630 이라 그대로 두어도 맞지만, 카드
- *      크기가 바뀔 여지를 남기지 않으려면 함께 치환하는 편이 낫다.
- *   3. betaPrerender.test.ts 에 "dist/beta.html 의 og:image 가 /og/beta.png 의 절대 URL"을
- *      한 줄 더한다. 이 배선은 화면에 아무 증상도 남기지 않으므로 테스트가 유일한 감시자다.
+ * 그래서 이 파일을 고칠 때 알아야 할 것:
+ *
+ *   - path 를 바꾸면 public/ 아래 실제 파일도 함께 옮겨야 한다. ogImage.test.ts 가 표를
+ *     읽는 데서 그치지 않고 **파일을 열어** 존재·픽셀·용량을 확인한다.
+ *   - width·height 는 프리렌더가 셸의 값을 덮어쓴다. 셸의 1200×630 과 우연히 같아서
+ *     맞는 것이 아니라 이 표에서 나가는 값이라 맞는 것이다.
+ *   - image 를 아예 지우면 훅도 프리렌더도 index.html 의 범용 카드로 되돌아간다. 둘 다
+ *     같은 규칙이라 조용히 갈라질 자리가 없다.
  */
 const BETA_CARD: OgImage = {
   path: '/og/beta.png',
