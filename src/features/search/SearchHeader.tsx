@@ -107,13 +107,18 @@ export function SearchHeader() {
   const { notify } = useNotReady();
 
   /*
-   * 첨부 전수조사(파일 내 검색 · 입찰 불가 조항)와 유사도 확장은 백엔드에서 작업 중이다.
+   * 첨부 전수조사(입찰 불가 조항)와 유사도 확장은 백엔드에서 작업 중이다.
    * 로컬 색인에는 첨부 본문도 임베딩도 아직 없다.
    *
-   * 조작부는 **지우지 않고 남긴다.** 지우면 다음 웨이브에서 되살릴 자리를 잃고, 사용자도
-   * 그런 기능이 있었다는 사실을 모르게 된다. 대신 손대면 준비 중임을 알린다.
+   * 남아 있는 조작부는 **지우지 않는다.** 지우면 다음 웨이브에서 되살릴 자리를 잃고,
+   * 사용자도 그런 기능이 있었다는 사실을 모르게 된다. 대신 손대면 준비 중임을 알린다.
+   *
+   * 예외가 '파일 내' 행이다(2026-08-28 삭제). 첨부 본문 검색은 준비 중 표시를 단 채로도
+   * 키워드·품목 검색의 네 번째 줄을 차지해 왔는데, 통합 검색(`buildNoticeIndexQuery`)은
+   * 이 조건을 아예 싣지 않아 눌러도 결과가 달라지지 않는 줄이었다. 조건 계층
+   * (`criteria.fileKeywords` · `simFile` · `buildQuery` 의 `fileScan`)은 그대로 두었으므로,
+   * 백엔드에 전역 파일 필터 계약이 생기면 이 파일에 행 하나만 다시 붙이면 된다.
    */
-  const fileScanPending = { label: '첨부문서 전수조사', notify };
   const similarityPending = { label: '유사도 확장', notify };
 
   // 한 줄 입력은 확정 전까지 URL 에 올리지 않는다 — 글자마다 히스토리가 쌓이면 뒤로 가기가
@@ -201,21 +206,6 @@ export function SearchHeader() {
                 values={criteria.notTerms}
                 onChange={(notTerms) => setCriteria({ notTerms })}
                 onSubmit={(notTerms) => commitDrafts(notTerms ? { notTerms } : {})}
-              />
-              <TagInput
-                kind="file"
-                badgeLabel="파일 내"
-                placeholder="첨부 PDF·HWPX 본문 검색 — 전역 파일 필터 준비 중"
-                values={criteria.fileKeywords}
-                onChange={(fileKeywords) => setCriteria({ fileKeywords })}
-                onSubmit={(fileKeywords) => commitDrafts(fileKeywords ? { fileKeywords } : {})}
-                similarity={{
-                  checked: criteria.simFile,
-                  onChange: (simFile) => setCriteria({ simFile }),
-                  title: '규격서 본문을 대상으로 의미가 비슷한 말까지 찾습니다',
-                  notReady: similarityPending,
-                }}
-                notReady={fileScanPending}
               />
             </>
           ) : null}
