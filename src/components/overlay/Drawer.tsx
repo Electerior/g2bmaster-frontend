@@ -24,9 +24,11 @@ interface DrawerProps {
   children: ReactNode;
   /** 스크린리더용 이름. 보통 공고명. */
   label?: string;
+  /** 특정 서랍에만 적용할 시각 변형. 데이터 흐름과는 무관하다. */
+  className?: string;
 }
 
-export function Drawer({ open, onClose, children, label = '상세 정보' }: DrawerProps) {
+export function Drawer({ open, onClose, children, label = '상세 정보', className }: DrawerProps) {
   // 닫힘 요청이 들어오면 곧장 언마운트하지 않고 퇴장 애니메이션을 재생하는 동안 true.
   const [closing, setClosing] = useState(false);
 
@@ -76,7 +78,7 @@ export function Drawer({ open, onClose, children, label = '상세 정보' }: Dra
         onClick={requestClose}
       />
       <aside
-        className={closing ? 'drawer closing' : 'drawer'}
+        className={['drawer', className, closing ? 'closing' : ''].filter(Boolean).join(' ')}
         role="dialog"
         aria-modal="true"
         aria-label={label}
@@ -119,9 +121,30 @@ interface DrawerMetaProps {
   rows: readonly MetaRow[];
   /** 격자 아래에 붙는 접이식 블록들. */
   children?: ReactNode;
+  /**
+   * 기본 카드 격자는 기존 서랍을 위해 유지한다. 공고 통합 상세처럼 key-value 관계를
+   * 빠르게 훑어야 하는 화면만 의미론적인 설명 목록을 선택한다.
+   */
+  variant?: 'cards' | 'summary-list';
 }
 
-export function DrawerMeta({ rows, children }: DrawerMetaProps) {
+export function DrawerMeta({ rows, children, variant = 'cards' }: DrawerMetaProps) {
+  if (variant === 'summary-list') {
+    return (
+      <div className="drawer-meta drawer-meta--summary-list">
+        <dl className="drawer-meta-list">
+          {rows.map((row) => (
+            <div className={row.wide ? 'meta-field wide' : 'meta-field'} key={row.label}>
+              <dt className="meta-key">{row.label}</dt>
+              <dd className="meta-val">{row.value}</dd>
+            </div>
+          ))}
+        </dl>
+        {children}
+      </div>
+    );
+  }
+
   return (
     <div className="drawer-meta">
       {rows.map((row) => (

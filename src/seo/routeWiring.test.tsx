@@ -3,7 +3,7 @@
  *
  * useSeoMeta.test.tsx 는 훅 자체를 본다. 훅이 아무리 옳아도 화면이 부르지 않으면 그 라우트는
  * 여전히 index.html 의 범용 메타를 달고 나가는데, 그것은 화면에 아무 증상이 없어 눈으로는
- * 발견되지 않는다. 그래서 여기서는 AppRouter 를 그대로 태워 열다섯 주소를 한 번씩 열어 본다.
+ * 발견되지 않는다. 그래서 여기서는 AppRouter 를 그대로 태워 표의 다섯 주소를 한 번씩 열어 본다.
  * 새 라우트가 생기면 ROUTE_META 는 타입이 강제하지만 **훅 호출은 강제하지 못한다** — 그
  * 빈틈을 메우는 것이 이 파일의 존재 이유다.
  *
@@ -17,7 +17,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@/lib/apiClient', () => ({
-  // 조회는 영원히 대기시킨다 — head 만 보므로 데이터는 필요 없다(priceDb.test.tsx 와 같은 수법).
+  // 조회는 영원히 대기시킨다 — head 만 보므로 데이터는 필요 없다.
   get: vi.fn(() => new Promise(() => {})),
   post: vi.fn(() => new Promise(() => {})),
   put: vi.fn(() => new Promise(() => {})),
@@ -54,13 +54,13 @@ const { SITE_ORIGIN } = await import('./siteOrigin');
  *
  * 기다림이 필요한 이유가 있다. perf/route-code-split 이 라우트를 React.lazy 로 가르면
  * 첫 렌더는 Suspense 대체 화면이고, 그 화면은 useSeoMeta() 를 부르지 않는다. 즉 head 는
- * 아직 index.html 의 범용 메타 그대로다 — 렌더 직후에 단언하면 열다섯 주소가 전부
+ * 아직 index.html 의 범용 메타 그대로다 — 렌더 직후에 단언하면 표의 주소가 전부
  * "메타가 안 세워졌다"로 깨진다. 이 브랜치만 돌 때는 라우터가 정적 import 라 첫 렌더에
  * 이미 화면이 있어서 증상이 없고, 두 브랜치를 합쳐야 드러난다.
  *
  * 기다리는 신호는 document.title 이다. beforeEach 가 매번 빈 문자열로 지우므로,
  * 비어 있지 않다는 것은 곧 "이 라우트의 훅이 실제로 돌았다"는 뜻이다. 표에 있는
- * 열다섯과 404 모두 title 이 비지 않으므로 신호가 새지 않는다.
+ * 다섯과 404 모두 title 이 비지 않으므로 신호가 새지 않는다.
  */
 async function renderAt(path: string) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -125,7 +125,7 @@ describe('화면이 실제로 자기 라우트의 메타를 세운다', () => {
        * og:* · twitter:* 도 라우트마다 갱신돼야 한다(ACTION-PLAN 2.1). 감사가 지적한 것은
        * 제목만이 아니었다 — 아홉 화면이 document.title 을 세우는 동안 카카오톡·X·페이스북
        * 미리보기는 주소와 무관하게 같은 문구를 보이고 있었다. 공유 링크는 이 시장에서
-       * 유입 경로라, 열다섯 주소가 같은 카드를 내보내면 어느 화면을 공유해도 같은 페이지로
+       * 유입 경로라, 여러 주소가 같은 카드를 내보내면 어느 화면을 공유해도 같은 페이지로
        * 읽힌다.
        */
       expect(meta('meta[property="og:title"]')).toBe(expected.title);
@@ -166,8 +166,8 @@ describe('필터 상태는 문서가 아니다 (ACTION-PLAN 1.6)', () => {
 
   it('/notices 만의 규칙이 아니다 — 다른 화면의 쿼리도 버린다', async () => {
     // pathname 만 쓰는 규칙이라 화면과 무관하게 성립해야 한다.
-    await renderAt('/trends/product?and=GPU&page=3&sort=amount');
-    expect(canonical()).toBe(`${SITE_ORIGIN}${ROUTES.trendProduct}`);
+    await renderAt('/notices/bid-result?and=GPU&page=3&sort=amount');
+    expect(canonical()).toBe(`${SITE_ORIGIN}${ROUTES.bidResult}`);
     expect(meta('meta[property="og:url"]')).toBe(canonical());
   });
 });

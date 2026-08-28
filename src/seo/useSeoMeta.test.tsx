@@ -88,8 +88,8 @@ describe('라우트별 head', () => {
   });
 
   it('og:* 와 twitter:* 도 같은 문구를 받는다', () => {
-    renderAt(ROUTES.priceDb);
-    const { title, description: desc } = ROUTE_META[ROUTES.priceDb];
+    renderAt(ROUTES.bidResult);
+    const { title, description: desc } = ROUTE_META[ROUTES.bidResult];
     expect(attr('meta[property="og:title"]')).toBe(title);
     expect(attr('meta[property="og:description"]')).toBe(desc);
     expect(attr('meta[name="twitter:title"]')).toBe(title);
@@ -124,9 +124,9 @@ describe('canonical', () => {
   });
 
   it('og:url 이 canonical 과 같다', () => {
-    renderAt('/trends/product?and=GPU&page=3');
+    renderAt('/notices/bid-result?and=GPU&page=3');
     expect(attr('meta[property="og:url"]')).toBe(canonical());
-    expect(attr('meta[property="og:url"]')).toBe(`${SITE_ORIGIN}${ROUTES.trendProduct}`);
+    expect(attr('meta[property="og:url"]')).toBe(`${SITE_ORIGIN}${ROUTES.bidResult}`);
   });
 
   it('옛 주소의 canonical 은 /notices 다', () => {
@@ -175,7 +175,7 @@ describe('noindex 가 라우트를 넘어 새지 않는다', () => {
 
   it('화면이 언마운트되기만 해도 noindex 는 사라진다', () => {
     // 다음 화면이 훅을 부르는 것을 잊더라도 남는 값은 '색인 허용'이어야 한다.
-    const view = renderAt(ROUTES.officers);
+    const view = renderAt(ROUTES.saved);
     expect(robots()).toContain('noindex');
 
     view.unmount();
@@ -183,7 +183,7 @@ describe('noindex 가 라우트를 넘어 새지 않는다', () => {
   });
 
   it('색인 제외 라우트를 여러 번 오가도 마지막 상태가 정확하다', () => {
-    for (const path of [ROUTES.company, ROUTES.system, ROUTES.analysisLab]) {
+    for (const path of [ROUTES.saved, ROUTES.system, ROUTES.saved]) {
       const view = renderAt(path);
       expect(robots(), path).toContain('noindex');
       view.unmount();

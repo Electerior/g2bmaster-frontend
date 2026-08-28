@@ -7,6 +7,13 @@
  * 첫 번째 이유다. 검색엔진 입장에서 이 사이트는 서로 다른 내용을 가진 15개 문서가 아니라
  * 같은 설명을 단 한 문서였다.
  *
+ * ⚠ **주소는 열다섯이 아니라 다섯이다.** 이 표가 열다섯 벌로 쓰인 뒤 main 이 화면을
+ * 통합했다(PR #23) — 딜 레이더·스펙 검색·시세 DB·동향 셋·낙찰자·담당자·규격서 분석이
+ * 지워지고, 남은 주소는 /notices · /notices/bid-result · /saved · /system · /beta 다
+ * (routePaths.ts 의 ROUTES). 지워진 열 개의 메타도 함께 걷었다 — 없는 주소의 설명은
+ * 갱신되지 않는 거짓말이 된다. 감사 문서(ACTION-PLAN·findings)의 "15 routes" 는 그
+ * 통합 이전의 사실이다.
+ *
  * 표를 `Record<RoutePath, RouteMeta>` 로 못 박는 것이 이 파일의 절반이다. routePaths.ts 에
  * 라우트를 새로 추가하고 여기 메타를 빠뜨리면 **컴파일이 깨진다.** 메타가 빠졌다는 사실은
  * 화면에서 보이지 않고 배포 뒤 색인에서만 드러나므로, 사람이 기억해야 하는 규칙으로 두면
@@ -44,7 +51,7 @@ const BRAND = 'G2B Masters';
 
 /**
  * 제목의 브랜드 꼬리표. 기존 아홉 화면이 쓰던 `${화면} — G2B Masters` 형식을 그대로 잇는다
- * (붙임표는 em dash). 표에 열다섯 번 적는 대신 함수로 두어 형식이 갈라지지 않게 한다.
+ * (붙임표는 em dash). 표에 라우트 수만큼 적는 대신 함수로 두어 형식이 갈라지지 않게 한다.
  */
 function brand(page: string): string {
   return `${page} — ${BRAND}`;
@@ -53,11 +60,9 @@ function brand(page: string): string {
 /**
  * 라우트별 메타.
  *
- * description 은 ACTION-PLAN 2.1 이 여섯 개(/notices · /notices/bid-result · /spec-search ·
- * /price-db · /trends/product · /beta)의 초안을 주었다. 그중 **넷은 글자 그대로** 옮겼고
- * 둘(/spec-search · /price-db)은 버렸다 — 초안이 그 화면이 하는 일을 잘못 알고 있었기
- * 때문이고, 근거는 각 항목 위에 적어 두었다. 감사자는 화면 안을 열어 본 것이 아니라 라우트
- * 이름과 라벨을 보고 썼으므로 이름과 내용이 어긋난 두 곳에서 어긋났다.
+ * description 은 ACTION-PLAN 2.1 이 여섯 개의 초안을 주었다. 지금 살아 있는 주소에
+ * 해당하는 셋(/notices · /notices/bid-result · /beta)은 글자 그대로 옮겼다. 나머지 초안
+ * 셋(/spec-search · /price-db · /trends/product)은 그 주소가 main 에서 사라져 쓸 자리가 없다.
  *
  * 나머지는 각 화면 소스와 SCREENS 의 label 을 대조해 새로 썼다. 원칙은 하나다 —
  * **화면이 실제로 하는 일만 적는다.** description 은 검색 결과에서 클릭 여부를 정하는
@@ -78,113 +83,17 @@ export const ROUTE_META: Readonly<Record<RoutePath, RouteMeta>> = {
     description:
       '나라장터 입찰결과와 낙찰 정보를 조회합니다. 낙찰가·경쟁률·참여업체를 한 화면에서 확인하세요.',
   },
-  [ROUTES.dealRadar]: {
-    title: brand('AI 수주 데스크 · 공고별 딜 분석'),
-    description:
-      '검색된 공고마다 딜 분석을 붙여 봅니다. 예산과 시가를 견줘 남는 장사인지 가늠하고, 규격서 부품 단가까지 대조해 투찰 여부를 판단합니다.',
-  },
   [ROUTES.saved]: {
     title: brand('저장 공고'),
     description:
-      '저장해 둔 공고를 다시 찾습니다. 공고명·기관·메모는 물론 함께 저장한 가격표의 품목명으로도 검색되며, 나라장터를 다시 조회하지 않습니다.',
+      '저장해 둔 공고를 다시 찾습니다. 공고명·기관·메모로 좁혀 볼 수 있고, 나라장터를 다시 조회하지 않습니다.',
     // 사용자별 화면 — 방문자마다 내용이 다르고 로그인 없이는 빈 목록이다(ACTION-PLAN 2.1).
-    robots: NOINDEX,
-  },
-  [ROUTES.specSearch]: {
-    /*
-     * ⚠ ACTION-PLAN 2.1 의 초안을 쓰지 않았다. 초안은 이 화면을 "사전규격 공개 문서를
-     * 검색합니다"로 적었는데 **이 화면은 사전규격 화면이 아니다.** 감사자가 라우트 이름
-     * (spec-search)만 보고 넘겨짚은 것으로 보인다. 코드가 말하는 것은 다르다:
-     *
-     *  - SCREENS['spec-search'] 의 label 은 '하드웨어 스펙 검색', endpoint 는
-     *    `/api/search/titles` 다(domain/columns.ts).
-     *  - SpecSearchScreen 이 남긴 TODO 도 "CPU·GPU 제목 의미 검색(Module A) + 규격서 본문
-     *    LLM 스펙 추출(Module B)" 이다.
-     *  - 이 앱에서 사전규격은 별도 화면이 아니라 통합 검색 안의 **단계 필터**다. 옛
-     *    `/notices/pre-spec` 이 `category: '사전규격'` 을 달고 `/notices` 로 넘어간다
-     *    (routePaths.ts LEGACY_NOTICE_ROUTES). 사전규격의 정본 주소는 `/notices` 다.
-     *
-     * 초안을 그대로 달았다면 /spec-search 와 /notices 가 검색 결과에서 같은 의도를 두고
-     * 서로 경쟁했을 것이고, 클릭해서 들어온 사람은 사전규격 목록이 아닌 '준비 중' 화면을
-     * 만났을 것이다.
-     *
-     * 화면 속은 아직 ScreenPlaceholder('준비 중')다 — 그래서 마지막 문장으로 그 사실을
-     * 적는다. 없는 기능을 설명하지 않는다.
-     */
-    title: brand('하드웨어 스펙 검색'),
-    description:
-      '공고 제목에서 CPU·GPU 같은 하드웨어 사양을 찾아내고, 규격서 본문의 스펙을 뽑아 비교하는 검색 화면입니다. 현재 준비 중입니다.',
-  },
-  [ROUTES.priceDb]: {
-    /*
-     * ⚠ 여기도 ACTION-PLAN 2.1 의 초안을 쓰지 않았다. 초안은 "공공조달 단가 데이터베이스.
-     * 품목별 **낙찰 단가** 추이를 확인하고 투찰가를 산정하세요"인데, 이 화면이 다루는 것은
-     * 낙찰 단가가 아니라 **시장 시세**다.
-     *
-     * api/price.ts 첫 문단이 못을 박아 둔다: 이 계열은 나라장터를 아예 부르지 않고,
-     * 백엔드가 다나와·아이티마야·에누리에서 긁어 적재해 둔 시세(price_catalog)를 조회·수정하고
-     * AI 로 새로 적재한다. 출처 어휘(danawa/itmaya/enuri)도 공고 검색의 출처(나라장터·국방)와
-     * 다른 집합이다. 낙찰 단가는 오히려 /notices/bid-result 쪽 이야기다.
-     *
-     * 초안대로 적었다면 '낙찰 단가 조회'를 기대하고 들어온 사람이 부품 시세표를 만난다 —
-     * 검색 결과에서 약속한 것과 페이지가 주는 것이 다르면 그 자체로 순위에 불리하다.
-     */
-    title: brand('물품 시세 단가 DB'),
-    description:
-      '다나와·아이티마야·에누리에서 모은 물품 시세 카탈로그입니다. 분류·품명·모델로 단가를 찾고, 값이 달라지면 직접 고치거나 AI로 새로 적재합니다.',
-  },
-  [ROUTES.trendProduct]: {
-    title: brand('물품 발주 동향 분석'),
-    description: '물품 발주 동향 분석. 품목별·기관별 발주 규모와 시기를 데이터로 확인합니다.',
-  },
-  [ROUTES.trendService]: {
-    title: brand('용역 발주 동향 분석'),
-    description:
-      '용역 발주 동향 분석. AI·데이터·유지보수 등 용역 공고의 일자별 규모와 발주기관·키워드·계약방법 순위를 확인합니다.',
-  },
-  [ROUTES.trendConstruction]: {
-    title: brand('공사 발주 동향 분석'),
-    description:
-      '공사 발주 동향 분석. 건축·토목·전기·소방 등 공사 공고의 일자별 규모와 발주기관·키워드·계약방법 순위를 확인합니다.',
-  },
-  [ROUTES.company]: {
-    title: brand('낙찰자 조회'),
-    description:
-      '업체명으로 공공조달 낙찰 이력을 조회합니다. 낙찰 건수·금액과 낙찰률 추이, 참여했으나 떨어진 건까지 함께 봅니다.',
-    /*
-     * 색인 제외. ACTION-PLAN 1.3 이 sitemap 에서 빼면서 "internal/user-specific,
-     * should be noindex" 로 /saved · /system · /analysis-lab 과 함께 열거한 다섯 중 하나다
-     * (2.1 의 noindex 목록에는 빠져 있어 두 절이 어긋난다 — 1.3 을 따랐다).
-     *
-     * 내용으로 봐도 색인 대상이 아니다. 이 화면은 사용자가 친 업체명 하나에 대한 조회
-     * 결과이고, 검색어 없이 열면 빈 화면이다. 색인될 수 있는 문서가 아니라 조회 도구다.
-     */
-    robots: NOINDEX,
-  },
-  [ROUTES.officers]: {
-    title: brand('발주기관 담당자 조회'),
-    description:
-      '발주기관의 공고 담당자와 연락처를 조회합니다. 그 담당자가 낸 공고를 함께 묶어 보여 주어 어디로 연락할지 바로 정할 수 있습니다.',
-    /*
-     * 색인 제외. /company 와 같은 근거(ACTION-PLAN 1.3)에 더해 **개인정보 성격**이 있다.
-     * 여기 실리는 것은 공무원 담당자의 이름 · 부서 · 직통 전화 · 이메일이다. 공개된 공고에서
-     * 온 값이라 해도, 검색엔진 색인에 올라 이름으로 검색되는 순간 성격이 달라진다 —
-     * 공고를 보러 온 사람에게 보이는 것과 이름을 아는 누구에게나 보이는 것은 다르다.
-     * 이 화면은 서비스 안에서 쓰는 조회 도구지 공개 문서가 아니다.
-     */
-    robots: NOINDEX,
-  },
-  [ROUTES.analysisLab]: {
-    title: brand('규격서 업로드 분석'),
-    description:
-      '규격서와 확약서를 올려 본문에서 필요한 항목을 뽑고 위법 소지를 검토하는 업로드 분석 화면입니다. 현재 준비 중입니다.',
-    // 올린 파일 하나를 보는 화면이라 공개 색인 대상이 아니다(ACTION-PLAN 2.1).
     robots: NOINDEX,
   },
   [ROUTES.system]: {
     title: brand('시스템 상태'),
     description:
-      'DB 적재와 검색 엔진·LLM 상태, 예약 적재를 한 화면에서 확인하는 운영용 대시보드입니다. 현재 준비 중입니다.',
+      'DB 적재와 검색 엔진·LLM 상태, 예약 적재를 한 화면에서 확인하는 운영용 대시보드입니다.',
     // 운영자용 내부 화면(ACTION-PLAN 2.1).
     robots: NOINDEX,
   },

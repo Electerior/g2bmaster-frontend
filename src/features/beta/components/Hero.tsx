@@ -39,10 +39,12 @@ const Hero = forwardRef<HTMLDivElement, Props>(function Hero({ total, countdown,
           <button type="button" className="btn" onClick={onApply}>
             베타 신청하기
           </button>
-          <span className="fee0">
-            낙찰 시까지 <b>수수료 0원</b>
-          </span>
         </div>
+
+        {/* 이 페이지에서 가장 크게 읽혀야 하는 한 줄이라 CTA 줄 밖으로 뺐다. */}
+        <p className="fee0" data-hero style={d(720)}>
+          낙찰 시까지 <b>수수료 0원</b>
+        </p>
 
         <div className="countdown" data-hero style={d(780)}>
           모집 마감까지 <b>{countdown}</b>
