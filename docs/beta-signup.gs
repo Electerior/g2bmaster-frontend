@@ -1,8 +1,8 @@
 /**
  * G2B MASTERS 베타 모집 — 구글 시트 접수 엔드포인트 (Google Apps Script)
  *
- * 이 파일은 저장소에서 빌드되지 않는다. Apps Script 편집기에 붙여 넣고 웹앱으로 배포한 뒤,
- * 배포 URL 을 프론트의 VITE_BETA_SHEET_URL 에 넣어 쓴다. 설치 절차는 맨 아래 주석 참고.
+ * 레거시 참고용 파일이다. 현재 프론트는 이 스크립트를 호출하지 않고 공개 Spring API
+ * (/api/beta/status, /api/beta/signups)만 사용한다. 과거 시트 접수 방식은 맨 아래에 남겨 둔다.
  *
  * 계약은 Spring 쪽 /api/beta/* 와 같은 모양을 유지한다(docs/api-contract.md §1.1).
  *   GET  → { total, remaining, deadline, open }
@@ -341,10 +341,8 @@ function json(obj) {
    4. 배포 → 새 배포 → 유형 '웹 앱'
         - 실행 계정: 나
         - 액세스 권한: 모든 사용자        ← 랜딩이 로그인 없이 부르므로 필요하다
-   5. 나오는 URL(https://script.google.com/macros/s/…/exec)을 프론트 .env 에 넣는다
-        VITE_BETA_SHEET_URL=https://script.google.com/macros/s/…/exec
-      편집기 주소(script.google.com/home/projects/…/edit)가 아니다. 그건 코드를 여는
-      링크일 뿐이라 프론트에서 부를 수 없다.
+   5. 과거에는 나오는 URL(https://script.google.com/macros/s/…/exec)을 프론트 환경에
+      연결했다. 현재 프론트에서는 이 경로와 관련 환경 변수를 제거했다.
    6. 코드를 고치면 '배포 관리 → 편집(연필) → 버전: 새 버전'으로 다시 배포한다.
       저장만으로는 배포된 URL 의 동작이 바뀌지 않는다. '새 배포'를 누르면 URL 이 새로
       발급되어 .env 도 함께 고쳐야 하므로, 기존 배포를 편집하는 쪽이 낫다.
@@ -358,8 +356,8 @@ function json(obj) {
    알아 둘 것
 
    - 이 URL 은 공개된다. 아는 사람은 누구나 POST 할 수 있다. 허니팟·필수값·중복·길이
-     검사로 막고 있지만 결심한 공격자를 막지는 못한다. 접수 폭주가 실제로 생기면
-     Spring 뒤로 옮기는 게 맞다(그때는 .env 의 VITE_BETA_SHEET_URL 만 지우면 된다).
+     검사로 막고 있지만 결심한 공격자를 막지는 못한다. 현재 운영 경로는 Spring 뒤로
+     이동했으며 이 스크립트는 호출되지 않는다.
    - 신청자 IP 는 남기지 않는다. Apps Script 에서 클라이언트 IP 를 얻을 수 없다.
      원본 DB 스키마의 source_ip 는 이 경로에서 비어 있다.
    - 잔여 자리는 CONFIG.CAPACITY 에서 시트 행 수를 뺀 값이다. 받는 수를 늘리려면 시트가
