@@ -13,8 +13,6 @@ import { ROUTES } from '@/routes/routePaths';
 /**
  * 검색창을 감출 라우트. 시스템 대시보드는 원본에서 아예 별도 페이지(system.html)였고
  * 공고 검색과 아무 관계가 없다.
- * 업로드 분석(/analysis-lab)에서는 검색창이 남되 모드 탭만 보인다 — 그 조절은
- * searchModeLayout 이 한다(원본 setSearchMode 와 같은 규칙).
  */
 const SEARCHLESS_ROUTES: readonly string[] = [ROUTES.system];
 
@@ -38,11 +36,10 @@ export function App() {
       <main>
         {showsSearch ? <SearchHeader /> : null}
         {/*
-          탭 레일과 결과 패널은 가로로 나란히 놓인다(책 인덱스). 예전에는 둘이 세로 형제였고
-          탭이 패널 위의 가로 스트립이었는데, 탭 9개가 ~1150px 아래에서 넘치는데도 스크롤바를
-          숨긴 탓에 넘쳤다는 신호가 어디에도 없었다 — layout.css .app-shell-body 참고.
+          탭 레일과 결과 패널은 가로로 나란히 놓인다(책 인덱스). 운영 중인 조회 화면만
+          레일에 남기며, 세부 배치는 layout.css .app-shell-body 가 맡는다.
 
-          TABLESS_ROUTES(/system · /analysis-lab)에서는 AppTabs 가 null 을 내므로 패널이
+          TABLESS_ROUTES(/system)에서는 AppTabs 가 null 을 내므로 패널이
           유일한 flex 항목이 되어 자동으로 전폭을 쓴다. 분기를 따로 두지 않는 이유다.
         */}
         <div className="app-shell-body">

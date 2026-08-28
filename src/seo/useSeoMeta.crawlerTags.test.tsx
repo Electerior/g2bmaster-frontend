@@ -67,14 +67,8 @@ describe('색인 제외 라우트', () => {
     expect(content('naverbot')).toBe('noindex,follow');
   });
 
-  it('색인 제외 다섯 화면 전부에서 그렇다', () => {
-    for (const path of [
-      ROUTES.saved,
-      ROUTES.system,
-      ROUTES.analysisLab,
-      ROUTES.company,
-      ROUTES.officers,
-    ]) {
+  it('색인 제외 화면 전부에서 그렇다', () => {
+    for (const path of [ROUTES.saved, ROUTES.system]) {
       const view = renderAt(path);
       for (const name of ['robots', 'googlebot', 'naverbot']) {
         expect(content(name), `${path} 의 ${name}`).toContain('noindex');
@@ -102,7 +96,7 @@ describe('되돌리기', () => {
 
   it('화면이 언마운트되기만 해도 셋 다 되돌아간다', () => {
     // 다음 화면이 훅을 부르는 것을 잊더라도 남는 값은 '색인 허용'이어야 한다.
-    const view = renderAt(ROUTES.officers);
+    const view = renderAt(ROUTES.system);
     expect(content('googlebot')).toContain('noindex');
 
     view.unmount();

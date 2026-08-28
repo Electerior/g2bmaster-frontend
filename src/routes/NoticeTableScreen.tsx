@@ -105,9 +105,9 @@ export function NoticeTableScreen({ kind }: NoticeTableScreenProps) {
 
   /*
    * 파일 키워드는 검색창에서 막혀 있지만 조건의 출처는 URL 이다 — 예전에 공유된 링크에는
-   * 아직 `?file=...` 이 남아 있다. 지금은 백엔드에 스캔 표면이 없어 그 조건이 적용되지
-   * 않으므로, 조용히 무시하지 않고 준비 중임을 알린다. 사용자가 친 조건이 소리 없이
-   * 사라지면 "키워드를 넣었는데 왜 다 나오지" 가 된다.
+   * 아직 `?file=...` 이 남아 있다. POST 는 로컬 색인을 조회할 수 있지만 GET 후보 전체에
+   * file-only 조건을 적용하는 계약은 아직 없어 이 조건을 켜지 않는다. 조용히 무시하지 않고
+   * 준비 중임을 알린다. 사용자가 친 조건이 소리 없이 사라지면 "왜 다 나오지" 가 된다.
    */
   const fileKeywordsIgnored = !ATTACHMENT_SCAN_READY && criteria.fileKeywords.length > 0;
   useEffect(() => {
@@ -157,8 +157,7 @@ export function NoticeTableScreen({ kind }: NoticeTableScreenProps) {
   const hasKeywordQuery =
     criteria.andTerms.length > 0 ||
     criteria.orTerms.length > 0 ||
-    Boolean(criteria.insttNm) ||
-    Boolean(criteria.corpNm);
+    Boolean(criteria.insttNm);
   const wantsRetry =
     kind === 'bid-announce' &&
     criteria.activeOnly &&
@@ -190,7 +189,7 @@ export function NoticeTableScreen({ kind }: NoticeTableScreenProps) {
     items: data?.items,
     fileKeywords: criteria.fileKeywords,
     excludeBlockingClauses: criteria.excludeBlockingClauses,
-    scanBlocking: isBlockingRelevant(kind, criteria.mode),
+    scanBlocking: isBlockingRelevant(kind),
     enabled: scanMode && !pending && Boolean(data?.items?.length),
   });
 
@@ -302,8 +301,9 @@ export function NoticeTableScreen({ kind }: NoticeTableScreenProps) {
         return (
           <StatusBar
             message={
-              `📄 ${notes.join(' | ')} | ${scan.data.scanned}/${scan.data.total}건 전수조사 완료` +
-              (scan.data.cacheHits ? ` | 캐시 ${scan.data.cacheHits}건 재사용` : '')
+              `📄 ${notes.join(' | ')} | ${scan.data.scanned}/${scan.data.total}건 후보 확인` +
+              (scan.data.cacheHits ? ` | 첨부 색인 ${scan.data.cacheHits}건 조회` : '') +
+              (scan.data.notIndexed ? ` | 첨부 미색인 ${scan.data.notIndexed}건은 목록 유지` : '')
             }
           />
         );
@@ -411,7 +411,6 @@ export function NoticeTableScreen({ kind }: NoticeTableScreenProps) {
               criteria.orTerms.join(','),
               criteria.notTerms.join(','),
               criteria.insttNm,
-              criteria.corpNm,
             ].join('|')}
             empty={rows.length === 0 && !loading ? <EmptyState /> : null}
           />

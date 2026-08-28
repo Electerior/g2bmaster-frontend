@@ -1,0 +1,366 @@
+/*
+ * 통합 공고 상세 전용 배치.
+ * 공용 Drawer와 API 배선은 유지하고, 짧은 상세의 높이와 정보 위계만 이 화면에 한정해 다듬는다.
+ */
+
+.drawer.index-notice-drawer {
+  bottom: auto;
+  max-height: calc(100dvh - 32px);
+}
+
+.index-notice-drawer .drawer-header {
+  padding: 18px 22px 10px;
+  border-bottom: 0;
+}
+
+.index-notice-drawer .drawer-close {
+  background: var(--surface-2);
+  border-color: var(--panel-glass-divider);
+}
+
+.index-notice-drawer .drawer-close:focus-visible,
+.index-notice-drawer .drawer-save-btn:focus-visible,
+.index-notice-drawer .btn-g2b-link:focus-visible,
+.index-notice-drawer .attachment-list a:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.index-notice-drawer-intro {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 18px;
+  padding: 0 22px 18px;
+  border-bottom: 1px solid var(--panel-glass-divider);
+}
+
+.index-notice-drawer .drawer-title {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  font-size: 18px;
+  font-weight: 750;
+  line-height: 1.45;
+  letter-spacing: -0.015em;
+}
+
+.index-notice-drawer .drawer-actions {
+  justify-self: end;
+  padding: 0;
+  border: 0;
+}
+
+.index-notice-drawer .drawer-save-btn {
+  min-height: 38px;
+  padding: 8px 16px;
+  white-space: nowrap;
+}
+
+.index-notice-drawer .drawer-body {
+  flex: 0 1 auto;
+  gap: 18px;
+  padding: 18px 22px 22px;
+  background: var(--surface-2);
+  overscroll-behavior: contain;
+}
+
+.index-notice-meta-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 17px;
+}
+
+.index-notice-meta-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.index-notice-drawer .drawer-section-label {
+  margin: 0;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.index-notice-drawer .drawer-meta--summary-list {
+  display: block;
+  overflow: hidden;
+  padding: 0;
+  border: 1px solid var(--panel-glass-divider);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.index-notice-drawer .drawer-meta-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 20px;
+  margin: 0;
+  padding: 0 14px;
+}
+
+.index-notice-drawer .drawer-meta--summary-list .meta-field {
+  display: grid;
+  grid-template-columns: minmax(82px, 102px) minmax(0, 1fr);
+  grid-column: auto;
+  align-items: baseline;
+  min-width: 0;
+  min-height: 48px;
+  gap: 12px;
+  padding: 11px 0;
+  border: 0;
+  border-bottom: 1px solid var(--panel-glass-divider);
+  border-radius: 0;
+  background: transparent;
+}
+
+.index-notice-drawer .drawer-meta--summary-list .meta-field.wide {
+  grid-column: 1 / -1;
+}
+
+.index-notice-drawer .drawer-meta--summary-list .meta-field:only-child {
+  grid-column: 1 / -1;
+}
+
+.index-notice-drawer .meta-key {
+  margin: 0;
+  font-size: var(--fs-badge);
+  letter-spacing: 0;
+}
+
+.index-notice-drawer .meta-val {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.4;
+  font-variant-numeric: tabular-nums;
+}
+
+.index-notice-drawer .drawer-meta--summary-list > .meta-productlist {
+  padding: 13px 14px 12px;
+  border: 0;
+  border-top: 1px solid var(--panel-glass-divider);
+  border-radius: 0;
+  background: var(--surface);
+}
+
+.index-notice-drawer .meta-productlist-label {
+  margin: 0 0 5px;
+}
+
+.index-notice-drawer .meta-product-items {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.index-notice-drawer .meta-product-items li {
+  display: grid;
+  grid-template-columns: minmax(82px, 102px) minmax(0, 1fr);
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--panel-glass-divider);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.index-notice-drawer .meta-product-items li:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.index-notice-drawer .meta-product-code {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.index-notice-drawer .meta-product-name {
+  min-width: 0;
+  color: var(--text);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+/*
+ * 긴 공고에서 먼저 확인하는 네 항목. 개별 카드 대신 한 표면 안에서만 분할해 정보의 우선순위를
+ * 만들고, 아래 상세 목록과 같은 DOM 순서를 유지한다.
+ */
+.index-notice-meta-group--schedule .drawer-meta--summary-list {
+  border-top: 3px solid var(--primary);
+}
+
+.index-notice-meta-group--schedule .drawer-meta-list {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  padding: 0;
+}
+
+.index-notice-meta-group--schedule .drawer-meta--summary-list .meta-field,
+.index-notice-meta-group--schedule .drawer-meta--summary-list .meta-field.wide {
+  display: flex;
+  grid-column: auto;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  min-height: 74px;
+  gap: 5px;
+  padding: 12px 14px 13px;
+  border-right: 1px solid var(--panel-glass-divider);
+  border-bottom: 0;
+}
+
+.index-notice-meta-group--schedule .meta-field:last-child {
+  border-right: 0;
+}
+
+.index-notice-meta-group--schedule .meta-val {
+  font-size: 15px;
+  font-weight: 750;
+}
+
+.index-notice-meta-group--schedule .meta-field:last-child .meta-val {
+  color: var(--accent);
+}
+
+.index-notice-drawer .drawer-section {
+  gap: 10px;
+  padding: 15px 16px 16px;
+  border: 1px solid var(--panel-glass-divider);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.index-notice-drawer .drawer-section.tight {
+  border-top: 1px solid var(--panel-glass-divider);
+}
+
+.index-notice-drawer .drawer-summary {
+  font-size: 14px;
+  line-height: 1.75;
+}
+
+.index-notice-drawer .notice-body {
+  max-width: 72ch;
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.75;
+}
+
+.index-notice-drawer .attachment-list {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.index-notice-drawer .attachment-list a {
+  display: block;
+  padding: 9px 11px;
+  border: 1px solid var(--panel-glass-divider);
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--primary);
+  overflow-wrap: anywhere;
+}
+
+.index-notice-drawer .drawer-footer {
+  padding: 12px 22px 14px;
+}
+
+@media (max-width: 620px) {
+  .index-notice-drawer .drawer-meta-list {
+    grid-template-columns: 1fr;
+  }
+
+  .index-notice-meta-group--schedule .drawer-meta-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .index-notice-meta-group--schedule .drawer-meta--summary-list .meta-field,
+  .index-notice-meta-group--schedule .drawer-meta--summary-list .meta-field.wide {
+    border-right: 0;
+    border-bottom: 1px solid var(--panel-glass-divider);
+  }
+
+  .index-notice-meta-group--schedule .meta-field:nth-child(odd) {
+    border-right: 1px solid var(--panel-glass-divider);
+  }
+
+  .index-notice-meta-group--schedule .meta-field:nth-last-child(-n + 2) {
+    border-bottom: 0;
+  }
+}
+
+@media (max-width: 560px) {
+  .drawer.index-notice-drawer {
+    bottom: auto;
+    max-height: calc(100dvh - 16px);
+  }
+
+  .index-notice-drawer .drawer-header {
+    padding: 14px 16px 8px;
+  }
+
+  .index-notice-drawer-intro {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding: 0 16px 15px;
+  }
+
+  .index-notice-drawer .drawer-actions {
+    justify-self: start;
+  }
+
+  .index-notice-drawer .drawer-body {
+    gap: 15px;
+    padding: 15px 16px 18px;
+  }
+
+  .index-notice-meta-groups {
+    gap: 15px;
+  }
+
+  .index-notice-drawer .drawer-meta-list {
+    padding-inline: 13px;
+  }
+
+  .index-notice-drawer .drawer-meta--summary-list .meta-field,
+  .index-notice-drawer .drawer-meta--summary-list .meta-field.wide {
+    grid-column: 1 / -1;
+    min-height: 46px;
+  }
+
+  .index-notice-meta-group--schedule .drawer-meta-list {
+    padding-inline: 0;
+  }
+
+  .index-notice-meta-group--schedule .drawer-meta--summary-list .meta-field,
+  .index-notice-meta-group--schedule .drawer-meta--summary-list .meta-field.wide {
+    grid-column: auto;
+    min-height: 68px;
+  }
+
+  .index-notice-drawer .drawer-footer {
+    padding-inline: 16px;
+  }
+}
+
+@media (max-width: 360px) {
+  .index-notice-meta-group--schedule .drawer-meta-list {
+    grid-template-columns: 1fr;
+  }
+
+  .index-notice-meta-group--schedule .drawer-meta--summary-list .meta-field,
+  .index-notice-meta-group--schedule .drawer-meta--summary-list .meta-field.wide {
+    border-right: 0;
+    border-bottom: 1px solid var(--panel-glass-divider);
+  }
+
+  .index-notice-meta-group--schedule .meta-field:last-child {
+    border-bottom: 0;
+  }
+}

@@ -2,7 +2,7 @@
  * 라우트 메타 표 자체의 성질.
  *
  * 표는 `Record<RoutePath, RouteMeta>` 라 항목이 **빠지면** 컴파일이 깨진다. 하지만 타입은
- * 항목이 **비었는지**(빈 문자열), 열다섯 항목이 서로 **같은지**는 잡지 못한다 — 그리고 이
+ * 항목이 **비었는지**(빈 문자열), 항목들이 서로 **같은지**는 잡지 못한다 — 그리고 이
  * 감사가 지적한 원래 문제가 정확히 "열다섯 주소가 같은 제목·같은 설명"이었다. 타입이 못 보는
  * 그 자리를 여기서 본다.
  */
@@ -81,22 +81,18 @@ describe('라우트 메타 표', () => {
 
 describe('색인 제외 라우트', () => {
   /*
-   * 다섯 개다.
-   *  - /saved · /system · /analysis-lab : ACTION-PLAN 2.1 이 명시한 사용자별·내부 화면
-   *  - /company · /officers             : ACTION-PLAN 1.3 이 sitemap 에서 빼며 "noindex 대상"
-   *                                       으로 분류(2.1 의 목록에는 빠져 있어 두 절이 어긋난다)
+   * 둘이다 — /saved · /system, ACTION-PLAN 2.1 이 명시한 사용자별·내부 화면.
+   *
+   * 감사 시점에는 다섯이었다. 나머지 셋(/analysis-lab · /company · /officers)은 main 의
+   * '공고 중심 UI 단순화'(PR #23)가 화면째 걷어내 라우트 자체가 없어졌다. 색인 제외를
+   * 철회한 것이 아니라 색인될 주소가 사라진 것이다.
+   *
    * 목록을 여기 다시 적어 두는 이유: 새 라우트에 실수로 noindex 가 붙거나, 있던 noindex 가
    * 조용히 사라지는 것 — 둘 다 화면에는 아무 증상이 없다.
    */
-  const EXPECTED_NOINDEX: RoutePath[] = [
-    ROUTES.saved,
-    ROUTES.system,
-    ROUTES.analysisLab,
-    ROUTES.company,
-    ROUTES.officers,
-  ];
+  const EXPECTED_NOINDEX: RoutePath[] = [ROUTES.saved, ROUTES.system];
 
-  it('다섯 화면만 noindex 다', () => {
+  it('두 화면만 noindex 다', () => {
     const actual = ALL_PATHS.filter((path) => ROUTE_META[path].robots?.includes('noindex'));
     expect(actual.sort()).toEqual([...EXPECTED_NOINDEX].sort());
   });

@@ -121,7 +121,7 @@ describe('카드가 있는 라우트', () => {
 
 describe('카드가 없는 라우트는 기본 카드로 되돌아간다', () => {
   it('처음부터 카드 없는 라우트면 정적 값이 그대로다', () => {
-    renderAt(ROUTES.priceDb);
+    renderAt(ROUTES.bidResult);
     expect(prop('og:image')).toBe(DEFAULT_CARD);
     expect(prop('og:image:alt')).toBe(DEFAULT_ALT);
   });
@@ -167,13 +167,13 @@ describe('카드가 없는 라우트는 기본 카드로 되돌아간다', () =>
   });
 
   it('여러 번 오가도 마지막 상태가 정확하다', () => {
-    for (const path of [ROUTES.beta, ROUTES.dealRadar, ROUTES.beta, ROUTES.saved]) {
+    for (const path of [ROUTES.beta, ROUTES.bidResult, ROUTES.beta, ROUTES.saved]) {
       const view = renderAt(path);
       const expected = path === ROUTES.beta ? BETA_CARD : DEFAULT_CARD;
       expect(prop('og:image'), path).toBe(expected);
       view.unmount();
     }
-    renderAt(ROUTES.trendService);
+    renderAt(ROUTES.noticeSearch);
     expect(prop('og:image')).toBe(DEFAULT_CARD);
   });
 

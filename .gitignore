@@ -21,3 +21,8 @@ coverage
 # 빌드 캐시
 *.tsbuildinfo
 .vite
+
+# Claude Code 가 만드는 임시 워크트리.
+# .claude/ 를 통째로 무시하면 안 된다 — launch.json 은 추적 대상이다.
+# 여기 남은 사본을 vitest 가 같이 긁어서 무관한 실패가 섞인 적이 있다.
+.claude/worktrees/

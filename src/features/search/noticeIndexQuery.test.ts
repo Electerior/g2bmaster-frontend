@@ -33,12 +33,19 @@ describe('buildNoticeIndexQuery', () => {
     expect(buildNoticeIndexQuery(criteria({ bidType: '외자' })).division).toBe('외자');
   });
 
-  it('빈 조건은 파라미터를 아예 붙이지 않는다', () => {
+  it('빈 조건은 취소만 제외하고 나머지 빈 파라미터는 붙이지 않는다', () => {
     const query = buildNoticeIndexQuery(criteria());
+    expect(query.excludeState).toBe('취소');
     expect(query.andTerms).toBeUndefined();
     expect(query.category).toBeUndefined();
     expect(query.region).toBeUndefined();
     expect(query.activeOnly).toBeUndefined();
+  });
+
+  it('상태를 직접 고르면 기본 취소 제외를 풀고 그 상태만 요청한다', () => {
+    const query = buildNoticeIndexQuery(criteria({ noticeState: '취소' }));
+    expect(query.state).toBe('취소');
+    expect(query.excludeState).toBeUndefined();
   });
 
   it('activeOnly 는 켜졌을 때만 문자열 true 로 간다', () => {
@@ -110,7 +117,13 @@ describe('buildNoticeFacetQuery', () => {
     expect(buildNoticeFacetQuery(base, 'division').division).toBeUndefined();
     expect(buildNoticeFacetQuery(base, 'division').state).toBe('취소');
     expect(buildNoticeFacetQuery(base, 'state').state).toBeUndefined();
+    expect(buildNoticeFacetQuery(base, 'state').excludeState).toBeUndefined();
     expect(buildNoticeFacetQuery(base, 'state').division).toBe('용역');
+  });
+
+  it('상태 축 건수는 기본 취소 제외를 풀어 취소 진입 건수를 보존한다', () => {
+    expect(buildNoticeFacetQuery(criteria()).excludeState).toBe('취소');
+    expect(buildNoticeFacetQuery(criteria(), 'state').excludeState).toBeUndefined();
   });
 });
 
@@ -170,5 +183,18 @@ describe('URL 코덱 왕복', () => {
   it('예전에 공유된 active=false 주소도 여전히 꺼짐으로 읽힌다', () => {
     expect(criteriaFromParams(new URLSearchParams('active=false')).activeOnly).toBe(false);
     expect(criteriaFromParams(new URLSearchParams('active=true')).activeOnly).toBe(true);
+  });
+
+  it('삭제한 검색 모드와 전용 조건은 옛 URL에서 복원하지 않는다', () => {
+    for (const mode of ['corp', 'officer', 'upload']) {
+      const parsed = criteriaFromParams(
+        new URLSearchParams(`mode=${mode}&corp=테스트업체&brn=1234567890&officer=조달청`),
+      );
+      expect(parsed.mode).toBe('keyword');
+      const encoded = criteriaToParams(parsed).toString();
+      expect(encoded).not.toContain('corp=');
+      expect(encoded).not.toContain('brn=');
+      expect(encoded).not.toContain('officer=');
+    }
   });
 });
