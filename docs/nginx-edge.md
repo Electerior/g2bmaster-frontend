@@ -200,7 +200,88 @@ location / { proxy_pass http://192.168.219.52:5173; }   # 정적 파일이 아�
 
 ---
 
-## 6. 아직 안 한 것
+## 6. `/beta` 는 프리렌더된 정적 문서로 나간다 (ACTION-PLAN 2.2)
+
+`npm run build` 의 마지막 단계가 `dist/beta.html` 을 만든다(`scripts/prerender-beta.mjs`,
+근거와 구조는 `docs/beta-prerender.md`). 그 파일이 방문자에게 닿게 하는 조각이 여기 있다.
+
+```nginx
+location = /beta {
+    try_files /beta.html /index.html =404;
+}
+```
+
+이 블록이 없으면 `/beta` 요청은 `beta` 라는 파일도 `beta/` 라는 디렉터리도 없으므로
+`location /` 의 `try_files` 를 전부 지나 `@spa` 로 떨어지고, 거기서 빈 셸이 200 으로
+나간다. **프리렌더 PR 이 머지돼도 라이브에서 아무 일이 일어나지 않는 이유가 이것이다.**
+
+### 왜 `try_files $uri $uri.html $uri/ @spa` 가 아닌가
+
+`docs/beta-prerender.md` 는 `location /` 에 `$uri.html` 한 조각을 더하자고 제안한다.
+한 줄이라 매력적이지만, 그 한 줄은 `dist` 에 있는 **모든** `.html` 에 주소를 하나씩 더
+열어 준다. 지금 기준으로 셋이다.
+
+| 새로 열리는 주소 | 무엇이 나가나 | 왜 곤란한가 |
+|---|---|---|
+| `/index` | `dist/index.html` | 셸이 `/` 와 두 주소에서 200 — 중복 콘텐츠 |
+| `/404` | `dist/404.html` | 방금 없앤 soft 404 를 주소 하나로 되살린다 |
+| `/google9c899d4c05ca14dc` | Search Console 소유확인 파일 | 같은 내용의 두 번째 주소 |
+
+`/404` 는 특히 어긋난다. `location = /404.html { internal; }` 로 직접 열지 못하게 막아
+두었는데, `internal` 은 `.html` 이 붙은 쪽만 막는다.
+
+셋을 막으려면 `location = /index { return 301 /; }` 같은 exact match 를 셋 더 두어야
+한다. 그런데 그 목록은 `public/` 에 `.html` 이 하나 늘 때마다 사람이 따라가야 하는
+사본이다 — 이 파일이 저장소로 들어온 이유(조용히 갈라지는 사본)를 작은 규모로 다시
+만드는 것이다. 프리렌더된 주소를 한 줄씩 명시하면 "열리는 주소"와 "적어 둔 주소"가
+같아지고, 프리렌더 페이지가 늘면 줄이 는다.
+
+마지막의 `/index.html` 은 프리렌더가 돌지 않은 빌드를 위한 안전망이다. 그때 `/beta` 는
+예전처럼 셸로 나가 화면 자체는 살아 있고 본문만 빈다.
+
+### `/beta/` (끝 슬래시)
+
+`@spa` 에서 슬래시 없는 주소로 301 한다. 없으면 `/beta` 는 프리렌더 문서(34,874 B),
+`/beta/` 는 빈 셸(7,676 B)이 되어 **서로 다른 내용이 두 주소에서 200** 이다. 사이트맵도
+`routePaths.ts` 도 canonical 도 전부 슬래시 없는 `/beta` 를 가리키지만, 크롤러가 어느
+쪽을 먼저 잡을지는 정해져 있지 않다.
+
+규칙은 `/beta` 전용으로 두지 않고 앱 라우트 전체에 걸었다. `/notices` 와 `/notices/` 도
+같은 이유로 갈라져 있었고(둘 다 200 + 같은 셸), 한 줄로 함께 접힌다.
+
+### 측정
+
+저장소 설정을 스크래치 포트(18001)에 자체서명 인증서로 올리고, `origin/main` 빌드에
+`public/404.html` 을 더한 webroot 로 찍었다. 치환한 것은 `listen`·인증서 경로·`root`·
+로그 경로 넷뿐이고 나머지는 이 파일 그대로다.
+
+| 주소 | 고치기 전 | 고친 뒤 |
+|---|---|---|
+| `/beta` | 200 · 7,676 B 셸 · "연 200조" 0회 | **200 · 34,874 B · 1회** |
+| `/beta/` | 200 · 7,676 B 셸 | **301 → `/beta`** |
+| `/notices/` | 200 · 7,676 B 셸 | **301 → `/notices`** |
+| `/index` | 404 | 404 (그대로) |
+| `/404` | 404 | 404 (그대로) |
+| `/price-db` · `/analysis-lab` · `/trends/product` | 200 · 셸 | **404** (접힌 화면) |
+| `/robots.txt` · `/llms.txt` · `/google…html` | 200 | 200 (그대로) |
+| `/search` | 301 → `…:18001/notices?active=true` | **301 → `/notices?active=true`** |
+
+마지막 줄이 덤으로 나온 수정이다. nginx 는 `return 301 /경로` 에 스킴·호스트·**포트**를
+붙여 절대 URL 로 바꾼다. 라이브 포트 8001 은 Cloudflare 가 프록시하는 포트가 아니라서,
+옛 주소 301 이 링크 자산을 합치기는커녕 엣지 밖으로 안내하게 된다. `absolute_redirect off;`
+한 줄로 적어 둔 그대로 나간다.
+
+### 조용히 깨지는 자리
+
+`scripts/prerender-beta.mjs` 가 출력 이름을 바꾸면(예: `dist/beta/index.html`) nginx 는
+아무 말 없이 셸을 내보낸다. 오류도 경고도 없고, 화면은 JS 가 그리니 사람 눈에는 똑같다.
+손해는 JS 를 실행하지 않는 수집기 쪽에서만 나는데 그쪽은 아무 신호도 보내지 않는다.
+그래서 `src/test/nginxRouteSync.test.ts` 가 스크립트가 쓰는 파일 이름과 nginx 가 찾는
+이름을 대조하고, `deploy.sh` 가 배포 직후 본문 문자열을 확인한다.
+
+---
+
+## 7. 아직 안 한 것
 
 - **감사 #6 (패싯 파라미터).** `/notices?from=…&to=…&mode=item&cat=…` 의 조합은
   사실상 무한하고 전부 200 이며 self-canonical 이 없다. nginx 에서 막을 문제가

@@ -28,6 +28,7 @@ function repoFile(relative: string): string {
 
 const CONF_PATH = repoFile('../../deploy/nginx-g2b-masters.conf');
 const PAGE_404_PATH = repoFile('../../public/404.html');
+const PRERENDER_SCRIPT_PATH = repoFile('../../scripts/prerender-beta.mjs');
 
 const RAW = readFileSync(CONF_PATH, 'utf8');
 
@@ -158,7 +159,12 @@ describe('SPA 폴백 — ROUTES 의 모든 화면이 셸을 받는가', () => {
     expect(pattern.test(path)).toBe(true);
   });
 
-  it('끝의 슬래시가 붙어도 매치된다 — React Router 는 둘을 같은 라우트로 본다', () => {
+  it('끝의 슬래시가 붙어도 매치된다 — 그래야 404 가 아니라 301 로 접힌다', () => {
+    /*
+     * 슬래시가 붙은 주소는 여기서 걸러지면 안 된다. 걸러지면 `/notices/` 가 404 가
+     * 되는데, React Router 는 둘을 같은 라우트로 보므로 앱 안에서는 멀쩡한 주소다.
+     * 통과시킨 뒤 바로 아래 규칙이 슬래시 없는 쪽으로 301 한다(아래 describe 참고).
+     */
     expect(pattern.test(`${ROUTES.noticeSearch}/`)).toBe(true);
     expect(pattern.test(`${ROUTES.bidResult}/`)).toBe(true);
     expect(pattern.test(`${ROUTES.beta}/`)).toBe(true);
@@ -223,6 +229,114 @@ describe('SPA 폴백 — ROUTES 의 모든 화면이 셸을 받는가', () => {
     expect(CONF).toMatch(/error_page\s+404\s+\/404\.html\s*;/);
     // internal 이 없으면 /404.html 이 200 으로 열려 soft 404 가 주소 하나로 되살아난다.
     expect(ownDirectives(blockNamed('location = /404.html').body)).toMatch(/\binternal\s*;/);
+  });
+});
+
+/* ─── /beta 프리렌더 ──────────────────────────────────────────────────────── */
+
+describe('/beta — 프리렌더된 문서가 실제로 나가는가', () => {
+  /*
+   * 이 describe 가 잠그는 것은 "빌드 산출물 이름"과 "nginx 가 찾는 파일 이름"의 결합이다.
+   * 둘이 갈라져도 아무 데서도 오류가 나지 않는다 — /beta 는 계속 200 을 내고, 다만
+   * 내용이 34,874 B 짜리 문서가 아니라 7,676 B 짜리 빈 셸이 된다. 화면은 JS 가 그리니
+   * 사람 눈에는 똑같고, 손해는 JS 를 실행하지 않는 수집기 쪽에서만 난다. 이 사이트에서
+   * 산문이 있는 유일한 페이지이고 사이트맵 priority 가 1.0 인 주소라, 조용히 비는 것을
+   * 그대로 두면 프리렌더 작업(ACTION-PLAN 2.2) 전체가 없던 일이 된다.
+   */
+  const betaBlock = () => blockNamed(`location = ${ROUTES.beta}`);
+
+  function betaTryFiles(): string[] {
+    const matched = /try_files\s+([^;]+);/.exec(ownDirectives(betaBlock().body));
+    if (!matched) throw new Error(`\`location = ${ROUTES.beta}\` 에 try_files 가 없다`);
+    return matched[1].trim().split(/\s+/);
+  }
+
+  it('전용 location 이 있다', () => {
+    /*
+     * 없으면 /beta 는 `location /` 의 try_files 를 전부 지나 @spa 로 떨어지고 셸이
+     * 나간다. docs/beta-prerender.md 가 "이 변경만으로는 라이브에서 아무 일도 일어나지
+     * 않는다"고 적어 둔 자리가 여기다.
+     */
+    expect(() => betaBlock()).not.toThrow();
+  });
+
+  it('셸보다 프리렌더 산출물을 먼저 찾는다', () => {
+    const files = betaTryFiles();
+    expect(files[0]).toBe(`${ROUTES.beta}.html`);
+    // 프리렌더가 돌지 않은 빌드에서도 화면은 살아 있어야 한다 — 뒤에 셸을 둔다.
+    expect(files).toContain('/index.html');
+    expect(files[files.length - 1]).toBe('=404');
+  });
+
+  it('프리렌더 스크립트가 쓰는 파일 이름과 nginx 가 찾는 이름이 같다', () => {
+    /*
+     * scripts/prerender-beta.mjs 가 출력 이름을 바꾸면(예: dist/beta/index.html) nginx 는
+     * 아무 말 없이 셸을 내보낸다. 그 조합을 여기서 깨뜨린다.
+     */
+    const script = readFileSync(PRERENDER_SCRIPT_PATH, 'utf8');
+    const fileName = betaTryFiles()[0].replace(/^\//, '');
+    expect(script).toContain(`'${fileName}'`);
+  });
+
+  it('@spa 목록에도 남아 있다 — /beta/ 를 알아봐야 한다', () => {
+    // 전용 location 이 /beta 를 먼저 집지만, 끝 슬래시가 붙은 쪽은 @spa 로 온다.
+    expect(spaRoutePaths()).toContain(ROUTES.beta);
+  });
+});
+
+/* ─── 끝 슬래시 · 리다이렉트 형식 ──────────────────────────────────────────── */
+
+describe('끝 슬래시 — 한 화면이 두 주소로 200 이 되지 않게', () => {
+  /** `location @spa` 의 끝 슬래시 301 규칙을 꺼내 그대로 적용한다. */
+  function normalize(uri: string): string | null {
+    const spa = blockNamed('location @spa');
+    const rule = /\$uri\s*~\s*'([^']+)'\s*\)\s*\{\s*return\s+301\s+([^;]+);/.exec(spa.body);
+    if (!rule) throw new Error('`location @spa` 에 끝 슬래시 301 규칙이 없다');
+
+    const matched = new RegExp(rule[1]).exec(uri);
+    if (!matched) return null;
+    return rule[2].trim().replace('$1', matched[1]).replace('$is_args$args', '');
+  }
+
+  it.each(Object.values(ROUTES))('%s/ 가 슬래시 없는 주소로 301 된다', (path) => {
+    /*
+     * /beta 에서 이것이 특히 중요하다. 슬래시 없는 쪽은 프리렌더 문서를, 붙은 쪽은
+     * 빈 셸을 내므로 **서로 다른 내용이 두 주소에서 200** 이 된다. 사이트맵과
+     * canonical 이 가리키는 것은 슬래시 없는 쪽 하나뿐이다.
+     */
+    expect(normalize(`${path}/`)).toBe(path);
+  });
+
+  it('슬래시가 없는 주소는 건드리지 않는다', () => {
+    expect(normalize(ROUTES.noticeSearch)).toBeNull();
+  });
+
+  it('쿼리스트링을 넘겨준다', () => {
+    // `return` 은 rewrite 와 달리 인자를 붙여 주지 않는다 — 빠뜨리면 조건이 사라진다.
+    expect(blockNamed('location @spa').body).toContain('$1$is_args$args');
+  });
+
+  it('404 판정이 끝 슬래시 규칙보다 먼저다', () => {
+    /*
+     * 뒤로 가면 없는 주소 `/nope/` 가 301 한 번을 거친 뒤에야 404 가 된다 — 왕복이
+     * 늘고 크롤 로그에 없는 주소가 리다이렉트 체인으로 남는다.
+     */
+    const body = blockNamed('location @spa').body;
+    expect(body.indexOf('return 404')).toBeLessThan(body.indexOf('return 301'));
+  });
+});
+
+describe('리다이렉트 Location', () => {
+  it('absolute_redirect 가 꺼져 있다 — Location 에 포트가 붙지 않게', () => {
+    /*
+     * nginx 는 `return 301 /경로` 에 스킴·호스트·포트를 붙여 절대 URL 로 바꾼다.
+     * 실제로 찍으면 `Location: https://g2b-masters.electerior.co.kr:8001/notices?…`
+     * 가 나가는데, 8001 은 Cloudflare 가 프록시하는 포트가 아니라서 옛 주소 301 이
+     * 링크 자산을 합치기는커녕 엣지 밖으로 안내하게 된다.
+     */
+    expect(ownDirectives(serverWith(/ssl_certificate\s/).body)).toMatch(
+      /absolute_redirect\s+off\s*;/,
+    );
   });
 });
 
