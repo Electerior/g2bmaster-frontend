@@ -32,12 +32,19 @@
       배경이 비치는 홈이 생기기 때문이다. 둥글리기는 그것을 원하는 쪽(iOS·안드로이드)이
       각자 한다.
 
+      **아이콘의 색을 여기서 다시 정하지 마라.** 바탕색은 아래 theme-color 와 같은 값이고,
+      mask-icon 의 color 속성과 site.webmanifest 의 theme_color 도 같은 값이어야 한다 —
+      설치된 앱에서 상단 크롬과 아이콘 바탕이 다른 색이면 한 화면에서 어긋나 보인다.
+      그래서 값을 네 곳에 복사해 두는 대신 시험이 넷을 묶는다. 실제로 팔레트가 한 번
+      갈렸을 때(#1f56a7 → #32373b) 그 시험이 아이콘만 옛 색으로 남는 것을 막았다.
+      theme-color 를 바꾸려면 public/ 의 래스터도 같이 다시 만들어야 한다.
+
       선언과 실물의 일치는 src/test/appIcons.test.ts 가 잠근다.
     -->
     <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48" />
     <link rel="icon" type="image/svg+xml" href="/icon.svg" sizes="any" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180" />
-    <link rel="mask-icon" href="/mask-icon.svg" color="#1f56a7" />
+    <link rel="mask-icon" href="/mask-icon.svg" color="#32373b" />
     <link rel="manifest" href="/site.webmanifest" />
 
     <!--
