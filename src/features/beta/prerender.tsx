@@ -33,10 +33,11 @@ import { renderToString } from 'react-dom/server';
 import { StaticRouter } from 'react-router-dom/server';
 import { QueryClient } from '@tanstack/react-query';
 import { BetaStandalone } from './standalone';
-import { BETA_META } from './prerenderDocument';
+import { BETA_PATH } from './prerenderDocument';
 
 export {
   BETA_META,
+  BETA_PATH,
   BETA_URL,
   SITE_ORIGIN,
   buildBetaDocument,
@@ -63,7 +64,7 @@ export function renderBetaBody(): string {
   });
 
   return renderToString(
-    <StaticRouter location={BETA_META.path}>
+    <StaticRouter location={BETA_PATH}>
       <BetaStandalone queryClient={queryClient} />
     </StaticRouter>,
   );

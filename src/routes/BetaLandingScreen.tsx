@@ -27,9 +27,18 @@ import {
   useReveal,
   useScrollFx,
 } from '@/features/beta/useLandingMotion';
+import { useSeoMeta } from '@/seo/useSeoMeta';
 import '@/features/beta/landing.css';
 
 export function BetaLandingScreen() {
+  /*
+   * 이 화면에는 지금껏 전용 제목이 없었다 — 셸 밖에 있어 document.title 을 세우는 아홉 화면
+   * 어디에도 속하지 않았기 때문이다. 그래서 이 사이트에서 유일하게 랜딩 페이지 구실을 하는
+   * 주소가 index.html 의 범용 제목·설명을 그대로 달고 검색 결과에 나갔다. 셸 밖이라는 사실이
+   * 여기서는 아무 문제가 되지 않는다: 이 훅은 프로바이더가 아니라 useLocation 만 쓴다.
+   */
+  useSeoMeta();
+
   const rootRef = useRef<HTMLDivElement>(null);
   const heroInnerRef = useRef<HTMLDivElement>(null);
   const applyRef = useRef<HTMLElement>(null);

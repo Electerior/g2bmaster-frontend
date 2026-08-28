@@ -182,6 +182,19 @@ describe('index.html SEO 블록', () => {
     expect(ogImage()).toMatch(/\.(png|jpe?g)$/i);
   });
 
+  it('셸의 카드는 범용 카드다 — 라우트 전용 카드가 새어 들어오지 않는다', () => {
+    /*
+     * 셸의 head 는 전용 메타가 없는 **모든** 라우트가 물려받는 값이다. 여기에 /beta 의
+     * 모집 카드가 들어가면 앱 화면 어디를 공유해도 '베타 테스터 모집' 미리보기가 붙는다 —
+     * 화면에는 아무 증상이 없고 남의 대화방에서만 드러나는 종류다.
+     *
+     * /beta 는 반대 방향으로 처리한다. 셸을 고치는 것이 아니라 프리렌더가 자기 문서에서만
+     * 갈아 끼운다(src/features/beta/prerenderDocument.ts · betaPrerender.test.tsx).
+     */
+    expect(ogImage()).toBe(`${PROD_ORIGIN}/og-image.png`);
+    expect(html).not.toContain('/og/beta.png');
+  });
+
   it('JSON-LD 가 유효한 JSON 으로 파싱된다', () => {
     // 손으로 고치는 블록이라 쉼표 하나로 깨진다. 깨지면 구조화 데이터가 통째로 무시된다.
     expect(() => jsonLdGraph()).not.toThrow();
