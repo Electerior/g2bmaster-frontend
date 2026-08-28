@@ -249,12 +249,36 @@ describe('/beta 프리렌더 — 문서 조립', () => {
    * 형태여야 하고, 산출 파일을 dist/beta/index.html 이 아니라 dist/beta.html 로 낸 이유도
    * 이것이다(디렉터리로 내면 서버가 /beta/ 를 서빙한다). docs/beta-prerender.md 참고.
    */
-  it('canonical·hreflang·og:url 이 모두 정확히 https://…/beta 다', () => {
+  it('canonical·og:url 이 모두 정확히 https://…/beta 다', () => {
     expect(BETA_URL).toBe('https://g2b-masters.electerior.co.kr/beta');
     expect(html).toContain(`<link rel="canonical" href="${BETA_URL}" />`);
-    expect(html).toContain(`<link rel="alternate" hreflang="ko-KR" href="${BETA_URL}" />`);
     expect(html).toContain(`<meta property="og:url" content="${BETA_URL}" />`);
     expect(html).not.toContain(`${BETA_URL}/"`);
+  });
+
+  /*
+   * hreflang 은 결과물에 **없어야 한다.** 단일 로케일 사이트에서 대안이 하나뿐인 hreflang 은
+   * 신호가 0 이고, 셸에 남아 있으면 14개 주소가 "내 ko-KR 대안은 사이트 루트"라고 선언하는
+   * 자기참조 위반이 된다(findings/hreflang.md). fix/seo-hreflang-drop 이 셸에서 지웠고,
+   * 여기서는 그 브랜치가 아직 안 들어온 상태에서 이 단계가 돌더라도 결과가 같도록
+   * 프리렌더가 직접 걷어낸다.
+   *
+   * 아래는 두 가지를 함께 본다: 셸에 태그가 있든 없든 산출물에는 없다는 것.
+   *
+   * 문자열 'hreflang' 이 아니라 **태그**를 찾는다. 셸의 <head> 주석이 그 낱말을 설명문에
+   * 쓰고 있어서(왜 지웠는지가 거기 적혀 있다) 단순 포함 검사로는 주석에 걸린다.
+   */
+  const HREFLANG_TAG = /<link[^>]*\bhreflang\b[^>]*>/;
+
+  it('hreflang 은 셸에 있든 없든 결과물에 남지 않는다', () => {
+    expect(html).not.toMatch(HREFLANG_TAG);
+
+    const shellWithTag = SHELL.replace(
+      '<link rel="canonical"',
+      '<link rel="alternate" hreflang="ko-KR" href="https://g2b-masters.electerior.co.kr/" />\n    <link rel="canonical"',
+    );
+    expect(shellWithTag).toMatch(HREFLANG_TAG);
+    expect(buildBetaDocument({ shell: shellWithTag, body: '<p>본문</p>' })).not.toMatch(HREFLANG_TAG);
   });
 
   it('본문과 표식이 #root 안으로 들어간다', () => {
