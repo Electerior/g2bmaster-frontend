@@ -24,6 +24,7 @@ import { QueryClient } from '@tanstack/react-query';
 import { BrowserRouter } from 'react-router-dom';
 import { act } from '@testing-library/react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { FALLBACK_STATUS } from '@/features/beta/landing.config';
 import { BetaStandalone } from '@/features/beta/standalone';
 import { renderBetaBody } from '@/features/beta/prerender';
 import {
@@ -154,8 +155,19 @@ describe('/beta 프리렌더 — 시각에 의존하는 값', () => {
   });
 
   it('잔여 자리는 서버 응답이 아니라 대체값의 출발점(정원)에서 시작한다', () => {
-    // useCountDown 은 정원에서 출발해 실제 잔여까지 굴러떨어진다. 첫 렌더는 정원이다.
-    expect(body).toContain('잔여 <b>50<!-- -->개사</b>');
+    /*
+     * useCountUp 은 정원에서 출발해 실제 잔여까지 굴러떨어진다. 첫 렌더는 정원이다.
+     *
+     * 정원 값을 **여기 적지 않고 설정에서 읽는다.** 처음에는 50 을 문자열로 박아 뒀는데,
+     * 그 사이 랜딩이 정원을 20 으로 줄이면서(feat/price-ui 의 "베타 랜딩 — 정원 20개사")
+     * 이 시험만 옛 숫자를 들고 남아 깨졌다. 값이 두 곳에 있으면 언젠가 갈라진다는 것이
+     * 이 감사 전체의 주제다 — 시험이라고 예외가 아니다.
+     *
+     * 이 시험이 지키려는 것은 숫자 20 이 아니라 **"서버 응답이 아니라 대체값에서 출발한다"**는
+     * 규칙이다. 프리렌더 시점에는 /api/beta 응답이 없으므로 그것이 유일하게 옳은 출발점이고,
+     * 브라우저의 첫 렌더도 같은 값이라 이어받기가 어긋나지 않는다.
+     */
+    expect(body).toContain(`잔여 <b>${FALLBACK_STATUS.total}<!-- -->개사</b>`);
   });
 });
 
