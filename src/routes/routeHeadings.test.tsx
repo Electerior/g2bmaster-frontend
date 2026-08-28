@@ -143,15 +143,22 @@ const HEADINGS = 'h1, h2, h3, h4, h5, h6';
  * 고정된 틱 수를 흘려 보내면 안 된다 — 파일 하나만 돌릴 때는 한 틱으로 충분하지만 전체
  * 스위트에서는 트렌드 소제목 여섯 개가 아직 없는 채로 단언에 도달한다(실제로 그렇게 깨졌다).
  * 제목 개수가 두 번 연속 같아질 때까지 기다리는 편이 화면 사정에 기대지 않아 안전하다.
+ *
+ * **0 은 안정이 아니다.** 라우트가 React.lazy 로 갈리면(perf/route-code-split) 첫 렌더는
+ * Suspense 대체 화면이고 거기엔 제목이 하나도 없다. "두 번 연속 같다"만 보면 0 === 0 이
+ * 성립해 화면이 뜨기도 전에 통과하고, 단언은 빈 배열을 받아 깨진다. 이 브랜치만 돌릴 때는
+ * 라우터가 아직 정적 import 라 증상이 없어서, 통합해 보기 전에는 드러나지 않는 종류다.
+ * 그래서 "하나 이상이면서 안정"을 기다린다 — 코드 스플릿이 있든 없든 같은 뜻이 된다.
+ * (제목이 0 개인 라우트는 없다. 그것이 바로 이 파일이 잠그는 규칙이다.)
  */
 async function renderSettled(pathname: string) {
   const utils = renderAt(pathname);
   let previous = -1;
   await waitFor(() => {
     const now = utils.container.querySelectorAll(HEADINGS).length;
-    const settled = now === previous;
+    const settled = now > 0 && now === previous;
     previous = now;
-    expect(settled, `${pathname}: 제목이 아직 늘고 있다`).toBe(true);
+    expect(settled, `${pathname}: 제목이 아직 없거나 늘고 있다`).toBe(true);
   });
   return utils;
 }
