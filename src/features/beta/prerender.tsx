@@ -32,6 +32,8 @@
 import { renderToString } from 'react-dom/server';
 import { StaticRouter } from 'react-router-dom/server';
 import { QueryClient } from '@tanstack/react-query';
+import { ROUTES } from '@/routes/routePaths';
+import { routeSchemaScriptTag } from '@/seo/routeSchema';
 import { BetaStandalone } from './standalone';
 import { BETA_META } from './prerenderDocument';
 
@@ -44,6 +46,27 @@ export {
   PRERENDER_MARKER,
   PRERENDER_MARKER_VALUE,
 } from './prerenderDocument';
+
+/**
+ * 프리렌더된 /beta 의 head 에 들어갈 라우트별 JSON-LD.
+ *
+ * 별도 export 로 두는 이유가 둘이다.
+ *
+ * 하나, **크롤러가 읽는 것은 이 문자열뿐이다.** useSeoMeta 는 브라우저에서만 돌고 /beta 는
+ * 빌드 때 dist/beta.html 로 미리 그려진다. 카카오톡·구글 크롤러가 JS 없이 읽는 그 정적
+ * head 에 노드가 들어가지 않으면, 이 브랜치는 정작 구조화 데이터가 가장 필요한 단 하나의
+ * 주소에서 아무 효과가 없다.
+ *
+ * 둘, 값을 여기서 만들지 않는다. `@/seo/routeSchema` 가 ROUTE_META 에서 조립한 것을
+ * 그대로 통과시킨다 — 프리렌더가 자기 문자열을 따로 만드는 순간 같은 사실이 두 곳에
+ * 살게 되고, 그것이 이 감사의 근본 원인이었다(prerenderDocument.ts 머리 주석의 "왜 셸을
+ * 베끼나" 문단과 같은 이야기다).
+ *
+ * `null` 이 될 수 없는 값이지만 타입은 `string | null` 이다. /beta 가 어떤 이유로든
+ * 스키마 대상에서 빠지면 여기서 조용히 빈 문자열이 나가는 대신 스크립트가 멈춰야 한다 —
+ * 판단은 부르는 쪽(scripts/prerender-beta.mjs)에 맡긴다.
+ */
+export const BETA_SCHEMA_SCRIPT: string | null = routeSchemaScriptTag(ROUTES.beta);
 
 /**
  * #root 안쪽에 들어갈 마크업.

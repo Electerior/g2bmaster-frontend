@@ -13,6 +13,7 @@
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { metaForPath, NOT_FOUND_META, type RouteMeta } from './routeMeta';
+import { ROUTE_SCHEMA_ATTR, routeSchemaJsonFor } from './routeSchema';
 import { canonicalUrlFor } from './siteOrigin';
 
 /**
@@ -174,16 +175,62 @@ function applyRobots(value: string | null): void {
   }
 }
 
+/**
+ * 라우트별 JSON-LD 를 세운다. `null` 이면 아무 노드도 남기지 않는다.
+ *
+ * **여기가 applyRobots 보다 더 조심할 곳이다.** 저쪽 주석이 "심는 것보다 지우는 것이
+ * 중요하다"고 적어 둔 그 사고가 JSON-LD 에서는 한 단계 더 나쁘게 끝난다. noindex 가 새면
+ * 남는 것은 틀린 지시 하나지만, WebPage 노드가 새면 문서 하나가 **자기가 아닌 주소를
+ * 자기라고 주장한다** — /notices 를 들렀다 /beta 로 간 크롤러가 보는 head 에는
+ * `"url": ".../notices"` 라고 적힌 노드가 canonical(/beta)과 나란히 있게 된다. 누적되면
+ * 한 문서가 여러 페이지를 동시에 주장하고, 그 상태에서 무엇이 색인되는지는 아무도 모른다.
+ *
+ * 그래서 세 겹으로 막는다.
+ *  1) 쓰기 전에 **이 훅이 심은 태그를 전부 지운다.** 하나를 갱신하는 게 아니라 지우고 다시
+ *     만든다 — 어쩌다 둘이 생겨도 다음 라우트에서 반드시 하나로 돌아온다.
+ *  2) 스키마가 없는 라우트(noindex · 경유지 · 404)에서는 지우기만 하고 만들지 않는다.
+ *     "값 없음"이 아니라 "없는 것이 정답"이다.
+ *  3) effect 정리에서도 지운다. 다음 화면이 이 훅을 부르는 것을 잊었을 때 남는 값이
+ *     '라우트별 노드 없음'이어야 한다 — 셸의 정적 노드 넷은 모든 주소에서 참이므로,
+ *     라우트별 노드만 사라지면 문서는 여전히 옳다. 두 실패 방향 중 덜 위험한 쪽이다.
+ *
+ * 셸의 정적 <script type="application/ld+json"> 은 **절대 건드리지 않는다.** 선택자에
+ * `[data-route-schema]` 가 붙어 있어 이 코드가 만든 태그만 잡힌다. 프리렌더된 /beta 가
+ * 같은 표식으로 미리 심어 둔 태그도 그래서 여기서 자기 것으로 인식돼 정리된다.
+ */
+function applyRouteSchema(json: string | null): void {
+  for (const tag of document.head.querySelectorAll(
+    `script[type="application/ld+json"][${ROUTE_SCHEMA_ATTR}]`,
+  )) {
+    tag.remove();
+  }
+  if (json === null) return;
+
+  const tag = document.createElement('script');
+  tag.type = 'application/ld+json';
+  tag.setAttribute(ROUTE_SCHEMA_ATTR, '');
+  tag.textContent = json;
+  document.head.appendChild(tag);
+}
+
 interface ResolvedMeta {
   title: string;
   description: string;
   robots: string | null;
   /** 절대 URL. `null` 이면 canonical 과 og:url 을 아예 두지 않는다(404). */
   canonical: string | null;
+  /** 라우트별 JSON-LD(직렬화된 문자열). `null` 이면 라우트별 노드를 두지 않는다. */
+  schema: string | null;
 }
 
 /** 실제로 <head> 를 쓰는 부분. React 와 무관하므로 테스트에서 단독으로도 부를 수 있다. */
-export function applySeoMeta({ title, description, robots, canonical }: ResolvedMeta): void {
+export function applySeoMeta({
+  title,
+  description,
+  robots,
+  canonical,
+  schema,
+}: ResolvedMeta): void {
   document.title = title;
   setMetaTag('name', 'description', description);
 
@@ -199,6 +246,7 @@ export function applySeoMeta({ title, description, robots, canonical }: Resolved
   setMetaTag('name', 'twitter:description', description);
 
   applyRobots(robots);
+  applyRouteSchema(schema);
 
   if (canonical) {
     setLinkTag('canonical', canonical);
@@ -254,11 +302,28 @@ export function useSeoMeta(explicit?: RouteMeta): void {
     meta.canonicalPath === null ? null : canonicalUrlFor(meta.canonicalPath ?? pathname);
 
   /*
+   * 라우트별 JSON-LD.
+   *
+   * **explicit 메타가 아니라 pathname 으로 찾는다.** 스키마는 "이 주소는 이런 문서다"라는
+   * 진술이라 주소가 정하는 것이고, routeSchema 쪽이 표에 없는 주소·경유지·noindex 를 전부
+   * 걸러 `null` 을 준다(그 파일의 isSchemaRoute 주석). 404 가 인자로 넘기는 NOT_FOUND_META
+   * 도 여기서는 자동으로 아무 노드도 만들지 않는다.
+   *
+   * 객체가 아니라 **문자열**인 것이 요점이다. 아래 의존성 배열은 Object.is 로 비교하므로
+   * 객체를 넣으면 렌더마다 새 참조가 되어 effect 가 매번 다시 돈다. 직렬화 비용은 노드
+   * 둘짜리 그래프라 무시할 수준이고, 어차피 태그에 들어갈 형태다.
+   */
+  const schema = routeSchemaJsonFor(pathname);
+
+  /*
    * 의존성은 전부 원시값이다. 호출부가 매 렌더 새 객체를 넘겨도(NOT_FOUND_META 는 모듈
    * 상수지만 규칙으로 강제되지는 않는다) 값이 같으면 effect 가 다시 돌지 않는다.
    */
   useEffect(() => {
-    applySeoMeta({ title, description, robots, canonical });
-    return () => applyRobots(null);
-  }, [title, description, robots, canonical]);
+    applySeoMeta({ title, description, robots, canonical, schema });
+    return () => {
+      applyRobots(null);
+      applyRouteSchema(null);
+    };
+  }, [title, description, robots, canonical, schema]);
 }

@@ -84,7 +84,8 @@ async function main() {
   });
 
   const entry = pathToFileURL(path.join(SSR_OUT, 'beta-prerender.mjs')).href;
-  const { renderBetaBody, buildBetaDocument, countVisibleWords } = await import(entry);
+  const { renderBetaBody, buildBetaDocument, countVisibleWords, BETA_SCHEMA_SCRIPT } =
+    await import(entry);
 
   // 2) 본문.
   const body = renderBetaBody();
@@ -117,11 +118,29 @@ async function main() {
    * 받지는 않지만, 같은 링크가 두 줄 있는 문서는 다음 사람에게 "왜 둘이지"를 묻게 한다.
    */
   const alreadyInShell = (file) => shell.includes(`/${file}`);
+
+  /*
+   * 라우트별 JSON-LD(@/seo/routeSchema). 셸의 정적 그래프는 모든 주소에서 참인 것만 담고
+   * 있어서 "이 문서가 무엇인지"는 아무 데도 없다 — 그 문장을 말할 수 있는 유일한 자리가
+   * 주소를 아는 곳이고, /beta 에서는 브라우저가 아니라 **여기**다. 훅은 JS 가 돌아야
+   * 도는데 이 페이지를 읽는 크롤러는 대개 그 전에 head 를 읽고 만다.
+   *
+   * 없으면 던진다. 조용히 빠지면 dist/beta.html 은 멀쩡해 보이고 노드만 사라지는데,
+   * 그 종류의 결함이 감사가 나올 때까지 발견되지 않았던 것이다.
+   */
+  if (!BETA_SCHEMA_SCRIPT) {
+    throw new Error(
+      '[prerender:/beta] /beta 의 라우트별 JSON-LD 가 비어 있습니다. src/seo/routeSchema.ts 의 ' +
+        'isSchemaRoute 가 /beta 를 제외했거나 ROUTE_META 에서 빠졌는지 확인하세요.',
+    );
+  }
+
   const headExtras = [
     ...css.filter((file) => !alreadyInShell(file)).map((file) => `<link rel="stylesheet" href="/${file}" />`),
     ...js
       .filter((file) => !alreadyInShell(file))
       .map((file) => `<link rel="modulepreload" crossorigin href="/${file}" />`),
+    BETA_SCHEMA_SCRIPT,
   ];
 
   const html = buildBetaDocument({ shell, body, headExtras });
