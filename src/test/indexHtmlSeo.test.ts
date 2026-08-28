@@ -57,8 +57,18 @@ function captureOne(pattern: RegExp, label: string): string {
 
 const canonicalHref = () =>
   captureOne(/<link[^>]*rel="canonical"[^>]*href="([^"]+)"/, 'rel="canonical"');
-const hreflangHref = () =>
-  captureOne(/<link[^>]*hreflang="[^"]+"[^>]*href="([^"]+)"/, 'hreflang 대체 링크');
+/**
+ * hreflang 대체 링크를 알아보는 패턴.
+ *
+ * captureOne 이 아니라 패턴 그대로인 데 뜻이 있다 — 이제 이 파일이 hreflang 에 대해 지키는
+ * 것은 "값이 맞는가"가 아니라 "**한 줄도 없는가**"이고, 없는 것을 확인하는 데 "못 찾으면
+ * 터뜨린다"는 도우미를 쓸 수는 없다.
+ *
+ * index.html 의 산문 주석은 왜 지웠는지를 길게 설명하면서도 지워진 태그를 `<link …>` 통째로
+ * 예시로 적지 않는다 — 적으면 그 설명이 이 패턴에 걸려 자기 시험을 깬다. RETIRED_HOST_MARKER
+ * 와 같은 규칙이다. 예시를 적고 싶어졌다면 이 패턴을 느슨하게 만들지 말고 주석 쪽을 고쳐라.
+ */
+const HREFLANG_LINK = /<link[^>]*hreflang=/i;
 const ogUrl = () => captureOne(/<meta[^>]*property="og:url"[^>]*content="([^"]+)"/, 'og:url');
 // property="og:image" 뒤의 닫는 따옴표까지 요구하므로 og:image:width 등에는 걸리지 않는다.
 const ogImage = () => captureOne(/<meta[^>]*property="og:image"[^>]*content="([^"]+)"/, 'og:image');
@@ -138,10 +148,31 @@ describe('index.html SEO 블록', () => {
     expect(canonicalHref()).toBe(`${PROD_ORIGIN}/`);
   });
 
-  it('hreflang·og:url·og:image 가 모두 프로덕션 오리진을 가리킨다', () => {
-    expect(hreflangHref().startsWith(`${PROD_ORIGIN}/`)).toBe(true);
+  it('og:url·og:image 가 프로덕션 오리진을 가리킨다', () => {
+    // 원래 이 시험은 hreflang 까지 셋을 함께 봤다. hreflang 은 지워졌으므로 여기서 빠지고,
+    // '없어야 한다'는 별도 시험으로 바로 아래에 남는다 — 항목이 줄어든 게 아니라 뒤집혔다.
     expect(ogUrl().startsWith(`${PROD_ORIGIN}/`)).toBe(true);
     expect(ogImage().startsWith(`${PROD_ORIGIN}/`)).toBe(true);
+  });
+
+  it('hreflang 대체 링크가 한 줄도 없다 — 단일 로케일이라 되살리면 안 된다', () => {
+    /*
+     * 이 단언은 **뒤집힌 것이지 지워진 것이 아니다.** 전에는 "hreflang 이 프로덕션 오리진을
+     * 가리킨다"였고, 감사(findings/hreflang.md)의 결론은 고치지 말고 지우라는 것이었다.
+     *
+     * 이유 둘.
+     *  (1) 이 사이트는 단일 로케일이다 — i18n 의존성도 `/en/` 라우트도 로케일 전환기도 없다.
+     *      hreflang 은 대안 판본 사이를 갈라 주는 태그라, 대안이 없으면 완벽히 써도 신호가 0 이다.
+     *  (2) 신호 0 에서 끝나지 않는다. 정적 셸 하나가 15개 주소에 나가므로 href 가 사이트
+     *      루트인 한 줄은 나머지 열넷에서 자기참조 위반이 된다. 호스트 일괄 치환이 없던
+     *      결함을 새로 만들어 낸 자리다.
+     *
+     * '없음'은 코드에 흔적을 남기지 않는다. 그래서 잠근다 — 이 시험이 없으면 다음 사람이
+     * "hreflang 이 빠졌네" 하고 선의로 되돌려 놓고, 그 순간 (2)가 그대로 돌아온다. 되살릴
+     * 때는 여기가 아니라 라우트별 메타 훅에서, 주소마다 자기 자신을 가리키는 완전한 집합으로
+     * 붙인다(index.html 의 canonical 아래 주석에 조건을 적어 두었다).
+     */
+    expect(html).not.toMatch(HREFLANG_LINK);
   });
 
   it('og:image 는 래스터(PNG/JPEG)다', () => {
