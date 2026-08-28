@@ -12,7 +12,8 @@
  * 선언하고 있었다(64b8f74). 같은 사고를 파일 하나 더 만들어 재현할 이유가 없다.
  *
  * 그래서 여기서 갈아 끼우는 것은 **주소마다 달라야 하는 것들뿐**이다.
- * title · description · canonical · hreflang · og:title/description/url · twitter:*.
+ * title · description · canonical · og:title/description/url · twitter:*.
+ * (hreflang 은 갈아 끼우는 게 아니라 지운다 — 아래 해당 자리의 주석 참고.)
  * og:image 는 일부러 셸에서 물려받는다 — 호스트 교정은 fix/seo-canonical-host 의 몫이고,
  * /beta 전용 카드는 ACTION-PLAN 3.4 다. 여기서 값을 다시 박으면 그쪽이 고쳐도 이 파일만
  * 옛 값으로 남는다.
@@ -197,12 +198,23 @@ export function buildBetaDocument({ shell, body, headExtras = [] }: BetaDocument
     'link[rel=canonical]',
   );
 
-  html = replaceExactlyOnce(
-    html,
-    /<link\s+rel="alternate"\s+hreflang="ko-KR"\s+href="[^"]*"\s*\/?>/g,
-    `<link rel="alternate" hreflang="ko-KR" href="${BETA_URL}" />`,
-    'link[rel=alternate][hreflang=ko-KR]',
-  );
+  /*
+   * hreflang 은 **갈아 끼우지 않고 지운다.**
+   *
+   * 이 사이트는 단일 로케일이다 — i18n 의존성도, /en/ 라우트도, 로케일 전환기도 없다.
+   * hreflang 은 대안 언어판 *사이*를 구분하려고 존재하므로 대안이 없으면 완벽히 적어도
+   * 신호가 0 이고, 감사가 그래서 "고치지 말고 지우라"고 결론지었다
+   * (findings/hreflang.md). fix/seo-hreflang-drop 이 셸에서 그 줄을 지웠다.
+   *
+   * 그런데 그 브랜치와 이 브랜치는 형제라 머지 순서가 정해져 있지 않다. 셸에 태그가
+   * 아직 있는 상태로 이 단계가 돌 수도 있다. 그래서 "있으면 지우고, 없으면 그냥 둔다"로
+   * 쓴다 — 양쪽 순서 모두에서 결과가 같아진다(= /beta 에 hreflang 이 없다).
+   *
+   * replaceExactlyOnce 를 쓰지 않는 유일한 자리인 이유가 이것이다. 나머지 치환은 0번
+   * 일치하면 셸이 예상과 다르다는 뜻이라 빌드를 깨는 게 맞지만, 여기서는 0번이 곧
+   * "이미 옳은 상태"다.
+   */
+  html = html.replace(/[ \t]*<link\s+rel="alternate"\s+hreflang="[^"]*"\s+href="[^"]*"\s*\/?>\n?/g, '');
 
   html = replaceExactlyOnce(
     html,
