@@ -13,13 +13,16 @@
   사이트맵에는 필터가 붙지 않은 기본 주소만 올린다. 쿼리가 붙은 변형을 하나로 접는
   일은 사이트맵이 아니라 canonical 이 할 일이다.
 
+  2026-08-28: 화면이 공고 중심으로 정리되면서 단가 DB·트렌드 셋·스펙 검색 화면이
+  없어졌다. 그 주소들을 여기서 함께 지운다 — 사이트맵이 죽은 주소를 가리키면 크롤러가
+  긁는 것은 SPA 셸(soft 404)이고, 그 사실은 배포한 쪽에서 보이지 않는다.
+  src/test/publicSeoAssets.test.ts 가 <loc> 과 ROUTES 를 맞춰 두므로, 화면을 접으면
+  이 파일을 고치기 전까지 CI 가 깨진다.
+
   의도적으로 뺀 주소 — 사용자별이거나 내부용이라 색인 대상이 아니다:
     /saved         담아 둔 공고. 방문자마다 내용이 다르니 남에게는 의미가 없다.
     /system        적재·동기화 상태를 보는 운영 대시보드. 내부 화면이다.
-    /analysis-lab  올린 파일 하나를 보는 화면. 주소에 대응하는 고정된 내용이 없다.
-    /company       조회 결과 화면. 입력 없이 들어오면 빈 화면이다.
-    /officers      위와 같은 이유.
-  이 다섯에는 다른 브랜치에서 noindex 메타가 붙는다. 반대로 robots.txt 로는 막지
+  이 둘에는 다른 브랜치에서 noindex 메타가 붙는다. 반대로 robots.txt 로는 막지
   않는데, 막으면 크롤러가 그 noindex 를 못 읽어 오히려 색인에 남는다. 근거는
   robots.txt 주석에 적어 두었다.
 
@@ -33,7 +36,7 @@
   -->
   <url>
     <loc>https://g2b-masters.electerior.co.kr/beta</loc>
-    <lastmod>2026-08-27</lastmod>
+    <lastmod>2026-08-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
@@ -41,70 +44,15 @@
   <!-- 실사용 진입점(DEFAULT_ROUTE). 공고는 매일 들어오므로 daily. -->
   <url>
     <loc>https://g2b-masters.electerior.co.kr/notices</loc>
-    <lastmod>2026-08-27</lastmod>
+    <lastmod>2026-08-28</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
 
   <url>
     <loc>https://g2b-masters.electerior.co.kr/notices/bid-result</loc>
-    <lastmod>2026-08-27</lastmod>
+    <lastmod>2026-08-28</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.6</priority>
-  </url>
-
-  <!--
-    /spec-search 는 routePaths.ts 의 TAB_ITEMS 에서 notReady: true 이고,
-    SpecSearchScreen 은 아직 ScreenPlaceholder('준비 중') 한 줄만 그린다.
-    "준비 중 화면을 사이트맵에 올리면 빈 화면이 색인된다"는 지적은 옳다.
-
-    그럼에도 지금은 남긴다. 이유 둘:
-    (1) 지금 이 사이트는 어느 주소로 들어와도 같은 빈 셸(index.html)을 내려준다.
-        프리렌더가 없으므로 크롤러가 보는 /spec-search 와 /notices 는 바이트가
-        같다. 이 주소만 유독 얇은 게 아니라 전부 얇으니, 빼서 얻는 것이 없다.
-    (2) 임시 주소가 아니다. 탭에 '준비' 배지를 달고 상시 노출되는 영구 주소라,
-        뺐다가 다시 넣으면 사이트맵만 흔들린다.
-
-    빼야 할 시점은 분명하다: ACTION-PLAN 2.2 의 프리렌더가 들어와 라우트별 HTML 이
-    실제로 생기는 순간. 그때도 이 화면이 '준비 중' 한 줄이면 그때는 진짜 얇은
-    페이지가 되므로, 이 <url> 을 지우거나 noindex 를 걸어야 한다.
-  -->
-  <url>
-    <loc>https://g2b-masters.electerior.co.kr/spec-search</loc>
-    <lastmod>2026-08-27</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.6</priority>
-  </url>
-
-  <url>
-    <loc>https://g2b-masters.electerior.co.kr/price-db</loc>
-    <lastmod>2026-08-27</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.6</priority>
-  </url>
-
-  <!--
-    트렌드 셋은 서로 다른 데이터(물품·용역·공사)를 보는 별개 화면이라 각자 올린다.
-    한 화면의 탭 셋이었다면 하나만 올렸을 것이다.
-  -->
-  <url>
-    <loc>https://g2b-masters.electerior.co.kr/trends/product</loc>
-    <lastmod>2026-08-27</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.5</priority>
-  </url>
-
-  <url>
-    <loc>https://g2b-masters.electerior.co.kr/trends/service</loc>
-    <lastmod>2026-08-27</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.5</priority>
-  </url>
-
-  <url>
-    <loc>https://g2b-masters.electerior.co.kr/trends/construction</loc>
-    <lastmod>2026-08-27</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.5</priority>
   </url>
 </urlset>

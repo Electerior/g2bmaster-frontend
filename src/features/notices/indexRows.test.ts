@@ -3,7 +3,23 @@
  */
 import { describe, expect, it } from 'vitest';
 import type { NoticeIndexItem } from '@/api/search';
-import { ddayLabel, institutionPair, lowestBidRateText, productSummary, regionLabel } from './indexRows';
+import {
+  ddayLabel,
+  indexRowKey,
+  institutionPair,
+  lowestBidRateText,
+  productSummary,
+  regionLabel,
+} from './indexRows';
+
+describe('indexRowKey', () => {
+  it('같은 공고번호도 출처가 다르면 다른 행이다', () => {
+    const g2b = { id: 'R26BK01638523', source: 'G2B' } as NoticeIndexItem;
+    const nuri = { id: 'R26BK01638523', source: 'NURI' } as NoticeIndexItem;
+    expect(indexRowKey(g2b, 0)).not.toBe(indexRowKey(nuri, 0));
+    expect(indexRowKey(g2b, 0)).toBe('R26BK01638523|G2B');
+  });
+});
 
 describe('regionLabel', () => {
   it('빈 지역은 전국이다 — 지역 제한이 없다는 뜻이지 값이 없는 게 아니다', () => {

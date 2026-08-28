@@ -80,7 +80,6 @@ describe('LegacyNoticeRedirect', () => {
     const landed = landOn('/notices/bid-plan?cat=마감', '/notices/bid-plan', '계획');
     expect(new URL(landed, 'http://x').searchParams.get('cat')).toBe('마감');
   });
-
   /*
    * '/search' 는 통합 검색 자신의 옛 주소이자 이 앱의 옛 DEFAULT_ROUTE 였다 —
    * '/' 로 들어온 요청이 전부 여기로 리다이렉트됐으므로 축적된 링크가 가장 많다.
@@ -126,27 +125,28 @@ describe('LegacyNoticeRedirect', () => {
   });
 
   /*
-   * 옛 주소는 두 화면 모두 '파라미터 없음 = 진행 중만'이었고 지금은 '없음 = 마감 포함'이다.
-   * 심어 주지 않으면 같은 링크가 예전보다 넓은 결과를 낸다.
+   * 백엔드는 activeOnly 를 단계 필터처럼 쓴다(BidNoticeQueryBuilder.build) — 단계 미지정이면
+   * `category IN ('입찰','마감')` + 마감일 조건이라, 켜는 순간 계획·사전규격·마감이 사라지고
+   * 단계 칩이 전부 0건이 된다. 옛 주소의 '기본 켜짐'을 그대로 옮기면 안 되는 이유다.
    */
-  describe('진행 중 여부 보존', () => {
-    it('파라미터가 없던 옛 링크는 진행 중만으로 유지한다', () => {
+  describe('진행 중 여부(activeOnly)', () => {
+    it('옛 링크에 진행 중 필터를 심지 않는다 — 심으면 단계 칩이 입찰만 남는다', () => {
       const params = new URL(landOn('/search', '/search'), 'http://x').searchParams;
-      expect(params.get('active')).toBe('true');
-    });
-
-    it('옛 /search 에서 꺼 둔 링크(activeOnly=0)는 켜지 않는다', () => {
-      const params = new URL(landOn('/search?activeOnly=0', '/search'), 'http://x').searchParams;
       expect(params.get('active')).toBeNull();
+    });
+
+    it('지금 쓰지 않는 activeOnly 키는 떨어뜨린다', () => {
+      const params = new URL(landOn('/search?activeOnly=0', '/search'), 'http://x').searchParams;
       expect(params.get('activeOnly')).toBeNull();
+      expect(params.get('active')).toBeNull();
     });
 
-    it('옛 표 주소에서 꺼 둔 링크(active=false)는 켜지 않는다', () => {
+    it('옛 표 주소에서 꺼 둔 링크(active=false)는 그대로 둔다 — 지금 기본값과 같은 뜻이다', () => {
       const landed = landOn('/notices/bid-plan?active=false', '/notices/bid-plan', '계획');
-      expect(new URL(landed, 'http://x').searchParams.get('active')).toBeNull();
+      expect(new URL(landed, 'http://x').searchParams.get('active')).toBe('false');
     });
 
-    it("'마감' 단계에서는 켜지 않는다 — 켜면 어떤 링크로 들어와도 0건이다", () => {
+    it("'마감' 단계 링크가 그대로 살아난다", () => {
       const params = new URL(landOn('/search?category=마감', '/search'), 'http://x').searchParams;
       expect(params.get('cat')).toBe('마감');
       expect(params.get('active')).toBeNull();
@@ -159,7 +159,6 @@ describe('경유지 판정', () => {
     // 경유지에서 기본 조회 기간을 심으면 곧이어 오는 리다이렉트가 그것을 지우고,
     // '심었다'는 표시만 남아 목적지에서는 다시 심지 않는다 — 기간 없이 색인 전체를 훑게 된다.
     expect(isTransitRoute('/')).toBe(true);
-    expect(isTransitRoute('/search')).toBe(true);
     expect(isTransitRoute('/notices/bid-plan')).toBe(true);
     expect(isTransitRoute('/notices/pre-spec')).toBe(true);
     expect(isTransitRoute('/notices/bid-announce')).toBe(true);
