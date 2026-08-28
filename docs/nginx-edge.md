@@ -81,50 +81,73 @@ done
 
 ---
 
-## 3. 코드로 고칠 수 없는 것 — Cloudflare 대시보드
+## 3. 코드로 고칠 수 없는 것 — 어디에 적혀 있나
 
-세 항목은 설정 파일이 아무리 옳아도 엣지에서 덮인다. 사람이 대시보드에서 해야 한다.
+Cloudflare 대시보드에서 사람이 해야 하는 항목은 **`docs/seo-operations.md` 에 있다.**
+여기에 옮겨 적지 않는다. 같은 항목이 두 문서에 있으면 한쪽만 고쳐지고, 그다음부터는
+어느 쪽이 최신인지 아무도 모른다 — 이 브랜치가 고치고 있는 문제(설정과 실제가 조용히
+갈라지는 것)를 문서로 되풀이하는 셈이다. 그쪽에는 담당자와 상태가 붙은 체크리스트도
+있어서 운영이 실제로 따라갈 수 있는 형태다.
 
-| 항목 | 위치 | 지금 | 해야 할 값 |
-|---|---|---|---|
-| Always Use HTTPS | SSL/TLS → Edge Certificates | Off | **On** |
-| Browser Cache TTL | Caching → Configuration | 4 hours | **Respect Existing Headers** |
-| 오리진 포트 | DNS/Origin 설정 | 확인 필요 | 아래 4절 |
+| 항목 | 이 설정과 무슨 상관인가 | 적힌 곳 |
+|---|---|---|
+| Always Use HTTPS: On | 아래 `listen 80` 블록만으로는 감사 #4 가 닫히지 않는다 | `docs/seo-operations.md` 3절 |
+| Browser Cache TTL: Respect Existing Headers | `/assets/` 의 `max-age=31536000, immutable` 이 4시간으로 덮인다 | `docs/seo-operations.md` 4절 |
+| robots.txt 를 엣지가 합성 | `try_files $uri` 가 파일을 내줘도 방문자에게 닿지 않는다 | `docs/seo-operations.md` 1절 |
 
-**Always Use HTTPS.** 감사 #4 가 본 200 은 오리진의 80 이 낸 응답이 아니다.
-방문자의 평문 요청은 Cloudflare 가 먼저 받고, Cloudflare 는 자기 규칙에 따라
-오리진에 붙는다. 라이브 vhost 에도 이미 `listen 80` → 301 이 있었는데도 200 이
-나온 이유가 그것이다. 설정 파일의 80 블록은 오리진을 직접 찌르는 경로를 막는
-이중 방어이고, 사용자에게 보이는 수정은 이 스위치다.
-
-**Browser Cache TTL.** `/assets/` 는 파일명에 콘텐츠 해시가 박히므로
-`max-age=31536000, immutable` 이 정확한 값인데, 현재 Cloudflare 가 이것을
-4시간으로 덮어쓰고 있다. 설정 파일의 값은 그동안 아무 효과가 없다.
+이 문서가 맡는 것은 **nginx 쪽 사정**이다: CSP 를 언제 강제로 바꾸나(1절),
+`add_header` 가 왜 네 벌인가(2절), 오리진을 어느 포트에 맞추나(4절),
+`/beta` 프리렌더를 어떻게 내보내나(6절).
 
 ---
 
-## 4. ⚠ 배포 전 확인 — 이 파일과 라이브가 갈라져 있다 (감사 #8)
+## 4. ⚠ 지금 이 설정은 라이브 경로에 있지 않다 (감사 #8)
 
-2026-08-27 기준 `sites-enabled/g2b-masters` 에 실제로 걸려 있는 것은 저장소 파일이
-아니라 certbot 이 만든 별개의 vhost 다.
+2026-08-28 측정. 공개 도메인의 응답을 내는 것은 nginx 가 아니다.
 
+```bash
+$ curl -s  https://g2b-masters.electerior.co.kr/beta | wc -c            # 5110
+$ curl -s  http://127.0.0.1:8080/beta | wc -c                          # 5110  (md5 동일)
+$ curl -sk https://192.168.219.52/beta -H 'Host: g2b-masters…' | wc -c  # 6008  (다름)
 ```
-listen 192.168.219.52:443 ssl;          # 저장소 파일은 8001
-location / { proxy_pass http://192.168.219.52:5173; }   # 정적 파일이 아니라 Vite dev 서버
-```
 
-두 가지가 여기서 설명된다.
+라이브 응답과 바이트가 같은 쪽은 **8080** 이다. 8080 에는 `serve-static.mjs` 가 붙어 있고,
+그 앞에 cloudflared 터널이 있다(README 의 "8080 은 cloudflare 터널 입구다"). nginx 는
+`systemctl is-active nginx` 로 살아 있지만, certbot 이 만든 별개의 vhost 로
+`192.168.219.52:443` 에서 Vite 개발 서버(5173)를 프록시하고 있을 뿐이고 바깥 요청은
+거기 닿지 않는다.
 
-- **감사 #2·#8 의 실제 원인.** dev 서버는 모든 경로에 `index.html` 을 돌려준다.
-  그래서 `/swagger-ui/index.html` 이 SPA 셸을 반환했고(#8), 존재하지 않는 모든
-  경로가 200 이었다(#2). 저장소 파일의 `try_files` 는 라이브에서 한 번도 실행된
-  적이 없다.
-- **배포 위험.** `deploy.sh` 는 `sites-enabled/g2b-masters` 를 지우고 저장소 파일을
-  건다. Cloudflare 의 오리진 포트가 443 이라면 그 순간 443 에서 받는 vhost 가
-  사라져 **사이트가 통째로 내려간다.**
+즉 감사 #8 의 "저장소 설정과 라이브가 갈라져 있다"는 생각보다 한 칸 더 나간 상태다.
+갈라진 정도가 아니라 **이 파일은 요청 경로에 없다.**
 
-→ 배포 전에 Cloudflare 오리진 포트를 확인하고, 443 이면 `listen` 을 그쪽에 맞춰라.
-추측으로 바꾸지 않고 남겨 두었다.
+### 지금 엣지(`serve-static.mjs`)가 하지 않는 것
+
+| 이 설정이 하는 일 | 8080 의 정적 서버 |
+|---|---|
+| 모르는 경로에 진짜 404 | `catch { file = index.html }` — 전부 200 + 셸 (감사 #2) |
+| 보안 헤더 6종 | 없음 (감사 #5) |
+| `/beta` 를 프리렌더 문서로 | SPA 폴백이라 빈 셸 |
+| 옛 주소 서버측 301 | 없음 |
+| `/assets/` 1년 immutable | `max-age=3600` 고정 |
+
+`serve-static.mjs` 는 이 브랜치 소유가 아니라 손대지 않았다. 위 표는 "엣지를 옮기지
+않으면 이 브랜치의 어떤 항목도 라이브에서 관측되지 않는다"는 사실의 목록이다.
+
+### 그래서 순서가 있다
+
+1. **엣지를 정한다.** 터널 ingress 를 nginx 가 듣는 포트로 돌릴 것인가, 8080 앞에
+   nginx 를 세울 것인가, 아니면 당분간 `serve-static.mjs` 로 갈 것인가. 이 결정은
+   Cloudflare 대시보드(터널 ingress)와 호스트 양쪽을 건드리므로 사람이 해야 한다.
+2. **정해지면 `listen` 을 거기에 맞춘다.** 지금 이 파일은 8001, certbot vhost 는 443,
+   터널은 8080 이다. 셋 중 무엇에 맞출지는 1번에 딸린 문제라 추측으로 바꾸지 않았다.
+3. **그다음에 `deploy.sh`.** 맞추지 않은 채 돌리면 `sites-enabled/g2b-masters` 가
+   지워지고 8001 만 남는다. 지금은 그 vhost 가 공개 트래픽을 받고 있지 않아 사이트가
+   통째로 내려가지는 않지만, certbot 이 쓰던 vhost 가 사라지는 것은 그것대로 문제다.
+
+3번을 건너뛰고 1번만 해도 되는 경우가 하나 있다: `serve-static.mjs` 로 계속 가되 그쪽에
+같은 규칙(진짜 404 · 보안 헤더 · `/beta` · 옛 주소 301)을 옮겨 심는 것. 그때 이 파일은
+"무엇을 심어야 하는지"의 명세로 남는다 — 규칙마다 왜 그런지가 주석에 있고
+`src/test/nginxRouteSync.test.ts` 가 라우트 목록을 계속 잠가 준다.
 
 ---
 
@@ -290,3 +313,12 @@ location = /beta {
   잘라내면 사용자가 공유한 검색 조건이 사라지므로 하면 안 된다.
 - **CSP 강제 전환.** 위 1절.
 - **CSP 위반 수집 엔드포인트.** 위 1절.
+- **엣지 이관.** 4절. 이 설정이 요청 경로에 들어가기 전까지 여기 있는 모든 항목은
+  라이브에서 관측되지 않는다. 이 브랜치에서 할 수 있는 일이 아니다 — 터널 ingress 는
+  Cloudflare 대시보드에 있고, `serve-static.mjs` 는 다른 소유다.
+- **`main` 의 빌드 (2026-08-28 기준).** `npm run build` 가 프리렌더 단계에서 죽는다.
+  `src/features/beta/prerenderDocument.ts` 가 셸에 `hreflang` 링크가 정확히 하나 있기를
+  요구하는데(PR #24), `index.html` 은 그것을 일부러 지웠다(PR #19). 두 PR 이 서로를
+  모른 채 머지된 결과다. **지금은 `dist/beta.html` 이 아예 만들어지지 않는다** — 즉
+  6절의 `location = /beta` 는 그 빌드가 고쳐진 뒤에야 의미가 있다. 여기서 고칠 파일이
+  아니라 적어만 둔다. `deploy.sh` 가 `dist/beta.html` 없이 배포되는 것을 경고한다.
