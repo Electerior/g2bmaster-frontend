@@ -61,6 +61,20 @@ const config: ViteConfigWithTest = {
   build: {
     outDir: 'dist',
     sourcemap: true,
+    /**
+     * 청크 이름표(dist/.vite/manifest.json).
+     *
+     * 빌드 뒤에 도는 /beta 프리렌더(scripts/prerender-beta.mjs)가 이것을 읽는다. 그 단계는
+     * 정적 HTML 안에 랜딩 청크의 CSS 링크와 modulepreload 를 직접 써 넣어야 하는데,
+     * 파일 이름에 콘텐츠 해시가 박혀 있어(landing-CRKkmEkO.css) 빌드 전에는 알 수 없다.
+     * dist/assets 를 훑어 이름으로 짐작하는 방법도 있지만, 그러면 청크를 어떻게 가르느냐
+     * (chore/vite-build-hardening 의 manualChunks)에 따라 조용히 틀린 파일을 링크하게 된다.
+     * manifest 는 "이 모듈이 어느 파일이 됐고 무엇을 함께 필요로 하는가"를 vite 가 직접
+     * 적어 주는 유일한 출처다.
+     *
+     * 산출된 manifest.json 은 프리렌더가 다 쓰고 나서 지운다 — 배포물에 남길 이유가 없다.
+     */
+    manifest: true,
   },
   test: {
     environment: 'jsdom',
