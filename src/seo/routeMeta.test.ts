@@ -136,6 +136,16 @@ describe('metaForPath', () => {
     }
   });
 
+  it("루트('/')도 경유지라 canonical 은 /notices 다", () => {
+    /*
+     * 지금은 '/' 에서 Navigate 가 곧장 넘어가므로 이 분기를 태우는 화면이 없다. 그래도
+     * 잠가 둔다 — 프리렌더(ACTION-PLAN 2.2)가 붙거나 '/' 에 랜딩을 두는 날, 루트가 자기
+     * 자신을 canonical 로 선언하면 사이트의 대표 주소가 둘로 갈라진다. 그 갈라짐은
+     * 화면에 아무 증상도 남기지 않는다.
+     */
+    expect(metaForPath('/')?.canonicalPath).toBe(ROUTES.noticeSearch);
+  });
+
   it('표에 없는 주소는 null 이다', () => {
     expect(metaForPath('/이런-주소는-없다')).toBeNull();
   });
