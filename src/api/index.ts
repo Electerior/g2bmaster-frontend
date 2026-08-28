@@ -5,8 +5,6 @@ export * from './search';
 export * from './trends';
 export * from './analysis';
 export * from './saved';
-export * from './price';
-export * from './pricing';
 export * from './export';
 export * from './legal';
 export * from './specs';

@@ -11,7 +11,7 @@
  * 틀린 숫자가 보인다.
  */
 export const FALLBACK_STATUS = {
-  total: 50,
+  total: 20,
   remaining: 12,
   deadline: '2026-08-31T23:59:59+09:00',
   open: true,

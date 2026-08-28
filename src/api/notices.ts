@@ -203,6 +203,8 @@ export interface AttachmentScanRequest {
     fileEntries: FileEntry[];
     bidNtceNo?: string;
     bidNtceSqNo?: string;
+    /** 색인 PK 의 두 번째 성분. 없으면 서버가 공고번호만으로 찾는 호환 경로를 쓴다. */
+    source?: string;
     _type?: string;
     _tab?: string;
     _version?: string;
@@ -227,13 +229,14 @@ export interface AttachmentScanResponse {
   /** 아래는 조기 반환 경로(스캔할 것이 없을 때)에서는 아예 안 온다. */
   candidateCount?: number;
   cacheHits?: number;
+  /** 요청 후보 중 첨부 본문 색인이 아직 끝나지 않은 공고 수. */
+  notIndexed?: number;
+  /** 미색인 공고에 대응하는 요청 `scans[].id`. 파일 필터에서 거짓 음성을 막는 데 쓴다. */
+  notIndexedIds?: string[];
   warmQueueDepth?: number;
   warmActive?: number;
-  /**
-   * 서버가 async 함수를 await 없이 넣어 Promise 가 `{}` 로 직렬화된다(server.js:4484).
-   * 이름과 달리 숫자가 아니므로 읽지 말 것 — 서버가 고쳐지면 number 로 좁힌다.
-   */
-  warmQueued?: unknown;
+  /** 로컬 색인은 상류 다운로드를 큐잉하지 않으므로 현재 구현에서는 항상 0이다. */
+  warmQueued?: number;
 }
 
 export function scanAttachments(body: AttachmentScanRequest): Promise<AttachmentScanResponse> {

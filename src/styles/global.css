@@ -22,8 +22,7 @@ html {
 
 body {
   font-family: var(--font-sans);
-  /* Soft Glass 캔버스 — 유리 표면(검색바·드로어)이 그 위에 떠 보이게 하는 옅은 그라데이션.
-   * 스크롤해도 배경이 같이 흐르지 않도록 fixed. 표·패널은 여전히 불투명 흰색이다. */
+  /* 메인 테마는 순백색 캔버스이며 팔레트는 핀·배지와 상호작용 상태에만 쓴다. */
   background: var(--app-canvas) fixed;
   color: var(--text);
   font-size: var(--fs-base);
