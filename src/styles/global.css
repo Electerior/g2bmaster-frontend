@@ -53,7 +53,15 @@ a:hover {
   text-decoration: underline;
 }
 
-h1 {
+/*
+ * 셸 상단의 브랜드 표기(AppHeader 의 .app-title).
+ *
+ * 예전에는 이 규칙이 `h1` 요소 선택자였다 — 앱 안의 h1 이 브랜드 하나뿐이던 시절의 전제다.
+ * 지금 h1 은 라우트마다 다른 화면 제목이고 브랜드는 h1 이 아니므로(AppHeader.tsx 주석 참고)
+ * 스타일이 요소가 아니라 클래스를 따라간다. 요소 선택자로 되돌리면 화면 제목(.panel-title,
+ * 15px)이 20px 로 커지고, 눈에 보이지 않는 제목(.sr-only)까지 이 규칙을 받는다.
+ */
+.app-title {
   font-size: var(--fs-h1);
   font-weight: 700;
   letter-spacing: 0;

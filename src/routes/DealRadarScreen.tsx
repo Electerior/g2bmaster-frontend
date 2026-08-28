@@ -24,6 +24,7 @@ import { TypeBadge } from '@/components/badges/Badge';
 import { fmtMoney } from '@/domain/format';
 import { buildNoticeIndexQuery, useSearchCriteria } from '@/features/search/useSearchCriteria';
 import { EmptyState } from '@/components/feedback/EmptyState';
+import { PanelTitle } from '@/components/layout/PanelTitle';
 import { PriceTable } from '@/features/deal/PriceTable';
 import { priceTotal, rowsFromBreakdown, type PriceRow } from '@/features/deal/priceRows';
 import '@/features/deal/deal.css';
@@ -167,7 +168,7 @@ export function DealRadarScreen() {
 
   return (
     <section className="panel" aria-label="AI 수주 데스크">
-      <h2 className="panel-title">AI 수주 데스크</h2>
+      <PanelTitle>AI 수주 데스크</PanelTitle>
 
       <form className="deal-search" onSubmit={submit}>
         <input
@@ -300,7 +301,8 @@ function DealCard({
   return (
     <div className="deal-card">
       <div className="deal-card-head">
-        <h3 className="deal-card-title">
+        {/* 화면 제목이 h1 이므로 카드 제목은 h2 다 — h3 면 단계를 건너뛴다(PanelTitle 주석). */}
+        <h2 className="deal-card-title">
           {item.sourceUrl ? (
             <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer">
               {title}
@@ -308,7 +310,7 @@ function DealCard({
           ) : (
             title
           )}
-        </h3>
+        </h2>
         <div className="deal-card-actions">
           {item.dday != null ? <span className="deal-dday">D-{item.dday}</span> : null}
           <button
