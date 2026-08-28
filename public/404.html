@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!--
+      nginx 의 `error_page 404 /404.html` 이 내부적으로 꺼내 쓰는 정적 페이지다.
+      vite 가 public/ 을 dist/ 로 그대로 옮기고 deploy.sh 가 dist 를 webroot 로
+      복사하므로 별도 빌드 설정 없이 /404.html 로 서빙된다.
+
+      ⚠ 여기서 번들(/assets/index-*.js)을 로드하지 않는다.
+
+        존재하지 않는 주소마다 608KB 짜리 SPA 를 태워서 "없습니다"를 그리는 것이
+        지금 고치고 있는 문제(감사 #2)의 축소판이다. 크롤러는 이 페이지를 대량으로
+        받아 가고, 그때마다 앱 전체를 내려받게 하면 크롤 예산과 오리진 대역을 함께
+        태운다. 스타일을 인라인으로 최소한만 두는 이유가 그것이다 —
+        tokens.css 를 링크하는 것조차 하지 않는다.
+
+        React 쪽 NotFoundScreen.tsx 는 없어지지 않는다. 앱 안에서 링크를 잘못
+        눌러 클라이언트 라우팅으로 도달하는 경우가 남아 있고, 그때는 이미 번들이
+        떠 있으므로 셸을 유지하는 편이 낫다. 이 파일은 "서버가 처음부터 404 를
+        내는 경우" 전용이다.
+    -->
+    <meta name="robots" content="noindex" />
+
+    <title>페이지를 찾을 수 없습니다 · G2B Masters</title>
+
+    <style>
+      :root {
+        color-scheme: light;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        /*
+          Pretendard 는 CDN 웹폰트라 여기서는 부르지 않는다(요청 하나가 더 늘고,
+          이 페이지 하나 때문에 외부 호스트에 붙을 이유가 없다).
+          시스템 한글 폰트로 충분한 분량이다.
+        */
+        font-family:
+          -apple-system, BlinkMacSystemFont, 'Malgun Gothic', 'Apple SD Gothic Neo',
+          'Noto Sans KR', sans-serif;
+        background: #f5f6f8;
+        color: #1c2430;
+      }
+      main {
+        max-width: 30rem;
+        padding: 2rem 1.5rem;
+        text-align: center;
+      }
+      .code {
+        margin: 0;
+        font-size: 3.5rem;
+        font-weight: 700;
+        line-height: 1;
+        color: #1f56a7;
+      }
+      h1 {
+        margin: 0.75rem 0 0;
+        font-size: 1.25rem;
+        font-weight: 600;
+      }
+      p {
+        margin: 0.75rem 0 0;
+        font-size: 0.95rem;
+        line-height: 1.6;
+        color: #55606e;
+      }
+      .home {
+        display: inline-block;
+        margin-top: 1.75rem;
+        padding: 0.6rem 1.4rem;
+        border-radius: 6px;
+        background: #1f56a7;
+        color: #fff;
+        font-size: 0.95rem;
+        font-weight: 600;
+        text-decoration: none;
+      }
+      .home:hover,
+      .home:focus-visible {
+        background: #17417e;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p class="code">404</p>
+      <h1>페이지를 찾을 수 없습니다</h1>
+      <p>
+        요청하신 주소에 해당하는 화면이 없습니다. 주소가 바뀌었거나, 오래된 링크일 수 있습니다.
+      </p>
+      <!-- routePaths.ts 의 DEFAULT_ROUTE 와 같은 곳으로 보낸다 — 실사용 진입점은 공고 검색이다. -->
+      <a class="home" href="/notices">공고 검색으로 가기</a>
+    </main>
+  </body>
+</html>

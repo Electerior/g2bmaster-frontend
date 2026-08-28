@@ -25,6 +25,9 @@ import { BrowserRouter } from 'react-router-dom';
 import { act } from '@testing-library/react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { FALLBACK_STATUS } from '@/features/beta/landing.config';
+import { ROUTES } from '@/routes/routePaths';
+import { ROUTE_META, resolveOgImage } from '@/seo/routeMeta';
+import { SITE_ORIGIN } from '@/seo/siteOrigin';
 import { BetaStandalone } from '@/features/beta/standalone';
 import { renderBetaBody } from '@/features/beta/prerender';
 import {
@@ -306,11 +309,12 @@ describe('/beta 프리렌더 — 문서 조립', () => {
   });
 
   /*
-   * 셸에서 물려받아야 하는 것들. og:image·JSON-LD·로봇 지시는 /beta 전용 값이 아니고,
+   * 셸에서 물려받아야 하는 것들. JSON-LD·로봇 지시·진입 스크립트는 /beta 전용 값이 아니고,
    * 여기서 다시 박으면 다른 브랜치가 고쳐도 이 파일만 옛 값으로 남는다.
+   *
+   * og:image 는 이 목록에서 빠졌다 — 이제 /beta 전용 카드가 있다(바로 아래 describe).
    */
   it('셸의 나머지 head 와 진입 스크립트는 건드리지 않는다', () => {
-    expect(html).toContain('og:image');
     expect(html).toContain('application/ld+json');
     expect(html).toContain('name="robots"');
     expect(html).toContain('/src/main.tsx');
@@ -331,5 +335,96 @@ describe('/beta 프리렌더 — 문서 조립', () => {
   it('같은 태그가 둘이어도 빌드를 멈춘다', () => {
     const doubled = SHELL.replace(/<title>[\s\S]*?<\/title>/, (m) => `${m}\n${m}`);
     expect(() => buildBetaDocument({ shell: doubled, body: '' })).toThrow(/title/);
+  });
+});
+
+/*
+ * ── /beta 전용 공유 카드가 정적 head 에 실제로 들어가는가 (ACTION-PLAN 3.4) ─────
+ *
+ * **이 배선의 감시자는 여기뿐이다.** 카드를 세우는 훅(useSeoMeta)은 브라우저에서만 돌고,
+ * 카카오톡·페이스북 스크래퍼는 JS 를 실행하지 않은 이 문서의 head 만 읽는다. 즉 화면을 아무리
+ * 열어 봐도 — head 를 눈으로 훑어도 — 훅이 세운 값이 보이므로 정상으로 보인다. 어긋남은 남의
+ * 대화방에 뜬 미리보기에서만 드러나고, 그때는 이미 스크랩 결과가 캐시된 뒤다.
+ *
+ * 값은 전부 ROUTE_META 에서 읽어 비교한다. 여기에 문자열을 다시 적으면 카드 주소가 표·훅·
+ * 프리렌더에 이어 **네 번째 사본**이 되고, 그러면 이 시험은 "둘이 같은가"가 아니라 "셋 중
+ * 둘이 이 파일과 같은가"를 보게 된다. 같은 사실이 여러 곳에 적히는 것이 이 감사가 잡아낸
+ * 결함의 공통 형태이므로, 그것을 잡는 시험이 같은 형태를 하고 있으면 안 된다.
+ */
+describe('/beta 프리렌더 — 공유 카드', () => {
+  const html = buildBetaDocument({ shell: SHELL, body: '<p>본문</p>' });
+  const card = resolveOgImage(ROUTE_META[ROUTES.beta].image!);
+
+  it('표에 /beta 카드가 있다', () => {
+    // 아래 단언들의 전제다. 표에서 image 가 사라지면 프리렌더는 범용 카드로 되돌아가는데,
+    // 그것은 고장이 아니라 설계된 동작이라 나머지 시험이 조용히 의미를 잃는다.
+    expect(ROUTE_META[ROUTES.beta].image).toBeDefined();
+  });
+
+  it('og:image 계열 넷이 그 카드의 값이다', () => {
+    expect(html).toContain(`<meta property="og:image" content="${card.url}" />`);
+    expect(html).toContain(`<meta property="og:image:width" content="${card.width}" />`);
+    expect(html).toContain(`<meta property="og:image:height" content="${card.height}" />`);
+    expect(html).toContain(`<meta property="og:image:alt" content="${card.alt}" />`);
+  });
+
+  it('셸에 없던 twitter:image 둘을 새로 넣는다', () => {
+    // X 는 twitter:image 가 없으면 og:image 로 물러나므로 셸에는 둘 자격이 없었다.
+    // 카드가 붙는 이 문서에서는 반대로 명시해야 채널마다 다른 그림이 나가지 않는다.
+    expect(SHELL).not.toContain('twitter:image');
+    expect(html).toContain(`<meta name="twitter:image" content="${card.url}" />`);
+    expect(html).toContain(`<meta name="twitter:image:alt" content="${card.alt}" />`);
+  });
+
+  it('여섯이 전부 절대 URL 과 전용 문구다 — 셸의 범용 카드가 남지 않는다', () => {
+    /*
+     * OG 소비자는 상대 경로를 해석하지 않는다. `/og/beta.png` 를 주면 태그는 멀쩡한데
+     * 미리보기만 비어 나가고, head 를 눈으로 보는 사람에게는 잘 들어간 것처럼 보인다.
+     */
+    expect(card.url).toBe(`${SITE_ORIGIN}/og/beta.png`);
+    expect(card.url).toMatch(/^https:\/\//);
+    expect(html).not.toContain('vercel.app');
+
+    // 셸의 범용 카드(/og-image.png)와 그 alt 가 한 줄도 남으면 안 된다. 한 줄만 남아도
+    // 그 채널에서는 '베타 테스터 모집'이 아니라 제품 설명 카드가 나간다.
+    expect(SHELL).toContain('/og-image.png');
+    expect(html).not.toContain('/og-image.png');
+    expect(html).not.toContain('content="G2B Masters - 나라장터·국방전자조달 입찰정보 통합 검색"');
+  });
+
+  it('선언한 크기가 PNG 헤더의 실제 픽셀과 같다', () => {
+    /*
+     * 선언과 실물이 갈라지는 것이 이 감사가 잡아낸 결함의 공통 형태다. 크기가 틀리면
+     * 페이스북·카카오톡이 첫 스크랩에서 카드를 잘못 잘라 놓고 그 결과를 캐시한다.
+     *
+     * src/seo/ogImage.test.ts 가 표를 상대로 같은 것을 본다. 여기서 한 번 더 보는 이유는
+     * 보는 대상이 다르기 때문이다 — 그쪽은 표의 숫자와 파일이고, 이쪽은 **문서에 실제로
+     * 나간 문자열**과 파일이다. 둘 사이에 프리렌더가 있고, 이 시험은 그 구간을 본다.
+     */
+    const png = readFileSync(
+      resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', 'public', 'og', 'beta.png'),
+    );
+    expect(png.subarray(0, 8)).toEqual(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+    expect(String(png.readUInt32BE(16))).toBe(card.width);
+    expect(String(png.readUInt32BE(20))).toBe(card.height);
+  });
+
+  it('셸이 twitter:image 를 갖게 되면 삽입 대신 빌드를 멈춘다', () => {
+    /*
+     * 삽입은 "셸에 없다"를 전제로 한다. 그 전제가 깨진 날 조건 없이 붙이면 같은 태그가 두 줄
+     * 있는 문서가 나가고, 크롤러가 어느 쪽을 고르는지는 규격에 없다 — 화면에는 아무 증상이
+     * 없다. 그래서 replaceExactlyOnce 의 규약을 방향만 뒤집어 "정확히 0번"을 요구한다.
+     */
+    const shellWithTag = SHELL.replace(
+      '<meta name="twitter:card"',
+      '<meta name="twitter:image" content="https://g2b-masters.electerior.co.kr/og-image.png" />\n    <meta name="twitter:card"',
+    );
+    expect(() => buildBetaDocument({ shell: shellWithTag, body: '' })).toThrow(/twitter:image/);
+  });
+
+  it('셸에서 og:image 가 사라지면 빌드를 멈춘다', () => {
+    // 치환 쪽은 원래 규약 그대로 — 0번 일치도 오류다.
+    const broken = SHELL.replace(/<meta\s+property="og:image"\s+content="[^"]*"\s*\/?>/, '');
+    expect(() => buildBetaDocument({ shell: broken, body: '' })).toThrow(/og:image/);
   });
 });

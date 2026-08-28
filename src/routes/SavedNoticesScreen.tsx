@@ -3,13 +3,13 @@
  *
  * AI 가격 계산과 편집 가격표는 폐기했다. 저장 당시의 공고 정보와 요약만 보여 준다.
  */
-import { useEffect } from 'react';
 import { useDeleteSavedNotice, useSavedNotices, type SavedNoticeRow } from '@/api';
 import { FieldSet } from '@/components/common/FieldSet';
 import { PanelNotice } from '@/components/feedback/Spinner';
 import { Markdown } from '@/components/markdown/Markdown';
 import { StatusBar } from '@/components/table/StatusBar';
 import { useSearchCriteria } from '@/features/search/useSearchCriteria';
+import { useSeoMeta } from '@/seo/useSeoMeta';
 import '@/components/common/fieldset.css';
 import '@/features/saved/saved.css';
 
@@ -73,9 +73,9 @@ export function SavedNoticesScreen() {
   const { criteria } = useSearchCriteria();
   const deleteMutation = useDeleteSavedNotice();
 
-  useEffect(() => {
-    document.title = '저장 공고 — G2B Masters';
-  }, []);
+  // 사용자별 화면이라 색인에서 뺀다. 그 noindex 가 다음 라우트로 새지 않게 하는 책임은
+  // useSeoMeta 에 있다 — seo/useSeoMeta.ts 의 applyRobots 주석 참고.
+  useSeoMeta();
 
   const q = [...criteria.andTerms, ...criteria.orTerms, criteria.insttNm].filter(Boolean).join(' ');
   const saved = useSavedNotices({ q });
