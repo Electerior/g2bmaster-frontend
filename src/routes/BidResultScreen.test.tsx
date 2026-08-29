@@ -205,10 +205,41 @@ describe('입찰 결과 서랍', () => {
     expect(within(drawer).getByText(/개찰 경쟁 현황/)).toBeInTheDocument();
   });
 
-  it('서랍을 여는 것만으로는 아무 API 도 더 부르지 않는다', async () => {
+  it('서랍을 열면 개찰 결과를 바로 조회한다 — 버튼을 한 번 더 누르게 하지 않는다', async () => {
+    /*
+     * 예전에는 버튼을 눌러야 나갔고 근거는 "열 때마다 부르면 개찰 전 공고에서 매번
+     * 헛품"이었다. 백엔드가 참여업체 명단을 bid_opening_result 에 저장하면서 그 전제가
+     * 사라졌다 — 상류로 나가는 것은 공고당 한 번이고, 비어 온 것도 그 사실째 저장된다.
+     */
+    post.mockResolvedValue({
+      bidNtceNo: WON.bidNtceNo,
+      bidNtceSqNo: '000',
+      participants: [
+        { bdrNm: '에프에스아일랜드학생복', rank: '1', bidAmt: '298000', bidprcRt: '95.6', sucsfbidYn: 'Y' },
+      ],
+    });
     renderScreen();
-    await openDrawer();
-    // 개찰 조회는 버튼을 눌러야 나간다 — 열 때마다 부르면 개찰 전 공고에서 매번 헛품이다.
+    const drawer = await openDrawer();
+
+    expect(await within(drawer).findByText('에프에스아일랜드학생복')).toBeInTheDocument();
+    expect(post).toHaveBeenCalledWith(
+      '/api/bid-opening-results',
+      expect.objectContaining({ bidNtceNo: WON.bidNtceNo }),
+    );
+  });
+
+  it('공고번호가 없으면 조회하지 않는다 — 빈 번호로 나가면 서버가 400 을 낸다', async () => {
+    get.mockResolvedValue({
+      items: [{ ...WON, bidNtceNo: '' }],
+      totalCount: 1,
+      pageNo: 1,
+      numOfRows: 20,
+    });
+    renderScreen();
+    const link = await screen.findByRole('button', { name: WON.bidNtceNm });
+    fireEvent.click(link);
+
+    expect(await screen.findByText(/공고번호가 없어/)).toBeInTheDocument();
     expect(post).not.toHaveBeenCalled();
   });
 });
