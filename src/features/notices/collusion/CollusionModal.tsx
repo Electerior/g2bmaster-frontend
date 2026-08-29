@@ -16,12 +16,18 @@
  * 전부 백엔드가 계산해 준다. 원본은 프론트에서 다시 셌는데, 그러면 같은 수식이 두 벌
  * 생겨 한쪽만 고쳐지는 날 화면과 API 가 다른 말을 하게 된다. 여기서는 받아서 그리기만 한다.
  *
- * ## 지금은 대개 빈 화면이 나온다 — 그것이 정상 동작이다
- * 상류 개찰결과 오퍼레이션이 응답하지 않아 POST /api/bid-opening-results 가 모든 공고에서
- * participants: [] 를 준다(서랍의 '개찰 경쟁 현황'도 같은 이유로 늘 비어 있다). 그래서
- * 이 화면에서는 **빈 상태를 정확히 그리는 것이 기능의 절반**이다 — 상단 요약 줄이 '분석 N건
- * 중 개찰결과 확인 M건'으로 M 을 드러내므로, 사용자는 "담합이 없다"와 "데이터가 없다"를
- * 구분할 수 있다. 백엔드가 오퍼레이션을 갈아 끼우면 이 화면은 고칠 것 없이 살아난다.
+ * ## 빈 화면은 여전히 정상이지만 **더 이상 기본값이 아니다** (2026-08-29 정정)
+ * 한동안 이 자리에는 "상류가 응답하지 않아 모든 공고가 participants: [] 로 온다"고 적혀
+ * 있었다. 그 원인은 폐기된 오퍼레이션(ao/OpengResultInfoService — NO_OPENAPI_SERVICE_ERROR)
+ * 이었고, 백엔드가 as/ScsbidInfoService/getOpengResultListInfoOpengCompt 로 갈아 끼우면서
+ * 해소됐다(G2bEndpoints.java:33-36 이 스스로 그 사실을 지목한다).
+ *
+ * **"원래 비는 게 정상"이라는 옛 서술을 믿고 실제 결함을 넘기지 마라.** 개찰 참여업체 정렬이
+ * 실격 업체를 1위 위로 올리던 결함이 정확히 그렇게 한동안 가려져 있었다(rows.ts rankOf).
+ *
+ * 그래도 개찰 전·비공개 건은 여전히 비므로 **빈 상태를 정확히 그리는 것은 기능의 절반**이다 —
+ * 상단 요약 줄이 '분석 N건 중 개찰결과 확인 M건'으로 M 을 드러내므로, 사용자는 "담합이 없다"와
+ * "데이터가 없다"를 구분할 수 있다.
  */
 import { useEffect } from 'react';
 import { useCollusionAnalysis, type CollusionAnalysisResponse } from '@/api/analysis';
@@ -41,9 +47,15 @@ interface CollusionModalProps {
   rows: readonly ScannedRow[];
 }
 
-/** 표본이 없을 때만 null 이고 0 은 유효값이다 — truthy 로 판정하면 0% 가 '-' 로 사라진다. */
+/**
+ * 표본이 없을 때만 null 이고 0 은 유효값이다 — truthy 로 판정하면 0% 가 '-' 로 사라진다.
+ *
+ * 소수 **1자리**인 이유는 백엔드가 거기까지만 계산하기 때문이다
+ * (`CollusionAnalysis.java:235-236` 의 `.setScale(1, HALF_UP)`). 3자리로 그리면 뒤 두 자리가
+ * 언제나 `0` 으로 고정돼, 있지도 않은 정밀도를 주장하는 표기가 된다.
+ */
 function fmtAvgRate(value: number | null): string {
-  return value != null ? `${value.toFixed(3)}%` : '-';
+  return value != null ? `${value.toFixed(1)}%` : '-';
 }
 
 function EmptyRow({ span, children }: { span: number; children: string }) {
@@ -83,7 +95,12 @@ function PairSection({ pairs }: { pairs: CollusionAnalysisResponse['pairs'] }) {
                   <td className="mid">
                     {pair.aWins}승 / {pair.bWins}승
                   </td>
-                  <td className="num">{(pair.alterScore * 100).toFixed(0)}%</td>
+                  {/*
+                    이미 0~100 정수 백분율이다(CollusionAnalysis.java:227 이 ×100 을 마쳤다).
+                    여기서 다시 곱하면 완전 교대(100)가 10000% 로 뜬다 — 오류가 나지 않아
+                    화면은 멀쩡해 보이고, 담합 정황을 읽는 핵심 지표만 조용히 못 쓰게 된다.
+                  */}
+                  <td className="num">{Math.round(pair.alterScore)}%</td>
                   <td className="mid">
                     <RiskBadge score={pair.suspicionScore} />
                   </td>
@@ -238,7 +255,11 @@ export function CollusionModal({ open, onClose, rows }: CollusionModalProps) {
     <Modal open={open} onClose={onClose} title="들러리 매트릭스" wide>
       {mutation.isPending ? (
         <div className="meta">
-          <Spinner small /> 개찰 결과를 모으는 중... (최대 {analyzed}건)
+          {/*
+            20건 팬아웃이라 상류가 느린 날에는 분 단위로 걸린다(analysis.ts COLLUSION_TIMEOUT_MS).
+            얼마나 기다려야 하는지 적어 두지 않으면 사용자는 멈춘 것으로 읽고 창을 닫는다.
+          */}
+          <Spinner small /> 개찰 결과를 모으는 중... (최대 {analyzed}건 · 수 분 걸릴 수 있습니다)
         </div>
       ) : mutation.error ? (
         <div className="meta" style={{ color: 'var(--error)' }}>
