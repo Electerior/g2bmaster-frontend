@@ -148,3 +148,37 @@ describe('입찰 결과 서랍', () => {
     expect(post).not.toHaveBeenCalled();
   });
 });
+
+describe('공고번호로 왔는데 낙찰 결과가 없을 때', () => {
+  /*
+   * 이 자리까지 왔다는 것은 서버가 색인을 보고, 없어서 나라장터에도 한 번 물었는데 비었다는
+   * 뜻이다. 그러면 남은 가능성은 "아직 낙찰 확정 전"뿐인데, 빈 표만 보여 주면 사용자는
+   * 기능이 고장 났다고 읽는다 — 실제로 그 신고에서 시작된 화면이다.
+   */
+  it('빈 표 대신 개찰 결과를 자동으로 조회해 보여 준다', async () => {
+    get.mockResolvedValue({ items: [], totalCount: 0, pageNo: 1, numOfRows: 20 });
+    post.mockResolvedValue({
+      bidNtceNo: 'R26BK01697446',
+      bidNtceSqNo: '000',
+      participants: [
+        { bdrNm: '코어방재기술', rank: '1', bidAmt: '4213000', bidprcRt: '88.1', sucsfbidYn: 'Y' },
+      ],
+    });
+
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter initialEntries={['/notices/bid-result?ntceNo=R26BK01697446&type=물품']}>
+          <NoticeTableScreen kind="bid-result" />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    expect(await screen.findByText(/낙찰 결과가 아직 없습니다/)).toBeTruthy();
+    // 버튼을 한 번 더 누르게 하지 않는다 — 사용자는 이미 "이 공고 결과를 보여 달라"고 왔다.
+    expect(await screen.findByText('코어방재기술')).toBeTruthy();
+    expect(post).toHaveBeenCalledWith('/api/bid-opening-results', expect.objectContaining({
+      bidNtceNo: 'R26BK01697446',
+    }));
+  });
+});

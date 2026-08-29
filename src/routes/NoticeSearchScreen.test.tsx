@@ -495,6 +495,11 @@ describe('낙찰결과 크로스탭', () => {
    *   2) 기간의 뜻이 양쪽에서 다르다. 색인의 from/to 는 공고 생성일이고 입찰 결과의 것은
    *      낙찰 결과 등록일(rgst_dt)이라, 그대로 넘기면 "아직 결과가 없다"가 "그런 낙찰 건이
    *      없다"로 보인다.
+   *
+   * 지금은 <b>공고번호</b>로 넘긴다. 제목 매칭은 `/api/bid-result` 가 공고번호를 안 받던
+   * 시절의 우회였고, 그 경로는 같은 이름의 다른 공고가 섞이는 데다 색인이 그 구간을 덮지
+   * 못하면 있는 결과도 못 찾았다. 번호 조회는 서버가 색인을 보고 없으면 나라장터에 한 번
+   * 물으므로 색인 커버리지에 묶이지 않는다.
    */
   function Landed() {
     const { pathname, search } = useLocation();
@@ -513,7 +518,7 @@ describe('낙찰결과 크로스탭', () => {
     );
   }
 
-  it('공고명을 AND 키워드로 실어 입찰 결과 화면으로 간다', async () => {
+  it('공고번호를 실어 입찰 결과 화면으로 간다', async () => {
     renderWithProbe('?and=노트북&from=20260801&to=20260829&type=물품');
     const button = await screen.findAllByRole('button', { name: '낙찰결과 →' });
     fireEvent.click(button[0]);
@@ -522,9 +527,11 @@ describe('낙찰결과 크로스탭', () => {
     expect(landed).toContain('/notices/bid-result');
     // URLSearchParams 는 공백을 '+' 로 넣으므로 파싱해서 본다 — 인코딩 방식을 고정하지 않는다.
     const params = new URLSearchParams(landed.slice(landed.indexOf('?')));
-    // 공고명은 noticeName 에서 온다 — DELEGATED 픽스처의 값이다.
-    expect(params.get('and')).toBe('2026년 노트북 및 모니터 구매');
-    // 구분은 유지한다(원본 app.js:2798-2801 과 같다).
+    // 공고번호는 색인 항목의 id 다. 이 값이 서버의 bidNtceNo 단건 조회로 들어간다.
+    expect(params.get('ntceNo')).toBeTruthy();
+    // 제목 매칭으로는 더 이상 가지 않는다 — 같은 이름의 다른 공고가 섞인다.
+    expect(params.get('and')).toBeNull();
+    // 구분은 유지한다 — 서버의 상류 호출이 1회로 끝난다.
     expect(params.get('type')).toBe('물품');
   });
 

@@ -176,14 +176,22 @@ export function Cell({ value, fmt, row, actions }: CellProps): ReactNode {
     }
 
     case 'result-cross': {
-      // 입찰 공고 → 같은 이름의 낙찰 결과. 번호가 아니라 공고명으로 찾는다(차수가 다르다).
-      const name = row.bidNtceNm;
-      if (!name) return EMPTY;
+      // 입찰 공고 → 그 공고의 낙찰 결과. 공고번호로 간다 — 서버가 단건 조회로 받고,
+      // 날짜창도 색인 커버리지도 보지 않는다. 낙찰정보에는 정정 차수가 없어 번호 하나로
+      // 접히므로, 예전에 제목으로 우회하던 이유(차수가 다르다)는 더 이상 없다.
+      const no = String(row.bidNtceNo ?? '').trim();
+      const name = String(row.bidNtceNm ?? '').trim();
+      if (!no && !name) return EMPTY;
       return (
         <button
           type="button"
           className="cross-tab-btn plain"
-          onClick={() => actions?.crossSearch?.('bid-result', { andTerms: [String(name)] })}
+          onClick={() =>
+            actions?.crossSearch?.(
+              'bid-result',
+              no ? { bidNtceNo: no, bidType: String(row._type ?? '') } : { andTerms: [name] },
+            )
+          }
         >
           낙찰결과 →
         </button>

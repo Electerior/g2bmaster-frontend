@@ -101,9 +101,17 @@ export function NoticeSearchScreen() {
     // 같은 화면 안에서 조건만 좁힌다 — 사전규격에서 이어진 공고를 보려고 화면을 옮길 이유가 없다.
     crossToSpec: (beforeSpecRgstNo) => setCriteria({ beforeSpecRgstNo, category: '' }),
     // 낙찰정보는 색인 밖이라 화면을 옮겨야 한다 — 기간을 왜 버리는지는 crossSearch.ts 참고.
-    crossToResult: (noticeName) =>
+    // 공고번호가 있으면 그것으로 간다(서버가 단건 조회로 받는다). 번호를 모를 때만 제목으로
+    // 훑는데, 그 경로는 같은 이름의 다른 공고가 섞이고 색인 구간에도 묶인다.
+    crossToResult: ({ bidNtceNo, bidType, noticeName }) =>
       navigate(
-        crossSearchTo('bid-result', { andTerms: [noticeName], bidType: criteria.bidType }, location.search),
+        crossSearchTo(
+          'bid-result',
+          bidNtceNo
+            ? { bidNtceNo, bidType: bidType || criteria.bidType }
+            : { andTerms: [noticeName], bidType: criteria.bidType },
+          location.search,
+        ),
       ),
   };
 
