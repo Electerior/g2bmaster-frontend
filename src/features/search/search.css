@@ -713,3 +713,24 @@ button.tag-wrap {
 .sort-dir-btn:hover {
   background: var(--table-head-hover);
 }
+
+/* ── 들러리 매트릭스 열기 ──────────────────────────────────────────────────
+ * 원본은 이 버튼에 보라색(#7c3aed)을 인라인으로 박아 구분 필터와 구별했다. 여기서는
+ * 하드코딩하지 않는다 — 팔레트에서 --purple 이 브랜드 색으로 재매핑돼 있어 그 의도를
+ * 깨지 않으려면 토큰을 써야 하고, 이 버튼은 구분 필터와 성격이 달라(필터가 아니라 분석
+ * 열기) 테두리를 강조하는 편이 뜻에 맞는다.
+ */
+.btn-collusion {
+  font-size: var(--fs-badge);
+  padding: 3px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  background: var(--surface);
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn-collusion:hover {
+  background: var(--accent-light);
+}

@@ -19,6 +19,7 @@ import { Cell, type CellActions } from '@/components/table/Cell';
 import { DataTable } from '@/components/table/DataTable';
 import { Pagination } from '@/components/table/Pagination';
 import { PER_PAGE_ALL, PER_PAGE_OPTIONS, snapPerPage } from '@/components/table/perPage';
+import { CollusionModal } from '@/features/notices/collusion/CollusionModal';
 import { StatusBar } from '@/components/table/StatusBar';
 import { EmptyState, PendingState } from '@/components/feedback/EmptyState';
 import {
@@ -90,6 +91,7 @@ export function NoticeTableScreen({ kind }: NoticeTableScreenProps) {
   const location = useLocation();
   const { criteria, setCriteria, setPage } = useSearchCriteria();
   const [selection, setSelection] = useState<DrawerSelection | null>(null);
+  const [collusionOpen, setCollusionOpen] = useState(false);
   const { notify } = useNotReady();
 
   /*
@@ -114,8 +116,11 @@ export function NoticeTableScreen({ kind }: NoticeTableScreenProps) {
     if (fileKeywordsIgnored) notify('첨부문서 전수조사');
   }, [fileKeywordsIgnored, notify]);
 
-  // 화면을 옮기면 서랍은 닫는다 — 옛 공고의 서랍이 새 표 위에 남으면 안 된다.
-  useEffect(() => setSelection(null), [kind]);
+  // 화면을 옮기면 서랍과 매트릭스를 함께 닫는다 — 옛 공고의 겹창이 새 표 위에 남으면 안 된다.
+  useEffect(() => {
+    setSelection(null);
+    setCollusionOpen(false);
+  }, [kind]);
 
   // 정렬은 URL 에 없으면 화면 기본값을 쓴다(원본 defaultSortForTab).
   const sort = useMemo(
@@ -392,6 +397,22 @@ export function NoticeTableScreen({ kind }: NoticeTableScreenProps) {
               </button>
             ))}
           </div>
+          {/*
+            들러리 매트릭스는 입찰 결과 전용이다 — 낙찰·개찰이 있어야 성립하는 분석이라
+            공고 단계 화면에는 누를 이유가 없다. 결과가 없을 때(또는 아직 불러오는 중일 때)
+            숨기는 것도 원본과 같다: 분석 대상이 지금 표에 뜬 행이므로 표가 비면 물어볼 것이
+            없다(app.js:1195 의 `hasResults && state.tab === 'bid-result'`).
+          */}
+          {kind === 'bid-result' && rows.length > 0 && !loading ? (
+            <button
+              type="button"
+              className="btn-collusion"
+              onClick={() => setCollusionOpen(true)}
+              title="지금 표에 뜬 낙찰 건들의 개찰 참여업체를 가로질러 들러리·교대 담합 패턴을 봅니다."
+            >
+              들러리 매트릭스
+            </button>
+          ) : null}
           {/* '마감 전만'은 입찰 공고에서만 뜻이 있다 — 나머지 화면에는 마감 개념이 없다. */}
           {kind === 'bid-announce' ? (
             <label className="filter-check">
@@ -469,6 +490,15 @@ export function NoticeTableScreen({ kind }: NoticeTableScreenProps) {
       )}
 
       <NoticeDrawer selection={selection} onClose={() => setSelection(null)} />
+
+      {/*
+        모달은 열려 있을 때만 마운트한다 — 언마운트가 곧 useMutation 폐기이므로 표 조건이
+        바뀐 뒤 다시 열었을 때 옛 매트릭스가 비칠 여지를 하나 더 없앤다(모달 안쪽에서도
+        reset 으로 막지만, 겹으로 막아 둘 값어치가 있다).
+      */}
+      {collusionOpen ? (
+        <CollusionModal open onClose={() => setCollusionOpen(false)} rows={rows} />
+      ) : null}
     </section>
   );
 }

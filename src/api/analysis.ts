@@ -7,6 +7,7 @@
  */
 import { useMutation } from '@tanstack/react-query';
 import { post } from '@/lib/apiClient';
+import type { BidOpeningParticipant } from './notices';
 import type { FileEntry, LegalAssessment } from './types';
 
 /* ─── 공고 AI 요약 ────────────────────────────────────────────────────────── */
@@ -163,11 +164,26 @@ export function searchOfficers(body: OfficerSearchRequest): Promise<OfficerSearc
 
 export interface CollusionAnalysisRequest {
   /** 서버는 최대 20건까지만 처리한다. */
-  bids: Array<{ bidNtceNo: string; bidNtceSqNo?: string; _type?: string }>;
+  bids: Array<{
+    bidNtceNo: string;
+    bidNtceSqNo?: string;
+    _type?: string;
+    /*
+     * 아래 둘은 물음표가 붙어 있지만 **사실상 필수다.**
+     *
+     * 서버는 요청으로 받은 공고 객체를 그대로 복사해 응답 `bids` 에 되돌려 준다
+     * (백엔드 MarketIntelService.java:316). 즉 이 둘을 안 보내면 서버가 어디서도 채워
+     * 주지 않아 모달 3번째 섹션('공고별 1·2위')의 공고명·개찰일이 통째로 null 이 된다.
+     * 화면이 조용히 비는 종류라 타입만 보고는 눈치채기 어려워 여기 적어 둔다.
+     * 원본도 같은 5필드를 보낸다(app.js:2656-2662).
+     */
+    bidNtceNm?: string;
+    opengDate?: string;
+  }>;
 }
 
 export interface CollusionAnalysisResponse {
-  bids: Array<Record<string, unknown> & { participants: unknown[] }>;
+  bids: Array<Record<string, unknown> & { participants: BidOpeningParticipant[] }>;
   pairs: Array<{
     a: string;
     b: string;
@@ -179,8 +195,14 @@ export interface CollusionAnalysisResponse {
       bidNtceNm: string;
       winner: string;
       runnerUp: string;
-      winBidprcRt: number;
-      runBidprcRt: number;
+      /*
+       * 숫자가 아니라 **문자열로 온다.** 백엔드가 G2B 원본값을 Object 로 패스스루하기
+       * 때문이다(CollusionAnalysis.java:180-182). 실제 응답은 "80" 같은 값이라 이 타입을
+       * 믿고 .toFixed() 를 부르면 런타임에 터진다. api/notices.ts 의
+       * BidOpeningParticipant.bidprcRt 가 이미 `string | number` 이므로 그 관례를 따른다.
+       */
+      winBidprcRt: string | number;
+      runBidprcRt: string | number;
       opengDate: string;
     }>;
     alterScore: number;
