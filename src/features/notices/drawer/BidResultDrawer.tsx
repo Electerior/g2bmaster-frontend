@@ -64,7 +64,17 @@ export function BidResultDrawer({ item, onClose }: BidResultDrawerProps) {
     ['주소', pick(item.bidwinnrAdrs), true],
     ['확정 담당', pick(item.fnlSucsfCorpOfcl)],
     ['출처', pick(item._sourceLabel)],
-    ['상태', pick(item._noticeStatus)],
+    /*
+     * '상태' 줄을 지웠다 — 이 화면에서는 **언제나 '공고'** 였다.
+     *
+     * `_noticeStatus` 는 백엔드가 `ntceKindNm`/`rgstTyNm` 중 하나를 고르고 둘 다 비면 '공고'
+     * 를 채우는 필드인데(`BidEnrichment.java:140-141`), 낙찰정보 오퍼레이션
+     * (`getScsbidListSttus{Thng,Servc,Cnstwk}`) 응답 20~21개 필드에 그 둘이 **없다**.
+     * 색인 적재든 단건 조회든 예외 없이 '공고'다.
+     *
+     * 낙찰 확정 건이든 재입찰 건이든 구분이 없으니 "아직 공고 단계인가?" 로 읽히거나
+     * 상태가 갱신되지 않는다고 오해하게 만든다. 바로 위 '출처'('나라장터')는 실제 정보라 남긴다.
+     */
   ]);
 
   return (

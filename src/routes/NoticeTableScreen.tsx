@@ -33,6 +33,7 @@ import {
 import {
   ATTACHMENT_SCAN_READY,
   buildQuery,
+  hasKeywords,
   isBlockingRelevant,
   isPastOnlyAnnounceRange,
   shouldScanAttachments,
@@ -123,14 +124,49 @@ export function NoticeTableScreen({ kind }: NoticeTableScreenProps) {
     setCollusionOpen(false);
   }, [kind]);
 
-  // 정렬은 URL 에 없으면 화면 기본값을 쓴다(원본 defaultSortForTab).
-  const sort = useMemo(
-    () =>
-      criteria.sortKey
-        ? { key: criteria.sortKey, dir: criteria.sortDir }
-        : defaultSortForKind(kind),
-    [criteria.sortKey, criteria.sortDir, kind],
-  );
+  /*
+   * 정렬은 URL 에 없으면 화면 기본값을 쓴다(원본 defaultSortForTab).
+   *
+   * URL 값을 **이 화면의 컬럼 키로 검증한다.** 백엔드 `SearchQuery.sortItems` 는 화이트리스트
+   * 없이 `map.get(sortKey)` 만 하므로 존재하지 않는 키가 와도 오류 없이 흐르는데, 그 결과는
+   * 무정렬이 아니다 — `/api/bid-result` 는 sortKey 가 **비었을 때만** BM25 를 타므로,
+   * 쓰레기 키 하나가 키워드 검색의 관련도 순서까지 함께 죽인다. 손으로 친 주소나 옛 링크로만
+   * 재현되는 좁은 경로지만, 막는 값이 한 줄이다.
+   */
+  const sort = useMemo(() => {
+    const allowed = new Set(
+      columnsFor(kind).map((c) => (c.sortKey === undefined ? c.key : c.sortKey)),
+    );
+    return criteria.sortKey && allowed.has(criteria.sortKey)
+      ? { key: criteria.sortKey, dir: criteria.sortDir }
+      : defaultSortForKind(kind);
+  }, [criteria.sortKey, criteria.sortDir, kind]);
+
+  /*
+   * 정렬을 서버에 맡길 것인가 — 원본이 남긴 결함 하나를 여기서 닫는다.
+   *
+   * 백엔드는 `sortKey` 가 비었을 때만 BM25 관련도 재랭킹을 탄다(`NoticeController.java:136`).
+   * 그런데 이 화면은 URL 에 정렬이 없어도 화면 기본값(개찰일시 내림차순)을 **무조건** 실어
+   * 보내 왔다. 그래서 BM25 는 한 번도 실행되지 않는 사문 코드였다 —
+   * `docs/bid-result-open-spec.md` §9-6 이 원본의 같은 결함을 이미 기록해 두었는데,
+   * 이식하면서 그대로 따라온 것이다.
+   *
+   * 사용자가 머리글을 눌러 정렬을 고른 적이 없고(=URL 에 sort 가 없고) 키워드 조건이 있으면
+   * 정렬을 생략해 서버가 관련도로 답하게 한다. 그때는 어느 머리글에도 정렬 표시가 켜지지
+   * 않는다(DataTable 이 sort.key 와 일치하는 컬럼만 활성으로 그린다) — 그것이 맞다.
+   * 화면은 개찰일시 순이라고 말하면서 실제로는 관련도 순인 상태가 가장 나쁘다.
+   */
+  const relevanceSort = !criteria.sortKey && hasKeywords(criteria);
+
+  /*
+   * 머리글이 주장하는 정렬. 관련도로 넘길 때는 **어느 컬럼도 활성으로 그리지 않는다.**
+   *
+   * `sort` 를 그대로 넘기면 표는 '개찰일시 ▼' 라고 말하는데 서버는 관련도로 답하는,
+   * 이 변경으로 새로 생길 뻔한 거짓말이 된다. 빈 키를 넘기면 DataTable 이 전 컬럼을
+   * 중립(⇅)으로 그리고, 상태 줄의 '관련도순 정렬' 이 그 이유를 말한다.
+   * 머리글을 누르면 URL 에 sort 가 생겨 이 분기를 곧바로 빠져나간다.
+   */
+  const displaySort = relevanceSort ? { key: '', dir: sort.dir } : sort;
 
   // 첨부 전수조사가 필요한 검색이면 페이지가 아니라 후보 전체를 받는다(pageNo=0).
   const scanMode = shouldScanAttachments(criteria, kind);
@@ -151,13 +187,15 @@ export function NoticeTableScreen({ kind }: NoticeTableScreenProps) {
 
   const baseQuery = useMemo(() => {
     const query = buildQuery(criteria, kind, scanMode ? { pageNo: 0 } : {});
-    query.sortKey = sort.key;
-    query.sortDir = sort.dir;
+    if (!relevanceSort) {
+      query.sortKey = sort.key;
+      query.sortDir = sort.dir;
+    }
     query.perPage = perPageChoice;
     // 서버는 '전체'를 문자열 'all' 로 받는다. 숫자로 보내면 500건에서 잘린다(server.js:1015).
     if (perPageChoice >= PER_PAGE_ALL) query.perPage = 'all';
     return query;
-  }, [criteria, kind, perPageChoice, scanMode, sort]);
+  }, [criteria, kind, perPageChoice, relevanceSort, scanMode, sort]);
 
   const main = useNoticeQuery(kind, baseQuery);
   const pending = pendingOf(main.data);
@@ -193,12 +231,15 @@ export function NoticeTableScreen({ kind }: NoticeTableScreenProps) {
       activeOnly: false,
       ...(scanMode ? { pageNo: 0 } : {}),
     });
-    query.sortKey = sort.key;
-    query.sortDir = sort.dir;
+    // 본 조회와 같은 규칙을 쓴다 — 한쪽만 고치면 폴백 결과의 순서가 본 조회와 달라진다.
+    if (!relevanceSort) {
+      query.sortKey = sort.key;
+      query.sortDir = sort.dir;
+    }
     query.perPage = perPageChoice;
     if (perPageChoice >= PER_PAGE_ALL) query.perPage = 'all';
     return query;
-  }, [criteria, kind, perPageChoice, scanMode, sort]);
+  }, [criteria, kind, perPageChoice, relevanceSort, scanMode, sort]);
 
   const retry = useNoticeQuery(kind, retryQuery, { enabled: wantsRetry });
   const includedClosedFallback = wantsRetry && Number(retry.data?.totalCount ?? 0) > 0;
@@ -367,6 +408,8 @@ export function NoticeTableScreen({ kind }: NoticeTableScreenProps) {
       notes.push('마감 공고 포함 조회');
     }
     if (includedClosedFallback) notes.push('마감 공고 포함 재조회');
+    // 머리글에 정렬 표시가 하나도 안 켜진 이유를 여기서 말한다 — 안 그러면 정렬이 고장난 것으로 읽힌다.
+    if (relevanceSort) notes.push('관련도순 정렬');
 
     const counts = data.sourceCounts;
     return (
@@ -451,12 +494,12 @@ export function NoticeTableScreen({ kind }: NoticeTableScreenProps) {
             columns={columns}
             rows={rows}
             rowKey={(row, index) => rowKeyForItem(row, index, kind)}
-            sort={sort}
+            sort={displaySort}
             onSort={(key) =>
               setCriteria({
                 sortKey: key,
                 // 같은 컬럼을 다시 누르면 방향만 뒤집는다 — 원본 elHead 클릭 위임과 동일.
-                sortDir: sort.key === key && sort.dir === 'asc' ? 'desc' : 'asc',
+                sortDir: displaySort.key === key && displaySort.dir === 'asc' ? 'desc' : 'asc',
               })
             }
             renderCell={renderCell}
