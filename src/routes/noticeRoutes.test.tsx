@@ -49,6 +49,53 @@ describe('AppTabs 활성 표시', () => {
   });
 });
 
+describe('AppTabs 조건 캐리오버', () => {
+  /*
+   * 탭 링크가 앞 화면의 좌표(page·sort·dir·ntceNo)와 색인 전용 필터를 목적지로 흘리면
+   * "총 779건인데 표는 비어 있고 페이지 버튼도 없다"가 된다 — searchForTab 주석 참고.
+   * 사용자가 친 조건은 반대로 반드시 살아남아야 한다.
+   */
+  function hrefOf(from: string, label: string): string {
+    const { container } = render(
+      <MemoryRouter initialEntries={[from]}>
+        <AppTabs />
+      </MemoryRouter>,
+    );
+    const link = [...container.querySelectorAll('a.app-tab')].find(
+      (el) => el.querySelector('.app-tab-label')?.textContent === label,
+    );
+    return link?.getAttribute('href') ?? '';
+  }
+
+  const FROM = '/notices?and=노트북&sort=created&dir=desc&page=3&region=서울&perPage=50';
+
+  it('입찰 결과로 넘길 때 앞 화면의 좌표와 색인 전용 필터를 버린다', () => {
+    const href = hrefOf(FROM, '입찰 결과');
+    for (const dropped of ['sort=', 'dir=', 'page=', 'region=']) {
+      expect(href).not.toContain(dropped);
+    }
+  });
+
+  it('사용자가 친 조건과 페이지당 건수는 그대로 들고 간다', () => {
+    const href = hrefOf(FROM, '입찰 결과');
+    // 한글 키워드는 URLSearchParams 가 퍼센트 인코딩한다.
+    expect(href).toContain(`and=${encodeURIComponent('노트북')}`);
+    expect(href).toContain('perPage=50');
+  });
+
+  it('저장 공고 탭에도 같은 규칙이 걸린다 — 한쪽만 걸면 그 주소만 거짓말한다', () => {
+    const href = hrefOf(FROM, '저장 공고');
+    expect(href).not.toContain('page=');
+    expect(href).not.toContain('sort=');
+    // 색인 전용 필터는 입찰 결과로 갈 때만 버린다. 저장 공고는 색인 계열이라 남는다.
+    expect(href).toContain('region=');
+  });
+
+  it('버릴 것만 있던 주소는 물음표를 남기지 않는다', () => {
+    expect(hrefOf('/notices?page=2&sort=created', '입찰 결과')).toBe(ROUTES.bidResult);
+  });
+});
+
 describe('LegacyNoticeRedirect', () => {
   function landOn(entry: string, path: string, category?: string): string {
     render(

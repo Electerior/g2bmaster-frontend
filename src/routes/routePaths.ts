@@ -86,3 +86,71 @@ const TABLESS_ROUTES: readonly string[] = [ROUTES.system];
 export function showsTabs(pathname: string): boolean {
   return !TABLESS_ROUTES.includes(pathname);
 }
+
+/*
+ * ─── 탭을 옮길 때 조건을 얼마나 들고 갈 것인가 ────────────────────────────────
+ *
+ * 원본은 탭이 곧 화면 상태였으므로 탭을 누를 때마다 `state.pageNo=1` ·
+ * `state.crossBidNtceNo=''` · `defaultSortForTab()` 을 손으로 되돌렸다(app.js:519-522).
+ * 우리는 조건을 URL 에 두므로 그 리셋이 저절로 따라오지 않는다 — AppTabs 가
+ * `location.search` 를 한 글자도 안 거르고 목적지에 붙이면 앞 화면의 좌표가 그대로 샌다.
+ *
+ * 이 표를 routePaths.ts 에 두는 이유는 탭 계약(TAB_ITEMS · TRANSIT_ROUTES)과 같은 파일이어야
+ * 다음에 파라미터가 늘어날 때 함께 눈에 띄기 때문이다. 검색 조건의 정의는
+ * useSearchCriteria.ts 의 PARAM 에 있지만, "탭을 넘을 때 무엇이 살아남는가"는 조건의 문제가
+ * 아니라 탭의 문제다.
+ */
+
+/**
+ * 어느 화면으로 가든 버리는 것 — 앞 화면의 좌표이지 사용자가 고른 조건이 아니다.
+ *
+ * - `page` : 목적지의 총 페이지 수는 다르다. 범위를 벗어나면 서버는 totalCount 는 크게
+ *   주면서 items 는 빈 배열을 주는데, 그러면 상태바만 "총 779건 | 3/1 페이지"라고 말하고
+ *   표는 비며 페이지 버튼까지 사라져(행이 0이면 안 그렸다) 되돌아갈 길이 없었다.
+ * - `sort`/`dir` : 화면마다 정렬 가능한 키가 다르다. 색인 검색 전용 키(created 등)가
+ *   입찰 결과로 넘어가면 백엔드 comparator 가 전 행에서 null 을 만나 **정렬이 통째로 무효**가
+ *   된다 — 개찰일시 내림차순이 조용히 사라지고 어느 머리글에도 정렬 표시가 켜지지 않는다.
+ * - `ntceNo` : 크로스탭이 심는 공고번호다. 이 값이 있으면 buildQuery 가 키워드를 전부
+ *   비우는데, 정작 `/api/bid-result` 는 공고번호를 바인딩하지 않는다(백엔드 SearchCriteria
+ *   record 에 필드가 없다). 결과가 "조건 없는 전 구간 조회"로 벌어진다.
+ *
+ * `perPage` 는 일부러 남긴다 — '한 화면에 몇 줄'은 앞 화면의 좌표가 아니라 사용자 취향이다.
+ * 선택지에 없는 값이 넘어와 셀렉트 표시와 실제가 어긋나는 문제는 화면 쪽에서 snapPerPage 로
+ * 닫는다.
+ */
+export const SCREEN_SCOPED_PARAMS: readonly string[] = ['sort', 'dir', 'page', 'ntceNo'];
+
+/**
+ * 공고 통합 검색(로컬 색인)에만 뜻이 있는 조건. 입찰 결과로 갈 때만 버린다.
+ *
+ * 낙찰정보는 색인이 아니라 팬아웃 API 라 이 축들이 아예 없다. 남겨 두면 주소는 "서울 · 계획
+ * 단계"라고 말하는데 결과는 그 조건과 무관하게 나온다 — 조건이 무시된다는 사실이 화면
+ * 어디에도 안 보이는 것이 가장 나쁘다.
+ */
+export const INDEX_ONLY_PARAMS: readonly string[] = [
+  'cat',
+  'state',
+  'region',
+  'closeFrom',
+  'closeTo',
+  'min',
+  'max',
+  'prdct',
+  'spec',
+];
+
+/**
+ * 탭 링크가 목적지에 붙일 쿼리스트링.
+ *
+ * 사용자가 친 것(and/or/not · from/to · instt · mode · type)은 전부 살아남는다.
+ * 버리는 것은 앞 화면의 좌표뿐이다.
+ */
+export function searchForTab(search: string, kind: ScreenKind): string {
+  const params = new URLSearchParams(search);
+  for (const key of SCREEN_SCOPED_PARAMS) params.delete(key);
+  if (kind === 'bid-result') {
+    for (const key of INDEX_ONLY_PARAMS) params.delete(key);
+  }
+  const next = params.toString();
+  return next ? `?${next}` : '';
+}

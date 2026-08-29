@@ -18,7 +18,7 @@ import type {
 import { Cell, type CellActions } from '@/components/table/Cell';
 import { DataTable } from '@/components/table/DataTable';
 import { Pagination } from '@/components/table/Pagination';
-import { PER_PAGE_ALL } from '@/components/table/perPage';
+import { PER_PAGE_ALL, PER_PAGE_OPTIONS, snapPerPage } from '@/components/table/perPage';
 import { StatusBar } from '@/components/table/StatusBar';
 import { EmptyState, PendingState } from '@/components/feedback/EmptyState';
 import {
@@ -129,14 +129,29 @@ export function NoticeTableScreen({ kind }: NoticeTableScreenProps) {
   // 첨부 전수조사가 필요한 검색이면 페이지가 아니라 후보 전체를 받는다(pageNo=0).
   const scanMode = shouldScanAttachments(criteria, kind);
 
+  /*
+   * 셀렉트가 보여 주는 값과 실제로 요청하는 값을 하나로 맞춘다.
+   *
+   * perPage 는 탭을 넘어도 살아남는 조건이다(searchForTab 이 일부러 남긴다 — '한 화면에 몇
+   * 줄'은 앞 화면의 좌표가 아니라 사용자 취향이므로). 그래서 색인 검색에서 '200개'를 고른 뒤
+   * 입찰 결과로 넘어오면 이 화면의 선택지에 없는 200 이 그대로 들어온다. 그대로 두면 제어된
+   * select 가 어느 옵션과도 안 맞아 React 가 첫 옵션('20개')을 보여 주는데 실제로는 200건을
+   * 받아 오고, 그 상태에서 '20개'를 다시 골라도 change 가 안 나 되돌릴 수도 없다.
+   * perPage.ts:37-46 주석이 이 증상을 서술해 놓고 반대 방향(입찰 결과 → 색인 검색)만 막고
+   * 있었다. 요청과 표시 양쪽에 같은 값을 쓴다 — PER_PAGE_OPTIONS 를 넘기므로
+   * '전체'(99999)는 그대로 살아남는다.
+   */
+  const perPageChoice = snapPerPage(criteria.perPage, PER_PAGE_OPTIONS);
+
   const baseQuery = useMemo(() => {
     const query = buildQuery(criteria, kind, scanMode ? { pageNo: 0 } : {});
     query.sortKey = sort.key;
     query.sortDir = sort.dir;
+    query.perPage = perPageChoice;
     // 서버는 '전체'를 문자열 'all' 로 받는다. 숫자로 보내면 500건에서 잘린다(server.js:1015).
-    if (criteria.perPage >= PER_PAGE_ALL) query.perPage = 'all';
+    if (perPageChoice >= PER_PAGE_ALL) query.perPage = 'all';
     return query;
-  }, [criteria, kind, scanMode, sort]);
+  }, [criteria, kind, perPageChoice, scanMode, sort]);
 
   const main = useNoticeQuery(kind, baseQuery);
   const pending = pendingOf(main.data);
@@ -174,9 +189,10 @@ export function NoticeTableScreen({ kind }: NoticeTableScreenProps) {
     });
     query.sortKey = sort.key;
     query.sortDir = sort.dir;
-    if (criteria.perPage >= PER_PAGE_ALL) query.perPage = 'all';
+    query.perPage = perPageChoice;
+    if (perPageChoice >= PER_PAGE_ALL) query.perPage = 'all';
     return query;
-  }, [criteria, kind, scanMode, sort]);
+  }, [criteria, kind, perPageChoice, scanMode, sort]);
 
   const retry = useNoticeQuery(kind, retryQuery, { enabled: wantsRetry });
   const includedClosedFallback = wantsRetry && Number(retry.data?.totalCount ?? 0) > 0;
@@ -198,6 +214,22 @@ export function NoticeTableScreen({ kind }: NoticeTableScreenProps) {
     query.isPending || (scanMode && scan.isPending && Boolean(data?.items?.length));
 
   const totalPages = Math.max(1, Math.ceil((data?.totalCount ?? 0) / (data?.numOfRows || 20)));
+
+  /*
+   * 범위를 벗어난 페이지에서 스스로 빠져나온다.
+   *
+   * 원본은 탭을 누를 때마다 pageNo 를 1 로 되돌렸지만(app.js:520) 우리는 조건을 URL 에 두므로
+   * 그 리셋이 자동으로 따라오지 않는다. AppTabs 쪽은 searchForTab 이 `page` 를 떨궈 막았고,
+   * 여기는 손으로 고친 주소와 옛 공유 링크를 위한 보험이다 — 그 경로로 들어오면 서버는
+   * totalCount 는 크게 주면서 items 는 빈 배열을 주고, 화면은 "총 779건 | 99/40 페이지"라고
+   * 말하면서 아무것도 안 보여 준다.
+   *
+   * 응답이 온 뒤에만 판단한다. 로딩 중에는 totalPages 가 아직 1 이라 멀쩡한 페이지도 되감긴다.
+   */
+  useEffect(() => {
+    if (!loading && !pending && criteria.pageNo > totalPages) setPage(1);
+  }, [loading, pending, criteria.pageNo, totalPages, setPage]);
+
 
   /* ─── 셀 동작 ──────────────────────────────────────────────────────────── */
   const actions: CellActions = {
@@ -416,11 +448,16 @@ export function NoticeTableScreen({ kind }: NoticeTableScreenProps) {
           />
 
           {/* 전수조사 결과는 이미 전 건을 받은 상태라 페이지가 없다(원본도 숨겼다). */}
-          {!scanMode && rows.length > 0 ? (
+          {/*
+            0 행이어도 1 페이지가 아니면 페이지네이션을 남긴다 — 없으면 범위 밖 페이지에
+            떨어진 사용자가 되돌아갈 컨트롤 자체를 잃는다. 위 useEffect 가 대개 먼저
+            되감지만, 응답이 오기 전 한 프레임 동안은 이 게이트가 유일한 탈출구다.
+          */}
+          {!scanMode && (rows.length > 0 || criteria.pageNo > 1) ? (
             <Pagination
               page={criteria.pageNo}
               totalPages={totalPages}
-              perPage={criteria.perPage}
+              perPage={perPageChoice}
               onPage={(nextPage) => {
                 setPage(nextPage);
                 window.scrollTo({ top: 0, behavior: 'smooth' });
