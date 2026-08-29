@@ -97,6 +97,17 @@ export function OpeningPanel({ item }: OpeningPanelProps) {
     <div className="drawer-section tight">
       <div className="drawer-section-label">
         개찰 경쟁 현황
+        {/*
+          잘렸다는 사실은 **눈이 처음 닿는 곳**에서 말해야 한다.
+          '더 보기' 버튼은 20행 아래에 있어 서랍을 연 첫 화면에서는 보이지 않는다
+          (실측: 버튼 top 1032px, 뷰포트 972px — 150px 쯤 스크롤해야 나온다). 그것만 두면
+          사용자는 스크롤하기 전에 "20개사가 전부"라고 읽고 끝낸다 — 실제로 그런 제보를 받았다.
+        */}
+        {hidden > 0 ? (
+          <span className="opening-truncated">
+            상위 {shown.length}개사 · 총 {sorted.length.toLocaleString()}개사
+          </span>
+        ) : null}
         <button
           type="button"
           className="btn-opening-fetch"
