@@ -259,7 +259,37 @@ describe('입찰 결과 서랍', () => {
      * (실측 버튼 top 1032px / 뷰포트 972px). 그것만 두면 스크롤하기 전에 "20개사가 전부"로
      * 읽고 끝낸다 — 실제로 그 제보를 받아 이 줄을 넣었다.
      */
-    expect(within(drawer).getByText(/상위 20개사 · 총 1,596개사/)).toBeInTheDocument();
+    expect(within(drawer).getByText(/상위 20개사 · 수집 1,596개사/)).toBeInTheDocument();
+  });
+
+  it('수집분이 낙찰정보의 참여업체수보다 적으면 잘렸다고 말한다', async () => {
+    /*
+     * 상류 수집 상한 때문에 아주 큰 개찰은 전수가 오지 않는다. 그때 '총 N개사 참여'라고만
+     * 적으면 바로 위 메타의 '참여업체수'와 숫자가 어긋나 화면이 스스로 모순된다 —
+     * 실제로 5,527 vs 3,996 으로 그랬다.
+     */
+    get.mockResolvedValue({
+      items: [{ ...WON, prtcptCnum: '5527' }],
+      totalCount: 1,
+      pageNo: 1,
+      numOfRows: 20,
+    });
+    post.mockResolvedValue({
+      bidNtceNo: WON.bidNtceNo,
+      bidNtceSqNo: '000',
+      participants: Array.from({ length: 3996 }, (_, i) => ({
+        bdrNm: `업체${i + 1}`,
+        rank: String(i + 1),
+        bidAmt: '1000',
+        bidprcRt: '90',
+        sucsfbidYn: 'N',
+      })),
+    });
+    renderScreen();
+    const drawer = await openDrawer();
+
+    expect(await within(drawer).findByText(/총 5,527개사 참여 — 그중 3,996개사 확인/)).toBeInTheDocument();
+    expect(within(drawer).getByText(/낙찰정보 기준 5,527개사 중/)).toBeInTheDocument();
   });
 
   it("'더 보기'를 누르면 전부 펼친다", async () => {
@@ -300,7 +330,7 @@ describe('입찰 결과 서랍', () => {
     expect(await within(drawer).findByText('업체8')).toBeInTheDocument();
     expect(within(drawer).queryByRole('button', { name: /더 보기/ })).not.toBeInTheDocument();
     // 잘리지 않았으면 머리줄 요약도 없어야 한다 — 늘 띄우면 잡음이다.
-    expect(within(drawer).queryByText(/상위 .*개사 · 총/)).not.toBeInTheDocument();
+    expect(within(drawer).queryByText(/상위 .*개사 · 수집/)).not.toBeInTheDocument();
   });
 
   it('공고번호가 없으면 조회하지 않는다 — 빈 번호로 나가면 서버가 400 을 낸다', async () => {
