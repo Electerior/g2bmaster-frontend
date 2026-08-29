@@ -426,6 +426,28 @@
   font-weight: 600;
   background: var(--accent-light);
 }
+/*
+ * 접힌 나머지를 펼치는 줄. 표 바로 아래에 전폭으로 두어 "여기서 끊겼다"가 눈에 띄게 한다 —
+ * 작은 링크로 두면 1,596개사짜리에서 사용자가 20개사가 전부라고 읽는다.
+ */
+.btn-opening-more {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 6px 8px;
+  border: 1px dashed var(--border);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: var(--fs-badge);
+  font-weight: 700;
+  cursor: pointer;
+}
+.btn-opening-more:hover {
+  color: var(--theme-gunmetal);
+  border-style: solid;
+}
+
 .opening-note {
   margin-top: 6px;
   color: var(--muted);

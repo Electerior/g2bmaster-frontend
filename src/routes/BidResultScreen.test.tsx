@@ -228,6 +228,73 @@ describe('입찰 결과 서랍', () => {
     );
   });
 
+  it('참여업체가 많으면 상위 20개사만 그리고 나머지는 접는다', async () => {
+    /*
+     * 실측 분포: 중앙값 8개사인데 14%가 100개사를 넘고 최대 1,596개사다. 전부 그리면
+     * 서랍이 무한 스크롤이 되고, 그 표는 목록이 아니라 덤프가 된다. 총원은 메타 격자와
+     * '총 N개사 참여'에 남아 있으므로 접어도 정보가 사라지지 않는다.
+     */
+    post.mockResolvedValue({
+      bidNtceNo: WON.bidNtceNo,
+      bidNtceSqNo: '000',
+      participants: Array.from({ length: 1596 }, (_, i) => ({
+        bdrNm: `업체${i + 1}`,
+        rank: String(i + 1),
+        bidAmt: '173445000',
+        bidprcRt: '90.4',
+        sucsfbidYn: i === 0 ? 'Y' : 'N',
+      })),
+    });
+    renderScreen();
+    const drawer = await openDrawer();
+
+    expect(await within(drawer).findByText('업체1')).toBeInTheDocument();
+    expect(within(drawer).getByText('업체20')).toBeInTheDocument();
+    expect(within(drawer).queryByText('업체21')).not.toBeInTheDocument();
+    // 끊겼다는 사실과 남은 수가 보여야 한다 — 안 그러면 20개사가 전부라고 읽는다.
+    expect(within(drawer).getByRole('button', { name: /나머지 1,576개사 더 보기/ })).toBeInTheDocument();
+    expect(within(drawer).getByText(/총 1,596개사 참여/)).toBeInTheDocument();
+  });
+
+  it("'더 보기'를 누르면 전부 펼친다", async () => {
+    post.mockResolvedValue({
+      bidNtceNo: WON.bidNtceNo,
+      bidNtceSqNo: '000',
+      participants: Array.from({ length: 25 }, (_, i) => ({
+        bdrNm: `업체${i + 1}`,
+        rank: String(i + 1),
+        bidAmt: '1000',
+        bidprcRt: '90',
+        sucsfbidYn: 'N',
+      })),
+    });
+    renderScreen();
+    const drawer = await openDrawer();
+
+    fireEvent.click(await within(drawer).findByRole('button', { name: /나머지 5개사 더 보기/ }));
+    expect(within(drawer).getByText('업체25')).toBeInTheDocument();
+    expect(within(drawer).getByRole('button', { name: '접기' })).toBeInTheDocument();
+  });
+
+  it('20개사 이하면 접기 줄을 그리지 않는다 — 절반 이상이 이 경우다', async () => {
+    post.mockResolvedValue({
+      bidNtceNo: WON.bidNtceNo,
+      bidNtceSqNo: '000',
+      participants: Array.from({ length: 8 }, (_, i) => ({
+        bdrNm: `업체${i + 1}`,
+        rank: String(i + 1),
+        bidAmt: '1000',
+        bidprcRt: '90',
+        sucsfbidYn: 'N',
+      })),
+    });
+    renderScreen();
+    const drawer = await openDrawer();
+
+    expect(await within(drawer).findByText('업체8')).toBeInTheDocument();
+    expect(within(drawer).queryByRole('button', { name: /더 보기/ })).not.toBeInTheDocument();
+  });
+
   it('공고번호가 없으면 조회하지 않는다 — 빈 번호로 나가면 서버가 400 을 낸다', async () => {
     get.mockResolvedValue({
       items: [{ ...WON, bidNtceNo: '' }],

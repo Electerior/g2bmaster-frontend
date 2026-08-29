@@ -6,6 +6,7 @@
  * '낙찰' 판정(sucsfbidYn) 같은 규칙이 한쪽에서만 고쳐지는 종류의 어긋남이 생긴다.
  */
 import { useQuery } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
 import { fetchBidOpeningResults, type BidOpeningParticipant } from '@/api';
 import { Spinner } from '@/components/feedback/Spinner';
 import { fmtBidRate, ordinalOf, rankOf, rankText } from '../rows';
@@ -52,8 +53,21 @@ interface OpeningPanelProps {
  *
  * 버튼은 남긴다. 다만 이제 그것은 **다시 조회**다(개찰이 방금 끝난 건을 확인할 때).
  */
+/**
+ * 접지 않고 보여 주는 행 수.
+ *
+ * 실측 분포(저장 129건): 중앙값 8개사 · 평균 85개사 · 최대 1,596개사. 절반 이상(55%)이
+ * 10개사 이하라 대부분은 이 상한에 걸리지도 않는다. 문제는 꼬리다 — 14%가 100개사를 넘고,
+ * 1,596개사짜리는 서랍이 사실상 무한 스크롤이 된다. 그 표는 목록이 아니라 덤프에 가깝다.
+ *
+ * 20 인 이유: 낙찰자·2위·근접 경쟁의 간격을 읽는 데 필요한 만큼이다. 총원은 이미 서랍
+ * 메타 격자의 '참여업체수'와 표 아래 '총 N개사 참여'에 있으므로 접어도 정보가 사라지지 않는다.
+ */
+const VISIBLE_ROWS = 20;
+
 export function OpeningPanel({ item }: OpeningPanelProps) {
   const noticeNo = String(item.bidNtceNo ?? '').trim();
+  const [expanded, setExpanded] = useState(false);
   const query = useQuery({
     queryKey: ['bid-opening', noticeNo, ordinalOf(item)],
     queryFn: () =>
@@ -70,6 +84,14 @@ export function OpeningPanel({ item }: OpeningPanelProps) {
   // 정렬 규칙은 rows.ts 에 둔다 — 빈 문자열 순위를 여기서만 막으면 담합 모달이 나중에
   // 순위를 그릴 때 같은 함정을 다시 밟는다.
   const sorted = [...participants].sort((a, b) => rankOf(a) - rankOf(b));
+  const shown = expanded ? sorted : sorted.slice(0, VISIBLE_ROWS);
+  const hidden = sorted.length - shown.length;
+
+  /*
+   * 다른 공고를 열면 접힌 상태로 돌아간다. 서랍은 선택이 바뀌어도 리마운트되지 않을 수
+   * 있어서, 1,596개사를 펼쳐 본 뒤 옆 공고를 열면 그쪽도 펼쳐진 채로 뜬다.
+   */
+  useEffect(() => setExpanded(false), [noticeNo]);
 
   return (
     <div className="drawer-section tight">
@@ -110,7 +132,7 @@ export function OpeningPanel({ item }: OpeningPanelProps) {
                   </tr>
                 </thead>
                 <tbody>
-                  {sorted.map((p, i) => {
+                  {shown.map((p, i) => {
                     const won = String(p.sucsfbidYn ?? '').toUpperCase() === 'Y';
                     return (
                       <tr key={`${p.bdrNm ?? ''}-${i}`} className={won ? 'win' : undefined}>
@@ -125,7 +147,17 @@ export function OpeningPanel({ item }: OpeningPanelProps) {
                 </tbody>
               </table>
             </div>
-            <div className="opening-note">총 {participants.length}개사 참여</div>
+            {hidden > 0 ? (
+              <button type="button" className="btn-opening-more" onClick={() => setExpanded(true)}>
+                나머지 {hidden.toLocaleString()}개사 더 보기
+              </button>
+            ) : null}
+            {expanded && sorted.length > VISIBLE_ROWS ? (
+              <button type="button" className="btn-opening-more" onClick={() => setExpanded(false)}>
+                접기
+              </button>
+            ) : null}
+            <div className="opening-note">총 {participants.length.toLocaleString()}개사 참여</div>
           </>
         )}
       </div>
