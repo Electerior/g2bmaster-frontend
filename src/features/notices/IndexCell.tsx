@@ -45,7 +45,7 @@ export interface IndexCellActions {
    * crossToSpec 과 달리 **화면을 옮긴다.** 낙찰정보는 색인이 아니라 팬아웃 API 라
    * 같은 표에서 조건만 좁힐 수가 없다.
    */
-  crossToResult: (noticeName: string) => void;
+  crossToResult: (notice: { bidNtceNo: string; bidType: string; noticeName: string }) => void;
 }
 
 interface IndexCellProps {
@@ -216,18 +216,33 @@ export function IndexCell({
 
     case 'result-cross': {
       /*
-       * 원본은 공고명 전체를 AND 키워드 하나로 넘긴다(app.js:2045). 공고번호가 아니라
-       * 제목 문자열인 이유는 /api/bid-result 가 공고번호를 조건으로 받지 않기 때문이다 —
-       * 백엔드 SearchCriteria 에 그 필드가 아예 없다.
+       * **공고번호로 넘긴다.** 원본은 공고명 전체를 AND 키워드로 넘겼는데(app.js:2045),
+       * 그것은 `/api/bid-result` 가 공고번호를 조건으로 받지 않던 시절의 우회였다. 이제
+       * 받는다 — 그리고 번호 조회는 날짜창도, 색인 커버리지도 보지 않는다(색인에 없으면
+       * 서버가 나라장터에 한 번 물어 온다). 제목 매칭으로는 같은 이름의 다른 공고가 섞이고,
+       * 색인이 그 구간을 덮지 못했으면 있는 결과도 못 찾았다.
+       *
+       * 구분(businessDivision)을 함께 넘기는 것은 서버의 상류 호출을 1회로 끝내기 위해서다.
+       * 없으면 서버가 물품 → 용역 → 공사 순으로 최대 세 번 묻는다.
+       *
+       * 번호가 없는 행(있어선 안 되지만)은 예전처럼 이름으로 찾는다 — 화면에서 버튼이
+       * 사라지는 것보다 낫다.
        */
       const name = String(item.noticeName ?? '').trim();
-      if (!name) return EMPTY;
+      const no = String(item.id ?? '').trim();
+      if (!name && !no) return EMPTY;
       return (
         <button
           type="button"
           className="cross-tab-btn plain"
-          onClick={() => actions.crossToResult(name)}
-          title="이 공고의 낙찰 결과 찾아보기"
+          onClick={() =>
+            actions.crossToResult({
+              bidNtceNo: no,
+              bidType: String(item.businessDivision ?? ''),
+              noticeName: name,
+            })
+          }
+          title="이 공고의 낙찰 결과 보기"
         >
           낙찰결과 →
         </button>

@@ -34,14 +34,20 @@ function fmtBidAmount(value: unknown): string {
 
 interface OpeningPanelProps {
   item: OpeningTarget;
+  /** 열리자마자 조회한다. 낙찰 결과가 없어 대안으로 뜨는 자리에서 쓴다. */
+  autoLoad?: boolean;
 }
 
 /**
  * 버튼을 눌러야 조회한다 — 원본과 같다.
  * 서랍을 열 때마다 자동으로 부르면 아직 개찰 전인 공고에서 매번 헛품을 판다.
+ *
+ * <p>{@code autoLoad} 는 그 규칙의 예외다. 낙찰 결과가 비어 이 패널이 <b>대안으로</b> 뜨는
+ * 자리에서는 사용자가 이미 "이 공고 결과를 보여 달라"고 눌러 들어온 것이라, 버튼을 한 번 더
+ * 누르게 하는 것은 같은 질문을 두 번 시키는 셈이다.
  */
-export function OpeningPanel({ item }: OpeningPanelProps) {
-  const [requested, setRequested] = useState(false);
+export function OpeningPanel({ item, autoLoad = false }: OpeningPanelProps) {
+  const [requested, setRequested] = useState(autoLoad);
   const query = useQuery({
     queryKey: ['bid-opening', item.bidNtceNo ?? '', ordinalOf(item)],
     queryFn: () =>

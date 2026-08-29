@@ -22,6 +22,7 @@ import { PER_PAGE_ALL, PER_PAGE_OPTIONS, snapPerPage } from '@/components/table/
 import { CollusionModal } from '@/features/notices/collusion/CollusionModal';
 import { StatusBar } from '@/components/table/StatusBar';
 import { EmptyState, PendingState } from '@/components/feedback/EmptyState';
+import { NoResultYet } from '@/features/notices/NoResultYet';
 import {
   columnsFor,
   defaultSortForKind,
@@ -252,6 +253,16 @@ export function NoticeTableScreen({ kind }: NoticeTableScreenProps) {
     crossSearch: (target, seed) => navigate(crossSearchTo(target, seed, location.search)),
   };
 
+  /*
+   * 공고번호로 들어왔는데 낙찰 결과가 없는 경우.
+   *
+   * 서버는 이때 색인을 보고 없으면 나라장터에 한 번 더 묻는다. 그래도 비었다면 "그런 공고가
+   * 없다"가 아니라 <b>아직 낙찰이 확정되지 않았다</b>는 뜻이다 — 개찰은 끝났는데 낙찰자
+   * 확정 전인 구간이 실제로 며칠씩 있다. 그 구간을 빈 표로만 보여 주면 사용자는 기능이
+   * 고장 났다고 읽는다.
+   */
+  const noticeLookupMiss = kind === 'bid-result' && Boolean(criteria.crossBidNtceNo);
+
   const renderCell = (row: ScannedRow, column: ColumnDef, columnIndex: number): ReactNode => {
     // 발주 계획의 '조달요청명'은 컬럼 정의에 fmt 가 없지만 서랍을 여는 링크다(원본 app.js:3943).
     const fmt = kind === 'bid-plan' && column.key === 'bizNm' ? 'plan-link' : column.fmt;
@@ -465,7 +476,11 @@ export function NoticeTableScreen({ kind }: NoticeTableScreenProps) {
               criteria.notTerms.join(','),
               criteria.insttNm,
             ].join('|')}
-            empty={rows.length === 0 && !loading ? <EmptyState /> : null}
+            empty={
+              rows.length === 0 && !loading ? (
+                noticeLookupMiss ? <NoResultYet bidNtceNo={criteria.crossBidNtceNo} bidType={criteria.bidType} /> : <EmptyState />
+              ) : null
+            }
           />
 
           {/* 전수조사 결과는 이미 전 건을 받은 상태라 페이지가 없다(원본도 숨겼다). */}
