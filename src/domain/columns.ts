@@ -131,6 +131,15 @@ export const SCREENS: Readonly<Record<ScreenKind, ScreenConfig>> = {
       { label: '공고일', key: 'createdDate', fmt: 'datetime', sortKey: 'created' },
       // 마감일시 셀 안에 D-DAY 배지를 함께 그린다 — 별도 컬럼을 두면 계획 단계에서 둘 다 빈다.
       { label: '마감일시', key: 'closeDate', fmt: 'close-dday', sortKey: 'close' },
+      /*
+       * 낙찰결과 → : 이 공고가 어떻게 끝났는지 보러 간다. 원본 입찰 공고 표의 같은 버튼
+       * (app.js:2045)이며, 셀 포맷터('result-cross')와 이동 함수(crossSearchTo)는 진작
+       * 있었는데 이 컬럼이 라우팅되지 않는 레거시 정의에만 있어 화면에서 도달할 수 없었다.
+       *
+       * key 가 bidNtceNm 이 아니라 noticeName 인 것에 주의하라 — 색인 검색의 공고명 키다.
+       * 팬아웃 응답의 필드명을 그대로 베끼면 값이 늘 비어 버튼이 아예 안 그려진다.
+       */
+      { label: '낙찰결과', key: 'noticeName', fmt: 'result-cross', sortKey: null },
       // ★ 저장 — POST /api/saved-notices 로 바로 담는다(SVG 목업의 행 끝 별).
       { label: '', key: 'id', fmt: 'save-star', sortKey: null },
     ],

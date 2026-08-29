@@ -216,3 +216,22 @@
 .cell-empty {
   color: var(--table-empty-fg);
 }
+
+/* ── 담합 위험도 ───────────────────────────────────────────────────────────
+ * 색은 거들기만 한다 — 실제 구분자는 배지 안의 이모지다(Badge.tsx RiskBadge 주석).
+ * --danger 와 --warn 이 팔레트에서 같은 값으로 재매핑돼 있어 색만으로는 나뉘지 않는다.
+ */
+.risk-badge {
+  white-space: nowrap;
+  font-weight: 700;
+  font-size: var(--fs-badge);
+}
+.risk-high {
+  color: var(--danger);
+}
+.risk-mid {
+  color: var(--warn);
+}
+.risk-low {
+  color: var(--muted);
+}

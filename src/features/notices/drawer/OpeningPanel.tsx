@@ -9,6 +9,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { fetchBidOpeningResults, type BidOpeningParticipant } from '@/api';
 import { Spinner } from '@/components/feedback/Spinner';
+import { fmtBidRate, ordinalOf } from '../rows';
 import { pick } from './metaValues';
 
 /**
@@ -29,16 +30,6 @@ export interface OpeningTarget {
 function fmtBidAmount(value: unknown): string {
   const n = Number(String(value ?? '').replace(/,/g, ''));
   return Number.isNaN(n) || !n ? '-' : `${n.toLocaleString()}원`;
-}
-
-function fmtBidRate(value: unknown): string {
-  const n = parseFloat(String(value ?? ''));
-  return Number.isNaN(n) ? '-' : `${n.toFixed(3)}%`;
-}
-
-/** 차수. 두 계통이 이름을 달리 쓰므로 한 군데서 고른다 — 없으면 원본과 같은 '000'. */
-function ordinalOf(item: OpeningTarget): string {
-  return String(item.bidNtceSqNo ?? item.bidNtceOrd ?? '000');
 }
 
 interface OpeningPanelProps {

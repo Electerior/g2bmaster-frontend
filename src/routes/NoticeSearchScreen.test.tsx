@@ -6,7 +6,7 @@
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { NoticeIndexItem } from '@/api/search';
 
@@ -483,5 +483,58 @@ describe('NoticeSearchScreen', () => {
   it('색인 기준 시각을 상태 줄에 적는다', async () => {
     renderScreen();
     await waitFor(() => expect(screen.getByText(/색인 2026-08-06 09:20 기준/)).toBeInTheDocument());
+  });
+});
+
+describe('낙찰결과 크로스탭', () => {
+  /*
+   * 셀 포맷터('result-cross')와 이동 함수(crossSearchTo)는 진작 있었는데 컬럼이 라우팅되지
+   * 않는 레거시 정의에만 있어 화면에서 도달할 수 없었다. 되살리면서 걸리기 쉬운 함정이 둘:
+   *   1) 색인의 공고명 키는 noticeName 이다. 팬아웃 응답의 bidNtceNm 을 그대로 베끼면
+   *      값이 늘 비어 버튼 자체가 안 그려진다 — 오류는 나지 않는다.
+   *   2) 기간의 뜻이 양쪽에서 다르다. 색인의 from/to 는 공고 생성일이고 입찰 결과의 것은
+   *      낙찰 결과 등록일(rgst_dt)이라, 그대로 넘기면 "아직 결과가 없다"가 "그런 낙찰 건이
+   *      없다"로 보인다.
+   */
+  function Landed() {
+    const { pathname, search } = useLocation();
+    return <span data-testid="landed">{`${pathname}${search}`}</span>;
+  }
+
+  function renderWithProbe(search = '') {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    return render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter initialEntries={[`/notices${search}`]}>
+          <NoticeSearchScreen />
+          <Landed />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+  }
+
+  it('공고명을 AND 키워드로 실어 입찰 결과 화면으로 간다', async () => {
+    renderWithProbe('?and=노트북&from=20260801&to=20260829&type=물품');
+    const button = await screen.findAllByRole('button', { name: '낙찰결과 →' });
+    fireEvent.click(button[0]);
+
+    const landed = screen.getByTestId('landed').textContent ?? '';
+    expect(landed).toContain('/notices/bid-result');
+    // URLSearchParams 는 공백을 '+' 로 넣으므로 파싱해서 본다 — 인코딩 방식을 고정하지 않는다.
+    const params = new URLSearchParams(landed.slice(landed.indexOf('?')));
+    // 공고명은 noticeName 에서 온다 — DELEGATED 픽스처의 값이다.
+    expect(params.get('and')).toBe('2026년 노트북 및 모니터 구매');
+    // 구분은 유지한다(원본 app.js:2798-2801 과 같다).
+    expect(params.get('type')).toBe('물품');
+  });
+
+  it('기간은 들고 가지 않는다 — 양쪽에서 뜻이 다른 축이다', async () => {
+    renderWithProbe('?and=노트북&from=20260801&to=20260829');
+    const button = await screen.findAllByRole('button', { name: '낙찰결과 →' });
+    fireEvent.click(button[0]);
+
+    const landed = screen.getByTestId('landed').textContent ?? '';
+    expect(landed).not.toContain('from=');
+    expect(landed).not.toContain('to=');
   });
 });

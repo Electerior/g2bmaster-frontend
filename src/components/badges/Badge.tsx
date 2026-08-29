@@ -172,3 +172,28 @@ export function ReqTags({ value }: ReqTagsProps) {
     </div>
   );
 }
+
+/* ─── 담합 위험도 ────────────────────────────────────────────────────────── */
+
+interface RiskBadgeProps {
+  /** 서버가 계산해 준 의심점수(pairs[].suspicionScore). 재계산하지 않는다. */
+  score: number;
+}
+
+/**
+ * 위험도 임계값 3.0 / 1.5 는 원본 프론트에만 있던 숫자다(app.js:2671) — 서버는 점수까지만
+ * 주고 등급은 나누지 않는다. 이 두 숫자가 바뀌면 사람이 표를 들여다보는 순서가 통째로
+ * 달라지므로, 바꿀 일이 생기면 원본과 함께 옮겨야 한다.
+ *
+ * **이모지가 실제 구분자다.** 팔레트에서 --danger 와 --warn 이 같은 색으로 재매핑돼 있어
+ * (tokens.css) 색만으로 고위험과 주의를 나누면 둘이 똑같아 보인다. 색은 거들 뿐이다.
+ */
+export function RiskBadge({ score }: RiskBadgeProps) {
+  const level = score >= 3 ? 'high' : score >= 1.5 ? 'mid' : 'low';
+  const mark = level === 'high' ? '🔴' : level === 'mid' ? '🟡' : '⚪';
+  return (
+    <span className={`risk-badge risk-${level}`}>
+      {mark} {score.toFixed(1)}
+    </span>
+  );
+}

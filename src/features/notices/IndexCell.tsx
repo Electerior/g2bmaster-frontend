@@ -39,6 +39,13 @@ export interface IndexCellActions {
   openDetail: (item: NoticeIndexItem) => void;
   /** 사전규격 → 그 규격에서 나온 입찰공고로 조건을 좁힌다. */
   crossToSpec: (beforeSpecRgstNo: string) => void;
+  /**
+   * 공고 → 그 공고의 낙찰 결과로 건너뛴다.
+   *
+   * crossToSpec 과 달리 **화면을 옮긴다.** 낙찰정보는 색인이 아니라 팬아웃 API 라
+   * 같은 표에서 조건만 좁힐 수가 없다.
+   */
+  crossToResult: (noticeName: string) => void;
 }
 
 interface IndexCellProps {
@@ -203,6 +210,26 @@ export function IndexCell({
           title={`사전규격 ${specNo} 로 이어진 공고 모아보기`}
         >
           규격 →
+        </button>
+      );
+    }
+
+    case 'result-cross': {
+      /*
+       * 원본은 공고명 전체를 AND 키워드 하나로 넘긴다(app.js:2045). 공고번호가 아니라
+       * 제목 문자열인 이유는 /api/bid-result 가 공고번호를 조건으로 받지 않기 때문이다 —
+       * 백엔드 SearchCriteria 에 그 필드가 아예 없다.
+       */
+      const name = String(item.noticeName ?? '').trim();
+      if (!name) return EMPTY;
+      return (
+        <button
+          type="button"
+          className="cross-tab-btn plain"
+          onClick={() => actions.crossToResult(name)}
+          title="이 공고의 낙찰 결과 찾아보기"
+        >
+          낙찰결과 →
         </button>
       );
     }

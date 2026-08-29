@@ -11,6 +11,7 @@
  * 유일한 신선도 정보다.
  */
 import { useMemo, useState, type ReactNode } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   useNoticeIndexSearch,
   useNoticeIndexStatus,
@@ -24,6 +25,7 @@ import { StatusBar } from '@/components/table/StatusBar';
 import { columnsFor, SCREENS, type ColumnDef } from '@/domain/columns';
 import { fmtDisplayDatetime } from '@/domain/format';
 import { IndexCell, type IndexCellActions } from '@/features/notices/IndexCell';
+import { crossSearchTo } from '@/features/notices/crossSearch';
 import { indexRowKey } from '@/features/notices/indexRows';
 import { IndexNoticeDrawer } from '@/features/notices/drawer/IndexNoticeDrawer';
 import {
@@ -84,6 +86,9 @@ export function NoticeSearchScreen() {
   const facets = useNoticeFacetBars(criteria);
   const status = useNoticeIndexStatus();
 
+  const navigate = useNavigate();
+  const location = useLocation();
+
   const data = search.data;
   const items = data?.items ?? [];
   const attachmentSearch = data?.meta?.attachmentSearch;
@@ -95,6 +100,11 @@ export function NoticeSearchScreen() {
     openDetail: setSelected,
     // 같은 화면 안에서 조건만 좁힌다 — 사전규격에서 이어진 공고를 보려고 화면을 옮길 이유가 없다.
     crossToSpec: (beforeSpecRgstNo) => setCriteria({ beforeSpecRgstNo, category: '' }),
+    // 낙찰정보는 색인 밖이라 화면을 옮겨야 한다 — 기간을 왜 버리는지는 crossSearch.ts 참고.
+    crossToResult: (noticeName) =>
+      navigate(
+        crossSearchTo('bid-result', { andTerms: [noticeName], bidType: criteria.bidType }, location.search),
+      ),
   };
 
   const renderCell = (item: NoticeIndexItem, column: ColumnDef): ReactNode => (

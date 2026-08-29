@@ -27,7 +27,17 @@ export interface CrossDestination {
  * 넘어갈 주소. 원본과 같은 규칙으로 조건을 리셋한다:
  * 키워드는 seed 로 갈아 끼우고 OR/NOT/발주기관은 비운다(다른 탭의 조건을 끌고 가면
  * 결과가 0건이 되는데, 사용자는 왜 비었는지 알 수 없다).
- * 기간은 남긴다 — 방금 고른 범위 안에서 보고 싶은 것이 보통이다.
+ *
+ * **기간은 목적지에 따라 다르다.**
+ *
+ * 공고 통합 검색의 from/to 는 공고 생성일(created_date)이지만, 입찰 결과의 from/to 는
+ * 개찰일시가 아니라 **낙찰 결과가 등록된 시각(rgst_dt)** 이다. 방금 뜬 공고를 그대로
+ * 넘기면 아직 결과가 등록되지 않은 구간을 묻는 셈이라 0건이 나오고, 화면에는 "그런
+ * 낙찰 건이 없다"로 보인다 — 실제로는 "아직 없다"인데도.
+ *
+ * 그래서 입찰 결과로 갈 때는 기간을 아예 버려 서버 기본 구간을 쓰게 한다. 같은 화면
+ * 계열(입찰 공고)로 갈 때는 뜻이 같으므로 그대로 들고 간다. rlOpengDt 는 입찰 결과의
+ * 기본 정렬 키일 뿐 조회 구간과는 무관하다는 점을 헷갈리지 마라.
  */
 export function crossSearchTo(
   target: CrossTarget,
@@ -37,7 +47,8 @@ export function crossSearchTo(
   const current = new URLSearchParams(currentSearch);
   const next = new URLSearchParams();
 
-  for (const key of ['from', 'to', 'perPage'] as const) {
+  const carried = target === 'bid-result' ? (['perPage'] as const) : (['from', 'to', 'perPage'] as const);
+  for (const key of carried) {
     const value = current.get(key);
     if (value) next.set(key, value);
   }

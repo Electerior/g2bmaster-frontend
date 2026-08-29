@@ -145,3 +145,40 @@ export function parseProductDetailList(value: unknown): ProductDetail[] {
 export function firstProductDetail(value: unknown): ProductDetail | null {
   return parseProductDetailList(value)[0] ?? null;
 }
+
+/* ─── 개찰(투찰) 값 다루기 ────────────────────────────────────────────────────
+ *
+ * 원래 OpeningPanel 안의 지역 함수였다. 들러리 매트릭스가 같은 두 규칙을 쓰게 되면서
+ * 올렸다 — 두 곳이 각자 `?? '000'` 을 쓰고 각자 소수 자리를 정하면, 한쪽만 고쳐지고
+ * 다른 쪽은 그대로인 종류의 어긋남이 생긴다. 차수가 어긋나면 개찰 조회가 통째로
+ * 빗나가므로 눈에도 잘 안 띈다.
+ */
+
+/**
+ * 공고 차수. 두 계통이 이름을 달리 쓰므로 한 군데서 고른다 — 없으면 원본과 같은 '000'.
+ *
+ * 입찰 공고 계열은 `bidNtceSqNo`, 입찰 결과 응답은 `bidNtceOrd` 로 준다. 결과 행을 보고
+ * `bidNtceSqNo` 만 읽으면 늘 '000' 이 나가 개찰 조회가 엉뚱한 차수를 묻는다.
+ */
+export function ordinalOf(
+  /*
+   * 두 갈래를 다 받는다. 앞의 것은 OpeningPanel 의 OpeningTarget 처럼 필드를 명시한
+   * 인터페이스, 뒤의 것은 서버 응답 행(DecoratedRow — 인덱스 시그니처가 있어 필드가
+   * unknown 이다). 앞의 것만 적어 두면 TS 의 약한 타입 검사가 "공통 프로퍼티가 없다"며
+   * 행 객체를 막는다.
+   */
+  item: { bidNtceSqNo?: unknown; bidNtceOrd?: unknown } | Record<string, unknown>,
+): string {
+  return String(item.bidNtceSqNo ?? item.bidNtceOrd ?? '000');
+}
+
+/**
+ * 투찰율 표기. 원본과 같은 소수 3자리.
+ *
+ * 값이 문자열("80")로 오는 경로가 있어 parseFloat 로 받는다 — 담합 매트릭스의
+ * winBidprcRt·runBidprcRt 가 그렇다(api/analysis.ts 주석 참고).
+ */
+export function fmtBidRate(value: unknown): string {
+  const n = parseFloat(String(value ?? ''));
+  return Number.isNaN(n) ? '-' : `${n.toFixed(3)}%`;
+}
