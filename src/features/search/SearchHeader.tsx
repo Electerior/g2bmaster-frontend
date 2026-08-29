@@ -10,11 +10,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useNotReady } from '@/components/feedback/notReadyContext';
+import type { ScreenKind } from '@/domain/columns';
 import { fmtInputDate } from '@/domain/format';
-import { searchModeLayout } from '@/domain/searchModes';
+import { SEARCH_MODES, searchModeLayout } from '@/domain/searchModes';
 import type { SearchMode } from '@/domain/searchModes';
-import { isTransitRoute } from '@/routes/routePaths';
-import { useSearchCriteria, type SearchCriteria } from './useSearchCriteria';
+import { isTransitRoute, ROUTES } from '@/routes/routePaths';
+import { itemSearchApplies, useSearchCriteria, type SearchCriteria } from './useSearchCriteria';
 import { SearchModeTabs } from './SearchModeTabs';
 import { TagInput } from './TagInput';
 import './search.css';
@@ -102,7 +103,26 @@ function ClearableInput({
 export function SearchHeader() {
   const location = useLocation();
   const { criteria, setCriteria } = useSearchCriteria();
-  const mode = criteria.mode;
+  /*
+   * 검색창은 셸이 그리므로 kind 를 프롭으로 받지 않는다 — 주소로 판별한다.
+   * 표 라우트는 지금 입찰 결과 하나뿐이고(NoticeTableScreen 주석), 나머지 단계는 통합
+   * 검색으로 합쳐져 자기 주소가 없다. kind → 경로 표를 새로 만들면 그 표가
+   * routePaths.ts 와 어긋나는 날 조용히 엉뚱한 화면을 가리킨다.
+   */
+  const kind: ScreenKind = location.pathname === ROUTES.bidResult ? 'bid-result' : 'notice-search';
+  /*
+   * 쓸 수 있는 모드는 **buildQuery 와 같은 근거**에서 뽑는다. 여기에 목록을 따로 적으면
+   * 탭은 보이는데 조건은 안 실리는(또는 그 반대인) 어긋남이 언제든 생긴다.
+   */
+  const availableModes = SEARCH_MODES.filter((m) => m !== 'item' || itemSearchApplies(kind));
+  /*
+   * URL 의 mode 가 이 화면에서 성립하지 않는 경우. 탭을 넘어와도 mode 는 보존되므로
+   * (searchForTab 이 일부러 남긴다) 품목 탭을 누른 적 없는 사용자에게도 일어난다.
+   * 조회 자체는 키워드 검색으로 정상 동작하지만, 말해 주지 않으면 "품목으로 찾고 있는데
+   * 왜 이런 결과가" 가 된다.
+   */
+  const itemModeIgnored = criteria.mode === 'item' && !availableModes.includes('item');
+  const mode: SearchMode = availableModes.includes(criteria.mode) ? criteria.mode : 'keyword';
   const layout = searchModeLayout(mode);
   const { notify } = useNotReady();
 
@@ -172,7 +192,17 @@ export function SearchHeader() {
   return (
     <>
       <section className="search-box" aria-label="공고 검색 조건">
-        <SearchModeTabs mode={criteria.mode} onModeChange={(next) => setCriteria({ mode: next })} />
+        <SearchModeTabs
+          mode={criteria.mode}
+          availableModes={availableModes}
+          onModeChange={(next) => setCriteria({ mode: next })}
+        />
+        {itemModeIgnored ? (
+          <p className="search-mode-note" role="status">
+            낙찰정보에는 품목 필드가 없어 <strong>입찰 결과에서는 품목 검색이 성립하지
+            않습니다</strong> — 입력한 낱말로 키워드 검색을 합니다.
+          </p>
+        ) : null}
 
         <div className="bool-search">
           {layout.keywordRows ? (

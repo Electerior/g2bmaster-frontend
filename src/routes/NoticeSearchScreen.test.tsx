@@ -528,11 +528,41 @@ describe('낙찰결과 크로스탭', () => {
     // URLSearchParams 는 공백을 '+' 로 넣으므로 파싱해서 본다 — 인코딩 방식을 고정하지 않는다.
     const params = new URLSearchParams(landed.slice(landed.indexOf('?')));
     // 공고번호는 색인 항목의 id 다. 이 값이 서버의 bidNtceNo 단건 조회로 들어간다.
-    expect(params.get('ntceNo')).toBeTruthy();
+    expect(params.get('ntceNo')).toBe('R26BK01638523');
     // 제목 매칭으로는 더 이상 가지 않는다 — 같은 이름의 다른 공고가 섞인다.
     expect(params.get('and')).toBeNull();
     // 구분은 유지한다 — 서버의 상류 호출이 1회로 끝난다.
     expect(params.get('type')).toBe('물품');
+  });
+
+  it('입찰공고 단계가 아니면 번호를 싣지 않는다 — id 가 공고번호가 아니다', async () => {
+    /*
+     * NoticeIndexItem.id 가 공고번호인 것은 입찰공고 계열뿐이다. 계획은 조달요청번호,
+     * 사전규격은 사전규격등록번호를 같은 칸에 담는다. 그 번호를 bidNtceNo 로 실어 보내면
+     * 서버는 색인을 보고 나라장터에도 물은 뒤 빈 결과를 주고, 화면은 "낙찰 결과가 아직
+     * 없습니다"라고 **틀린 진단**을 내놓는다 — 확정 전인 것이 아니라 낙찰이라는 것이
+     * 있을 수 없는 단계다. 게다가 조건줄에는 그럴듯한 번호가 찍혀 있어 진단이 더 어렵다.
+     */
+    renderWithProbe('?and=노트북');
+    const buttons = await screen.findAllByRole('button', { name: '낙찰결과 →' });
+    // ITEMS 순서는 [DELEGATED(입찰), PLAN(계획), CLOSED(마감), CANCELLED(마감), SPEC(사전규격)].
+    fireEvent.click(buttons[1]);
+
+    const landed = screen.getByTestId('landed').textContent ?? '';
+    const params = new URLSearchParams(landed.slice(landed.indexOf('?')));
+    expect(params.get('ntceNo')).toBeNull();
+    // 번호를 못 쓰는 행은 지금까지대로 공고명 검색으로 떨어진다 — 버튼이 사라지는 것보다 낫다.
+    expect(params.get('and')).toBe('스마트캠퍼스 통합관제 시스템 구축 발주계획');
+  });
+
+  it('마감 단계는 번호를 싣는다 — 낙찰결과를 실제로 찾을 수 있는 단계다', async () => {
+    renderWithProbe('?and=노트북');
+    const buttons = await screen.findAllByRole('button', { name: '낙찰결과 →' });
+    fireEvent.click(buttons[2]);
+
+    const landed = screen.getByTestId('landed').textContent ?? '';
+    const params = new URLSearchParams(landed.slice(landed.indexOf('?')));
+    expect(params.get('ntceNo')).toBe('R26BK01600002');
   });
 
   it('기간은 들고 가지 않는다 — 양쪽에서 뜻이 다른 축이다', async () => {

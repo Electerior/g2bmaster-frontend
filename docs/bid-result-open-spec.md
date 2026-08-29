@@ -51,7 +51,7 @@
 | `pageNo`, `perPage` | 페이지 번호, 페이지당 행수. `all` 이면 99999, 그 외 1~500 클램프 |
 | `fromDate`, `toDate` | `YYYYMMDD` |
 | `insttNm` | 수요기관명 |
-| `corpNm` | 낙찰업체명 — **UI 에서는 도달하지 못하는 사문 파라미터다**(§8 참고) |
+| `corpNm` | 낙찰업체명 — **UI 에서는 도달하지 못하는 사문 파라미터다**(§8 참고). 이식본도 같다: 못 이식한 것은 이 파라미터가 아니라 '낙찰자 조회' 모드와 company-history 패널 쪽이다 |
 | `sortKey`, `sortDir` | 정렬 |
 | `searchField` | `item` 이면 품목명(`dtilPrdctClsfcNoNm`) 단독 조회 |
 | `bidType` | 전체 / 물품 / 용역 / 공사 |
@@ -280,10 +280,30 @@ Esc · 오버레이 · × 로 닫힌다.
    열면 A 의 참가자 표가 B 의 결과처럼 남는다.
 6. **BM25 재랭킹은 사실상 죽은 코드다.** 서버는 `sortKey` 가 없을 때만 BM25 를 타는데
    프론트가 모든 경로에서 `sortKey='rlOpengDt'` 를 세팅한다.
+
+   > **2026-08-29 — 이식본에서 닫았다.** 이 결함은 그대로 따라와 있었다.
+   > 지금은 URL 에 정렬이 명시되지 않았고 키워드 조건이 있을 때만 `sortKey` 를 생략해
+   > 서버가 관련도로 답하게 하고, 상태 줄에 '관련도순 정렬'을 적는다
+   > (`src/routes/NoticeTableScreen.tsx` 의 `relevanceSort`). 사용자가 머리글을 눌러 고른
+   > 정렬은 그대로 우선한다.
 7. **문서상 실측은 FAIL 이다.** open 의 `docs_archive/FEATURE_MAP.md:78-79` 가 개찰 참여업체
    조회를 FAIL(`participants: []`), 들러리 분석을 FAIL(`pairs`·`companies` 0)로 기록했다.
    원인 함수 `fetchBidOpeningResults` 는 어느 브랜치에서도 수정되지 않았다. **코드가 있다는
    것과 실제로 값이 온다는 것은 다르다** — 이식 후 반드시 실데이터로 확인해야 한다.
+
+   > **2026-08-29 — 원인은 확인됐고 해소됐다.** 위 FAIL 의 원인은 구현이 아니라 **오퍼레이션
+   > 폐기**였다. `ao/OpengResultInfoService` 가 `NO_OPENAPI_SERVICE_ERROR`(사유코드 12)를
+   > 돌려주고 있었고, 백엔드가 `as/ScsbidInfoService/getOpengResultListInfoOpengCompt` 로
+   > 갈아 끼우면서(`G2bEndpoints.java:33-36` 이 스스로 그 사실을 지목한다) 응답 정규화까지
+   > 화면 계약에 맞췄다. 프론트는 고칠 것이 없었다.
+   >
+   > **다만 위 경고문 자체는 여전히 유효하다** — 코드로 증명되는 것은 '살아 있는 오퍼레이션으로
+   > 교체됐다'까지이고, 상류가 실제로 값을 주는지는 소스만으로 알 수 없다. 라이브 검증은
+   > 아직 하지 않았다.
+   >
+   > 이 항목이 오래 스테일로 남아 있던 대가가 실제로 있었다: 개찰 참여업체 정렬이 실격 업체를
+   > 낙찰 1위 위로 올리는 결함이 "원래 비는 게 정상"이라는 서술 뒤에 가려져 있었다
+   > (`src/features/notices/rows.ts` 의 `rankOf`).
 
 ---
 

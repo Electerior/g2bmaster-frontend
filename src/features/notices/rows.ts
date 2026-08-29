@@ -182,3 +182,33 @@ export function fmtBidRate(value: unknown): string {
   const n = parseFloat(String(value ?? ''));
   return Number.isNaN(n) ? '-' : `${n.toFixed(3)}%`;
 }
+
+/** 순위를 알 수 없는 참여업체가 받는 자리. 백엔드 `CollusionAnalysis.rank()` 와 같은 값이다. */
+export const NO_RANK = 99;
+
+/**
+ * 개찰 참여업체의 순위를 정렬 가능한 수로. **실격 업체가 1위 위로 올라오는 것을 막는 자리다.**
+ *
+ * 백엔드는 순위 없음을 `null` 이 아니라 **빈 문자열**로 준다 — `MarketIntelService` 의
+ * `firstNonBlank` 가 후보를 모두 놓치면 `''` 를 돌려주기 때문이고, 그것은 의도된 계약이다
+ * (`:160-161` "실격 업체는 순위·금액·투찰률이 모두 비어 온다. 채우지 않는다" — 0 을 채우면
+ * 투찰률 추세와 담합 매트릭스가 있지도 않은 0원 투찰을 사실로 읽는다).
+ *
+ * 그래서 `?? 99` 만으로는 막히지 않는다. `''` 는 null 이 아니므로 `??` 를 그냥 통과하고
+ * `Number('')` 는 **0** 이다 — 규격서평가부적격 같은 실격 행이 낙찰 1위보다 앞줄에 서고,
+ * 금액·투찰율까지 '-' 라 첫 화면이 통째로 빈 칸으로 보인다. 적격심사 공사·용역은 참여업체가
+ * 백 단위라 실격이 여럿인 경우가 흔하다.
+ *
+ * 판정 규칙은 백엔드 `CollusionAnalysis.rank()` 를 그대로 옮겼다 — 빈 값·비숫자·0 이하는
+ * 전부 맨 뒤로 보낸다.
+ */
+export function rankOf(item: { rank?: unknown }): number {
+  const text = String(item.rank ?? '').trim();
+  const n = Number(text);
+  return text === '' || !Number.isFinite(n) || n <= 0 ? NO_RANK : n;
+}
+
+/** 순위 칸의 표시값. 빈 문자열도 null 과 같이 '-' 다 — `?? '-'` 만으로는 빈 칸이 남는다. */
+export function rankText(item: { rank?: unknown }): string {
+  return String(item.rank ?? '').trim() || '-';
+}

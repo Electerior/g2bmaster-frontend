@@ -70,20 +70,41 @@ export type ErrorBody = {
   missing?: string[];
 };
 
+/** axios 가 스스로 요청을 끊었을 때 다는 코드. 브라우저·Node 어댑터가 서로 다른 것을 쓴다. */
+const TIMEOUT_CODES: readonly string[] = ['ECONNABORTED', 'ETIMEDOUT'];
+
+export function isTimeoutCode(code: string | undefined): boolean {
+  return code != null && TIMEOUT_CODES.includes(code);
+}
+
 /**
  * 화면에 띄울 오류 문구를 고른다.
  *
  * @param transportMessage axios 가 만든 문구(`Request failed with status code 500` 등).
  *                         **마지막 수단이다** — 사용자에게는 아무 정보도 주지 못한다.
+ * @param code axios 의 `error.code`. 타임아웃을 연결 실패와 가르는 데만 쓴다.
  */
 export function errorMessageFrom(
   status: number,
   body: ErrorBody | undefined,
   transportMessage: string,
+  code?: string,
 ): string {
   // 백엔드가 준 한국어 문구가 있으면 그것이 사용자 대상 계약이다(api-contract §1.1-2).
   if (body?.message) return body.message;
   if (body?.error) return body.error;
+
+  /*
+   * **타임아웃을 연결 실패보다 먼저 가른다.**
+   *
+   * 우리가 먼저 끊은 요청도 응답이 없으므로 status 는 0 이 된다. 그것을 아래 분기가
+   * '백엔드에 연결하지 못했습니다' 로 부르면 원인 귀속이 틀린다 — 그 시각 백엔드는 멀쩡히
+   * 살아 상류를 계속 때리고 있고, 사용자와 로그에는 "백엔드가 죽었다"만 남는다.
+   * 코너 케이스가 아니다: 엣지(nginx 300초)보다 axios 상한이 짧아 느린 요청의 정상 경로다.
+   */
+  if (isTimeoutCode(code)) {
+    return '요청이 제한 시간 안에 끝나지 않았습니다. 조건을 좁혀 다시 시도해 주세요.';
+  }
 
   // 응답 자체가 오지 않았다 — 네트워크·DNS·CORS.
   if (status === 0) return '백엔드에 연결하지 못했습니다.';
@@ -110,7 +131,7 @@ apiClient.interceptors.response.use(
     const body = error.response?.data;
     return Promise.reject(
       new ApiError(
-        errorMessageFrom(status, body, error.message),
+        errorMessageFrom(status, body, error.message, error.code),
         status,
         body?.code,
         body?.details ?? body?.missing,

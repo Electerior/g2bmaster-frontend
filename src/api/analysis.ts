@@ -205,7 +205,19 @@ export interface CollusionAnalysisResponse {
       runBidprcRt: string | number;
       opengDate: string;
     }>;
+    /**
+     * 교대율 — **0~100 정수 백분율이다. 화면에서 다시 ×100 하지 말 것.**
+     *
+     * 백엔드가 이미 백분율로 바꿔 준다(`CollusionAnalysis.java:227` 의
+     * `(int) Math.round(alter * 100)`, 레코드 컴포넌트도 `int`). javadoc 이 "번갈아 이긴
+     * 정도(0~100)"로, 테스트(`CollusionAnalysisTest.java:93,103`)가 100/0 으로 단위를
+     * 계약에 못박아 두었다.
+     */
     alterScore: number;
+    /**
+     * 의심점수 — 이쪽은 0~1 alter 기준의 원시 점수라 RiskBadge 임계(3.0/1.5)와 맞물린다.
+     * alterScore 와 스케일이 다르다는 사실 자체가 헷갈리기 쉬운 자리라 적어 둔다.
+     */
     suspicionScore: number;
   }>;
   companies: Array<{
@@ -220,10 +232,25 @@ export interface CollusionAnalysisResponse {
   }>;
 }
 
+/**
+ * 들러리 분석만 axios 전역 상한(60초)을 늘려 잡는다.
+ *
+ * 이 요청 하나가 공고 20건 팬아웃이다(`MarketIntelService` limit 20, 게이트 4 → 5웨이브).
+ * 상류가 정상이면 5~15초로 끝나지만, 한 콜이 재시도 3회를 모두 태우면 그 콜만으로
+ * 20+2+20+4+20 = 66초라 60초 상한을 넘긴다. 그때 프론트가 먼저 끊어도 백엔드는 계속
+ * 상류를 때리고 있고, 화면에는 '백엔드에 연결하지 못했습니다' 라는 **틀린 원인**만 남는다.
+ *
+ * 사슬에서 가장 짧은 상한이 axios 였다는 점이 핵심이다 — nginx 는 300초, serve-static 은
+ * 무제한이라 여기만 늘리면 된다. 백엔드가 202 + 폴링으로 바뀌면 이 override 는 없앤다.
+ */
+export const COLLUSION_TIMEOUT_MS = 180_000;
+
 export function analyzeCollusion(
   body: CollusionAnalysisRequest,
 ): Promise<CollusionAnalysisResponse> {
-  return post<CollusionAnalysisResponse>('/api/collusion-analysis', body);
+  return post<CollusionAnalysisResponse>('/api/collusion-analysis', body, {
+    timeout: COLLUSION_TIMEOUT_MS,
+  });
 }
 
 /* ─── 파일 파싱 (multipart) ───────────────────────────────────────────────── */

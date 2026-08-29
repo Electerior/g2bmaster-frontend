@@ -48,15 +48,21 @@ const WON: BidResultItem = {
   _noticeStatus: '공고',
 };
 
-function renderScreen() {
+function renderScreen(search = '') {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
-      <MemoryRouter initialEntries={['/notices/bid-result']}>
+      <MemoryRouter initialEntries={[`/notices/bid-result${search}`]}>
         <NoticeTableScreen kind="bid-result" />
       </MemoryRouter>
     </QueryClientProvider>,
   );
+}
+
+/** 마지막으로 나간 목록 조회의 쿼리스트링. */
+function lastQuery(): URLSearchParams {
+  const url = String(get.mock.calls.at(-1)?.[0] ?? '');
+  return new URLSearchParams(url.slice(url.indexOf('?') + 1));
 }
 
 /** 머리글 글자만. 정렬 아이콘(⇅▲▼)이 섞여 있어 그대로 비교하면 매번 깨진다. */
@@ -110,6 +116,51 @@ describe('입찰 결과 표', () => {
   });
 });
 
+describe('입찰 결과 정렬', () => {
+  /*
+   * 백엔드는 sortKey 가 **비었을 때만** BM25 관련도 재랭킹을 탄다. 화면이 기본 정렬을
+   * 무조건 실어 보내면 그 경로는 한 번도 실행되지 않는 사문 코드가 된다 —
+   * docs/bid-result-open-spec.md §9-6 이 원본의 같은 결함을 기록해 두었고 이식본이 그대로
+   * 물려받았던 자리다. 오류도 빈칸도 없이 '순서'만 틀리므로 눈으로는 잡히지 않는다.
+   */
+  it('키워드 검색이면 정렬을 생략해 서버 관련도에 맡긴다', async () => {
+    renderScreen('?and=교복');
+    await screen.findByRole('button', { name: WON.bidNtceNm });
+
+    const params = lastQuery();
+    expect(params.get('andTerms')).toBe('교복');
+    expect(params.get('sortKey')).toBeNull();
+    expect(params.get('sortDir')).toBeNull();
+  });
+
+  it('키워드가 없으면 화면 기본 정렬을 그대로 보낸다', async () => {
+    renderScreen();
+    await screen.findByRole('button', { name: WON.bidNtceNm });
+    expect(lastQuery().get('sortKey')).toBe('rlOpengDt');
+  });
+
+  it('사용자가 고른 정렬은 키워드가 있어도 우선한다', async () => {
+    renderScreen('?and=교복&sort=sucsfbidAmt&dir=desc');
+    await screen.findByRole('button', { name: WON.bidNtceNm });
+    expect(lastQuery().get('sortKey')).toBe('sucsfbidAmt');
+  });
+
+  it('컬럼에 없는 정렬 키는 기본값으로 스냅한다 — 쓰레기 키는 관련도까지 함께 죽인다', async () => {
+    // 백엔드 comparator 에 화이트리스트가 없어 없는 키도 오류 없이 흐른다. 손으로 친
+    // 주소나 옛 링크로만 재현되지만, 막는 값이 한 줄이다.
+    renderScreen('?sort=created&dir=desc');
+    await screen.findByRole('button', { name: WON.bidNtceNm });
+    expect(lastQuery().get('sortKey')).toBe('rlOpengDt');
+  });
+
+  it('관련도로 넘길 때는 어느 머리글도 정렬 중이라고 말하지 않는다', async () => {
+    const { container } = renderScreen('?and=교복');
+    await screen.findByRole('button', { name: WON.bidNtceNm });
+    // 표는 '개찰일시 ▼' 라고 말하는데 서버는 관련도로 답하는 상태가 가장 나쁘다.
+    expect(container.querySelector('.sort-icon.active')).toBeNull();
+  });
+});
+
 describe('입찰 결과 서랍', () => {
   it('표에 없던 낙찰업체 상세를 보여준다', async () => {
     renderScreen();
@@ -123,6 +174,19 @@ describe('입찰 결과 서랍', () => {
     ]) {
       expect(within(drawer).getByText(value)).toBeInTheDocument();
     }
+  });
+
+  it("낙찰정보에 없는 '상태' 줄을 그리지 않는다 — 언제나 '공고' 였다", async () => {
+    /*
+     * _noticeStatus 의 원천(ntceKindNm·rgstTyNm)이 낙찰정보 응답에 아예 없어 백엔드가
+     * 기본값 '공고' 를 채운다. 낙찰 확정 건이든 재입찰 건이든 구분이 없어 "아직 공고
+     * 단계인가?" 로 읽힌다. 픽스처는 실제 응답대로 '공고' 를 들고 있다.
+     */
+    renderScreen();
+    const drawer = await openDrawer();
+    expect(within(drawer).queryByText('상태')).not.toBeInTheDocument();
+    // 바로 위 '출처' 는 실제 정보라 남는다.
+    expect(within(drawer).getByText('출처')).toBeInTheDocument();
   });
 
   it('없음을 뜻하는 000 은 줄을 만들지 않는다', async () => {

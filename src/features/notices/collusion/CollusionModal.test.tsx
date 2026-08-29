@@ -6,8 +6,11 @@
  *    조용히 비고, 공고명·개찰일은 서버가 요청을 그대로 되돌려 주는 값이라 3번째 표가 빈다.
  * 2) avgRate 는 0 이 유효값이다. truthy 로 판정하면 '0.000%' 가 '-' 로 사라진다.
  * 3) winBidprcRt 는 숫자가 아니라 문자열("80")로 온다. .toFixed() 를 직접 부르면 터진다.
- * 4) 빈 응답에서 세 표 모두 빈 상태를 그려야 한다 — 지금 상류 개찰결과가 응답하지 않아
- *    이것이 사실상 기본 화면이다.
+ * 4) 빈 응답에서 세 표 모두 빈 상태를 그려야 한다. 한동안은 상류 오퍼레이션이 폐기돼 이것이
+ *    사실상 기본 화면이었다 — 지금은 백엔드가 살아 있는 오퍼레이션으로 갈아 끼워 그렇지
+ *    않지만, 개찰 전·비공개 건에서는 여전히 빈다.
+ * 5) alterScore 는 **0~100 정수 백분율**이다. 화면에서 다시 ×100 하면 완전 교대가 10000% 가
+ *    된다 — 오류가 나지 않아 눈으로는 못 잡는다.
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
@@ -98,7 +101,8 @@ describe('들러리 매트릭스', () => {
       ],
     } satisfies CollusionAnalysisResponse);
     renderModal();
-    expect(await screen.findByText('0.000%')).toBeInTheDocument();
+    // 백엔드가 소수 1자리까지만 계산한다(setScale(1)) — 3자리는 없는 정밀도를 주장한다.
+    expect(await screen.findByText('0.0%')).toBeInTheDocument();
   });
 
   it('투찰율이 문자열로 와도 렌더가 터지지 않는다', async () => {
@@ -112,7 +116,8 @@ describe('들러리 매트릭스', () => {
           total: 4,
           aWins: 2,
           bWins: 2,
-          alterScore: 1,
+          // 완전 교대. 백엔드는 이미 백분율화해서 준다 — 0~1 로 가정하면 10000% 가 뜬다.
+          alterScore: 100,
           suspicionScore: 4,
           cases: [
             {
@@ -133,6 +138,22 @@ describe('들러리 매트릭스', () => {
     expect(screen.getByText('81.500%')).toBeInTheDocument();
     // 의심점수 4 는 임계값 3 이상이라 고위험이다. 색이 아니라 이모지가 구분자다.
     expect(screen.getByText(/🔴/)).toBeInTheDocument();
+  });
+
+  it('교대율을 백분율로 한 번만 그린다 — ×100 이 되살아나면 10000% 가 된다', async () => {
+    post.mockResolvedValue({
+      bids: [],
+      companies: [],
+      pairs: [
+        // 완전 교대(100)와 2승1패(67). 0 인 짝만 우연히 맞던 것이 이 결함의 얼굴이었다.
+        { a: '가', b: '나', total: 4, aWins: 2, bWins: 2, alterScore: 100, suspicionScore: 4, cases: [] },
+        { a: '다', b: '라', total: 3, aWins: 2, bWins: 1, alterScore: 67, suspicionScore: 1, cases: [] },
+      ],
+    } satisfies CollusionAnalysisResponse);
+    renderModal();
+    expect(await screen.findByText('100%')).toBeInTheDocument();
+    expect(screen.getByText('67%')).toBeInTheDocument();
+    expect(screen.queryByText('10000%')).not.toBeInTheDocument();
   });
 
   it('빈 응답에서 세 표가 모두 빈 상태를 그린다', async () => {

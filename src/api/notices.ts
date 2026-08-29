@@ -127,6 +127,23 @@ export interface NoticeSearchQuery {
   activeOnly?: 'true';
   bidNtceNo?: string;
   insttNm?: string;
+  /**
+   * 낙찰업체명 필터. **백엔드는 받지만 프론트는 어디서도 보내지 않는다**(대입 0건).
+   *
+   * 선언을 남겨 두는 것은 계약이 실재하기 때문이다 — `NoticeController` 의 `@RequestParam`
+   * 이고 `BidResultService` 가 실제로 거른다. 지우면 "백엔드가 이걸 지원한다"는 사실이
+   * 저장소에서 사라진다.
+   *
+   * 도달 경로가 없는 진짜 이유는 이 파라미터가 아니라 **'낙찰자 조회' 모드가 통째로
+   * 이식되지 않은 것**이다(`SEARCH_MODES` 는 keyword·item·instt 뿐이고,
+   * `fetchCompanyHistory`/`useCompanyHistory` 도 호출부가 0건이다). 살리려면
+   * `useSearchCriteria` 에 조건(예: URL `corp`)을 더하고 `buildQuery` 에서 값이 있을 때만
+   * 실으면 백엔드는 그대로 동작한다.
+   *
+   * 그때까지 낙찰업체명을 키워드 칸에 넣는 것은 **사실상 항상 0건**이다 —
+   * `BidEnrichment.bidSearchHaystack` 이 업체명 필드(sucsfbidCorpNm·bidwinnrNm)를
+   * 아예 합치지 않는다.
+   */
   corpNm?: string;
   bidType?: string;
   sortKey?: string;
