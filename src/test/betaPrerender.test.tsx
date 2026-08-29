@@ -110,8 +110,10 @@ describe('/beta 프리렌더 — 본문', () => {
   it('카운트업 위젯이 0 이 아니라 최종값으로 그려진다', () => {
     expect(body).not.toContain('>0.0건<');
     expect(body).not.toContain('>0.0%<');
-    // 잔여 자리(정수, 접미사 없음)도 마찬가지다. 대체값 12 가 그대로 나와야 한다.
-    expect(body).toContain('<span>12</span>');
+    // 잔여 자리(정수, 접미사 없음)도 마찬가지다. 대체값이 그대로 나와야 한다.
+    // 숫자를 박아 두지 않는 이유는 아래 '잔여 자리' 시험과 같다 — 지키려는 것은 특정 정원이
+    // 아니라 "서버 응답이 아니라 대체값에서 출발한다"는 규칙이다. 회차마다 정원은 바뀐다.
+    expect(body).toContain(`<span>${FALLBACK_STATUS.remaining}</span>`);
   });
 
   it('아홉 섹션이 모두 그려진다', () => {
