@@ -23,7 +23,7 @@ export function NoResultYet({ bidNtceNo, bidType }: NoResultYetProps) {
         <strong>{bidNtceNo}</strong> 의 낙찰 결과가 아직 없습니다 — 개찰은 끝났어도 낙찰자
         확정까지는 며칠 걸립니다. 그동안의 개찰 결과를 대신 보여 드립니다.
       </p>
-      <OpeningPanel item={{ bidNtceNo, _type: bidType }} autoLoad />
+      <OpeningPanel item={{ bidNtceNo, _type: bidType }} />
     </div>
   );
 }
