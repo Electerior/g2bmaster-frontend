@@ -15,6 +15,7 @@ import { TypeBadge } from '@/components/badges/Badge';
 import { useNotReady } from '@/components/feedback/notReadyContext';
 import type { ColumnDef } from '@/domain/columns';
 import { fmtDisplayDatetime, fmtMoney } from '@/domain/format';
+import { looksLikeNoticeNo } from '@/features/search/useSearchCriteria';
 import {
   amountKindLabel,
   ddayLabel,
@@ -25,6 +26,28 @@ import {
 import { SaveNoticeButton } from './SaveNoticeButton';
 
 const EMPTY = <span className="cell-empty">-</span>;
+
+/**
+ * `id` 가 곧 공고번호인 단계. 여기서만 '낙찰결과 →' 가 번호 단건조회를 쓸 수 있다.
+ *
+ * `NoticeIndexItem.id` 는 **입찰공고 계열에서만** 공고번호다. 계획은 조달요청번호,
+ * 사전규격은 사전규격등록번호를 같은 칸에 담는다(api/search.ts:168-169 주석). 그런데 이
+ * 버튼은 columns.ts 가 단계 구분 없이 모든 행에 그린다.
+ *
+ * 걸러 내지 않으면 계획·사전규격 행에서 조달요청번호가 `bidNtceNo` 로 나가고, 서버는 있지도
+ * 않은 낙찰건을 색인에서 찾고 나라장터에도 한 번 더 묻고 나서 빈 결과를 돌려준다. 화면에는
+ * "낙찰 결과가 아직 없습니다"(NoResultYet)가 뜨는데 **그 진단이 틀렸다** — 아직 확정 전인
+ * 것이 아니라 애초에 낙찰이라는 것이 있을 수 없는 단계다. 조건줄에는 그럴듯한 번호가 찍혀
+ * 있어 공고명 검색보다 오히려 진단하기 어렵다.
+ */
+const RESULT_LOOKUP_CATEGORIES: readonly string[] = ['입찰', '마감'];
+
+/** 낙찰 단건조회에 쓸 수 있는 공고번호. 쓸 수 없으면 빈 문자열 — 호출부가 공고명으로 떨어진다. */
+function resultLookupNo(item: NoticeIndexItem): string {
+  const no = String(item.id ?? '').trim();
+  const stageHasNoticeNo = RESULT_LOOKUP_CATEGORIES.includes(String(item.category ?? ''));
+  return stageHasNoticeNo && looksLikeNoticeNo(no) ? no : '';
+}
 
 /** 단계 배지 색. 생애주기 순서대로 파랑 → 보라 → 초록 → 회색. */
 const CATEGORY_TONE: Readonly<Record<string, string>> = {
@@ -225,11 +248,12 @@ export function IndexCell({
        * 구분(businessDivision)을 함께 넘기는 것은 서버의 상류 호출을 1회로 끝내기 위해서다.
        * 없으면 서버가 물품 → 용역 → 공사 순으로 최대 세 번 묻는다.
        *
-       * 번호가 없는 행(있어선 안 되지만)은 예전처럼 이름으로 찾는다 — 화면에서 버튼이
-       * 사라지는 것보다 낫다.
+       * **단, 모든 행이 번호를 갖는 것은 아니다.** `item.id` 가 공고번호인 것은 입찰공고
+       * 계열뿐이라 단계로 거른다(resultLookupNo). 번호를 쓸 수 없는 행은 예전처럼 이름으로
+       * 찾는다 — 화면에서 버튼이 사라지는 것보다 낫다.
        */
       const name = String(item.noticeName ?? '').trim();
-      const no = String(item.id ?? '').trim();
+      const no = resultLookupNo(item);
       if (!name && !no) return EMPTY;
       return (
         <button
@@ -242,7 +266,7 @@ export function IndexCell({
               noticeName: name,
             })
           }
-          title="이 공고의 낙찰 결과 보기"
+          title={no ? `공고번호 ${no} 의 낙찰 결과 보기` : '이 공고의 낙찰 결과 보기 (공고명으로 검색합니다)'}
         >
           낙찰결과 →
         </button>

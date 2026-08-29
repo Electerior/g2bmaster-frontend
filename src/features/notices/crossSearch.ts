@@ -12,6 +12,10 @@ import { ROUTES } from '@/routes/routePaths';
  * 입찰 공고 탭이 통합 검색으로 합쳐졌으므로 그쪽으로 보낸다. 넘긴 `ntceNo` 는 색인 검색이
  * 읽지 않는 파라미터라 조건에는 걸리지 않는다 — 색인은 공고번호가 곧 PK 여서 목록을 좁히는
  * 대신 상세로 바로 가는 것이 맞고, 그 경로는 표에서 공고명을 누르는 것으로 이미 있다.
+ *
+ * **입찰 결과 쪽은 다르다.** 그쪽에서 `ntceNo` 는 실제로 걸리는 조건이다 —
+ * `useSearchCriteria` 가 `crossBidNtceNo` 로 읽고 `buildQuery` 가 `bidNtceNo` 로 올리면,
+ * 백엔드 `BidResultLookup` 이 번호로 낙찰건을 직접 찾는다.
  */
 const TARGET_ROUTE: Readonly<Record<CrossTarget, string>> = {
   'bid-announce': ROUTES.noticeSearch,
