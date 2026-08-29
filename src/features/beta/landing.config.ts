@@ -6,13 +6,13 @@
 
 /*
  * 접수처(docs/beta-signup.gs 의 CONFIG)와 값을 맞춰 둔다. total 은 화면에 내거는 정원,
- * remaining 의 출발점은 실제로 받는 수(CAPACITY)다 — 둘이 다른 건 의도한 것이다.
+ * remaining 의 출발점은 실제로 받는 수(CAPACITY)다.
  * 여기 값이 어긋나도 접수는 서버 값으로 돌아가지만, 응답이 오기 전 한 프레임 동안
  * 틀린 숫자가 보인다.
  */
 export const FALLBACK_STATUS = {
-  total: 20,
-  remaining: 12,
+  total: 50,
+  remaining: 50,
   deadline: '2026-08-31T23:59:59+09:00',
   open: true,
 } as const;
