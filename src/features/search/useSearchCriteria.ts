@@ -285,6 +285,31 @@ export function isBlockingRelevant(kind: ScreenKind): boolean {
 }
 
 /**
+ * 품목 검색이 결과를 낼 수 있는 화면 — **입찰 결과는 여기 없다.**
+ *
+ * `searchField=item` 자체는 백엔드에 정상 바인딩된다. 문제는 낙찰정보 **행에 품목 필드가
+ * 아예 없다**는 것이다. `GET /api/bid-result` 는 상류를 실시간으로 치지 않고 로컬 `bid_result`
+ * 색인만 읽는데, 그 행은 ScsbidInfoService 응답을 통째로 담은 것이라 품목분류명이 들어 있지
+ * 않다(옛 라이브 경로에 있던 `dtilPrdctClsfcNoNm` 상류 질의는 사라졌다). 그래서
+ * `BidEnrichment.bidItemHaystack` 이 늘 비고, AND·OR 항이 하나라도 있으면 **구조적으로 0건**이다.
+ *
+ * 오류도 안내도 없이 '검색 결과가 없습니다'만 뜨므로 사용자는 데이터가 없다고 오해한다.
+ * 게다가 `searchForTab` 이 `mode` 를 일부러 보존하기 때문에, 공고 검색에서 품목 모드로
+ * 검색하던 사용자가 '입찰 결과' 탭을 누르면 품목 탭을 따로 누르지 않아도 그대로 0건이 된다.
+ * 백엔드에 폴백을 넣는 것은 상류에 필드 자체가 없어 실효가 없다 — 프론트에서 막는 것이 맞다.
+ */
+export const ITEM_SEARCH_KINDS: readonly ScreenKind[] = [
+  'notice-search',
+  'bid-plan',
+  'pre-spec',
+  'bid-announce',
+];
+
+export function itemSearchApplies(kind: ScreenKind): boolean {
+  return ITEM_SEARCH_KINDS.includes(kind);
+}
+
+/**
  * `POST /api/scan-attachments` 는 로컬 첨부 색인을 읽는 경로로 이미 있다. 그러나 통합 GET
  * 검색에는 `fileKeywords` 만으로 후보 전체를 좁히는 전역 file-only 필터 계약이 아직 없다.
  * 여기만 단순히 켜면 URL 의 `?file=...` 조건과 GET 결과 집합이 서로 다른 의미를 갖게 된다.
@@ -295,6 +320,20 @@ export function isBlockingRelevant(kind: ScreenKind): boolean {
  * (캐시 우회)를 함께 되살린다.
  */
 export const ATTACHMENT_SCAN_READY = false;
+
+/**
+ * 유사도 확장(`simOr` · `simFile`)을 서버가 받는가 — **아직 아니다.**
+ *
+ * 백엔드 `SearchCriteria` 레코드 컴포넌트 13개에 두 이름이 없고, `NoticeController` 의
+ * `@RequestParam` 도 `corpNm`·`bidNtceNo` 둘뿐이라 지금 붙여 보내면 조용히 버려진다.
+ * 계약서(`docs/api-contract.md` §1.3 공유 파라미터 표)만 보면 받는 것처럼 읽히는 자리라,
+ * "보내지 않는다"를 주석이 아니라 **코드로** 명시해 둔다.
+ *
+ * 도달 경로가 URL 뿐이라는 점도 같이 적어 둔다 — `simFile` 은 토글 자체가 삭제됐고
+ * `simOr` 토글은 `TagInput` 이 언제나 `checked={false}` · readOnly 로 그린다. 그래도
+ * 조건의 단일 출처는 URL 이므로 `?simOr=true` 가 붙은 옛 공유 링크는 아직 살아 있다.
+ */
+export const SIMILARITY_READY = false;
 
 /**
  * 체크박스와 무관하게 스캔한다 — 체크 해제 시엔 제외 대신 '?'로 사유를 표시해야 하므로.
@@ -369,11 +408,22 @@ export function buildQuery(
     query.sortDir = criteria.sortDir;
   }
   if (shouldScanAttachments(criteria, kind)) query.fileScan = 'true';
-  if (itemMode) query.searchField = 'item';
-  // 유사도는 '하나 이상'(제목)과 '파일 내'(규격서 본문)에만 붙는다.
-  // '모두 포함'·'제외'는 정확히 걸러야 하는 조건이라 의미 확장을 넣지 않는다.
-  if (criteria.simOr && criteria.orTerms.length) query.simOr = 'true';
-  if (criteria.simFile && criteria.fileKeywords.length) query.simFile = 'true';
+  if (itemMode && ITEM_SEARCH_KINDS.includes(kind)) query.searchField = 'item';
+  /*
+   * 유사도는 '하나 이상'(제목)과 '파일 내'(규격서 본문)에만 붙는다.
+   * '모두 포함'·'제외'는 정확히 걸러야 하는 조건이라 의미 확장을 넣지 않는다.
+   *
+   * `useTerms` 를 함께 보는 이유: 공고번호 조회·발주기관 모드에서는 orTerms 가 질의에서
+   * 통째로 빠지는데(위 :353-355) `criteria.orTerms` 는 URL 에 남아 있다. 그것만 보고
+   * 붙이면 **조건 없는 재정렬**이 켜지는 셈이다 — 지금은 서버가 안 받아 무해하지만,
+   * 계약이 생기는 날 조용히 켜지는 종류의 결함이라 지금 닫는다.
+   */
+  if (SIMILARITY_READY && useTerms && criteria.simOr && criteria.orTerms.length) {
+    query.simOr = 'true';
+  }
+  if (SIMILARITY_READY && criteria.simFile && criteria.fileKeywords.length) {
+    query.simFile = 'true';
+  }
 
   return query;
 }

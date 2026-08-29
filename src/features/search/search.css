@@ -52,6 +52,22 @@
   background: var(--mode-tab-active);
   color: var(--theme-on-dark);
 }
+/* 이 화면에서 성립하지 않는 검색 방식. 지우지 않고 눌리지 않게만 둔다 — SearchModeTabs 주석. */
+.search-mode-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+.search-mode-btn:disabled:hover {
+  color: var(--muted);
+  background: transparent;
+}
+
+/* 조건이 이 화면에 적용되지 않을 때의 한 줄. 조용히 무시하면 "왜 다 나오지"가 된다. */
+.search-mode-note {
+  color: var(--muted);
+  font-size: var(--fs-meta);
+  margin: 6px 2px 0;
+}
 
 /* ── 불리언 행 ─────────────────────────────────────────────────────────── */
 .bool-search {
