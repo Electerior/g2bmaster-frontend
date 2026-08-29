@@ -20,6 +20,8 @@ import { pick } from './metaValues';
  */
 export interface OpeningTarget {
   bidNtceNo?: string;
+  /** 낙찰정보가 말하는 총 참여업체 수. 수집분이 이보다 적으면 표가 잘린 것이다. */
+  prtcptCnum?: string | number;
   /** 입찰 공고 계열의 차수. 입찰 결과 응답에는 이 이름이 없고 bidNtceOrd 로 온다. */
   bidNtceSqNo?: string;
   bidNtceOrd?: string;
@@ -93,6 +95,17 @@ export function OpeningPanel({ item }: OpeningPanelProps) {
    */
   useEffect(() => setExpanded(false), [noticeNo]);
 
+  /*
+   * 수집분이 낙찰정보의 참여업체수보다 적으면 **표가 잘린 것**이다.
+   *
+   * 상류 수집에 상한이 있어서(MAX_OPENING_PARTICIPANTS) 아주 큰 개찰에서는 전수가 오지
+   * 않는다. 그때 '총 N개사 참여'라고만 적으면 바로 위 메타 격자의 '참여업체수'와 숫자가
+   * 어긋나 화면이 스스로 모순된다 — 실제로 5,527 vs 3,996 으로 그랬다. 잘렸으면 잘렸다고
+   * 말한다. 상한을 올려도 언젠가 또 넘는다.
+   */
+  const reported = Number(String(item.prtcptCnum ?? '').replace(/[^0-9]/g, '')) || 0;
+  const capped = reported > sorted.length ? reported - sorted.length : 0;
+
   return (
     <div className="drawer-section tight">
       <div className="drawer-section-label">
@@ -103,9 +116,10 @@ export function OpeningPanel({ item }: OpeningPanelProps) {
           (실측: 버튼 top 1032px, 뷰포트 972px — 150px 쯤 스크롤해야 나온다). 그것만 두면
           사용자는 스크롤하기 전에 "20개사가 전부"라고 읽고 끝낸다 — 실제로 그런 제보를 받았다.
         */}
-        {hidden > 0 ? (
+        {hidden > 0 || capped > 0 ? (
           <span className="opening-truncated">
-            상위 {shown.length}개사 · 총 {sorted.length.toLocaleString()}개사
+            상위 {shown.length}개사 · 수집 {sorted.length.toLocaleString()}개사
+            {capped > 0 ? ` (낙찰정보 기준 ${reported.toLocaleString()}개사 중)` : null}
           </span>
         ) : null}
         <button
@@ -168,7 +182,11 @@ export function OpeningPanel({ item }: OpeningPanelProps) {
                 접기
               </button>
             ) : null}
-            <div className="opening-note">총 {participants.length.toLocaleString()}개사 참여</div>
+            <div className="opening-note">
+              {capped > 0
+                ? `총 ${reported.toLocaleString()}개사 참여 — 그중 ${participants.length.toLocaleString()}개사 확인`
+                : `총 ${participants.length.toLocaleString()}개사 참여`}
+            </div>
           </>
         )}
       </div>
