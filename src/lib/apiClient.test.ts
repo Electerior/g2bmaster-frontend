@@ -40,6 +40,26 @@ describe('errorMessageFrom', () => {
     );
   });
 
+  it('타임아웃은 연결 실패가 아니다 — 그 시각 백엔드는 살아서 상류를 때리고 있다', () => {
+    /*
+     * 우리가 먼저 끊은 요청도 응답이 없어 status 는 0 이다. 그것을 '백엔드에 연결하지
+     * 못했습니다' 로 부르면 원인 귀속이 틀리고, 사용자도 로그도 엉뚱한 곳을 본다.
+     * 엣지(nginx 300초)보다 axios 상한이 짧아 느린 요청의 정상 경로다.
+     */
+    for (const code of ['ECONNABORTED', 'ETIMEDOUT']) {
+      expect(errorMessageFrom(0, undefined, 'timeout of 60000ms exceeded', code)).toBe(
+        '요청이 제한 시간 안에 끝나지 않았습니다. 조건을 좁혀 다시 시도해 주세요.',
+      );
+    }
+  });
+
+  it('백엔드가 문구를 줬으면 타임아웃 코드보다 그쪽이 우선한다', () => {
+    // 코드가 붙어 있어도 본문이 있다는 것은 응답이 왔다는 뜻이다.
+    expect(errorMessageFrom(503, { error: '나라장터 점검 중입니다.' }, 'x', 'ECONNABORTED')).toBe(
+      '나라장터 점검 중입니다.',
+    );
+  });
+
   it('본문 없는 4xx 는 그대로 둔다 — 앞단이 아니라 요청 쪽 문제다', () => {
     // 404·401 을 "연결하지 못했습니다"로 바꾸면 없는 경로를 부른 것이 서버 장애로 보인다.
     expect(errorMessageFrom(404, undefined, 'Request failed with status code 404')).toBe(
