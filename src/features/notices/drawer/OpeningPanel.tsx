@@ -9,7 +9,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { fetchBidOpeningResults, type BidOpeningParticipant } from '@/api';
 import { Spinner } from '@/components/feedback/Spinner';
-import { fmtBidRate, ordinalOf } from '../rows';
+import { fmtBidRate, ordinalOf, rankOf, rankText } from '../rows';
 import { pick } from './metaValues';
 
 /**
@@ -60,7 +60,9 @@ export function OpeningPanel({ item, autoLoad = false }: OpeningPanelProps) {
   });
 
   const participants: BidOpeningParticipant[] = query.data?.participants ?? [];
-  const sorted = [...participants].sort((a, b) => Number(a.rank ?? 99) - Number(b.rank ?? 99));
+  // 정렬 규칙은 rows.ts 에 둔다 — 빈 문자열 순위를 여기서만 막으면 담합 모달이 나중에
+  // 순위를 그릴 때 같은 함정을 다시 밟는다.
+  const sorted = [...participants].sort((a, b) => rankOf(a) - rankOf(b));
 
   return (
     <div className="drawer-section tight">
@@ -103,7 +105,7 @@ export function OpeningPanel({ item, autoLoad = false }: OpeningPanelProps) {
                     const won = String(p.sucsfbidYn ?? '').toUpperCase() === 'Y';
                     return (
                       <tr key={`${p.bdrNm ?? ''}-${i}`} className={won ? 'win' : undefined}>
-                        <td className="mid">{p.rank ?? '-'}</td>
+                        <td className="mid">{rankText(p)}</td>
                         <td>{p.bdrNm ?? '-'}</td>
                         <td className="num">{fmtBidAmount(p.bidAmt)}</td>
                         <td className="num">{fmtBidRate(p.bidprcRt)}</td>
