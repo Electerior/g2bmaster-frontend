@@ -254,6 +254,12 @@ describe('입찰 결과 서랍', () => {
     // 끊겼다는 사실과 남은 수가 보여야 한다 — 안 그러면 20개사가 전부라고 읽는다.
     expect(within(drawer).getByRole('button', { name: /나머지 1,576개사 더 보기/ })).toBeInTheDocument();
     expect(within(drawer).getByText(/총 1,596개사 참여/)).toBeInTheDocument();
+    /*
+     * 머리줄에도 적는다. '더 보기' 버튼은 20행 아래라 서랍을 연 첫 화면에서는 화면 밖이다
+     * (실측 버튼 top 1032px / 뷰포트 972px). 그것만 두면 스크롤하기 전에 "20개사가 전부"로
+     * 읽고 끝낸다 — 실제로 그 제보를 받아 이 줄을 넣었다.
+     */
+    expect(within(drawer).getByText(/상위 20개사 · 총 1,596개사/)).toBeInTheDocument();
   });
 
   it("'더 보기'를 누르면 전부 펼친다", async () => {
@@ -293,6 +299,8 @@ describe('입찰 결과 서랍', () => {
 
     expect(await within(drawer).findByText('업체8')).toBeInTheDocument();
     expect(within(drawer).queryByRole('button', { name: /더 보기/ })).not.toBeInTheDocument();
+    // 잘리지 않았으면 머리줄 요약도 없어야 한다 — 늘 띄우면 잡음이다.
+    expect(within(drawer).queryByText(/상위 .*개사 · 총/)).not.toBeInTheDocument();
   });
 
   it('공고번호가 없으면 조회하지 않는다 — 빈 번호로 나가면 서버가 400 을 낸다', async () => {
