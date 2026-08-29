@@ -136,10 +136,16 @@ export const SCREENS: Readonly<Record<ScreenKind, ScreenConfig>> = {
        * (app.js:2045)이며, 셀 포맷터('result-cross')와 이동 함수(crossSearchTo)는 진작
        * 있었는데 이 컬럼이 라우팅되지 않는 레거시 정의에만 있어 화면에서 도달할 수 없었다.
        *
-       * key 가 bidNtceNm 이 아니라 noticeName 인 것에 주의하라 — 색인 검색의 공고명 키다.
-       * 팬아웃 응답의 필드명을 그대로 베끼면 값이 늘 비어 버튼이 아예 안 그려진다.
+       * **key 는 이 표에서 유일해야 한다.** columnClass 가 `col-<key>` 로 폭 클래스를 만들기
+       * 때문이다. 예전에는 여기 key 가 'noticeName' 이라 공고명 칸과 같은 `.col-noticeName`
+       * 을 받았고, 그 규칙이 `width: 32%` 라 두 칸이 합쳐 64% 를 가져갔다 — 나머지 여섯 칸
+       * (단계·지역·금액·공고일·마감일시·★)이 36% 를 나눠 갖느라 지역이 눌렸다.
+       *
+       * 값을 못 읽게 되는 것 아니냐는 걱정은 없다 — `result-cross` 렌더러는 column.key 의
+       * 값을 쓰지 않고 `item.noticeName` 과 `item.id` 를 직접 읽는다. 옆 입찰공고 표도
+       * 이미 별도 key(bidNtceNo)를 쓴다.
        */
-      { label: '낙찰결과', key: 'noticeName', fmt: 'result-cross', sortKey: null },
+      { label: '낙찰결과', key: 'resultCross', fmt: 'result-cross', sortKey: null },
       // ★ 저장 — POST /api/saved-notices 로 바로 담는다(SVG 목업의 행 끝 별).
       { label: '', key: 'id', fmt: 'save-star', sortKey: null },
     ],
